@@ -1,0 +1,146 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: surveys-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-surveys_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_this_password}
+      POSTGRES_DB: ${POSTGRES_DB:-surveys_dev}
+    ports:
+      - "${DATABASE_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-surveys_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis (Queue & Cache)
+  redis:
+    image: redis:7-alpine
+    container_name: surveys-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ============================================
+  # DEVELOPMENT WORKFLOW:
+  # During development, run API, Worker, and Admin locally (not in Docker)
+  # for hot module replacement and faster iteration.
+  # 
+  # Use: pnpm dev (runs all services locally)
+  # 
+  # These service definitions are for PRODUCTION ONLY.
+  # See docker-compose.prod.yml for production deployment.
+  # ============================================
+
+  # API Service (production only - run locally during dev)
+  # api:
+  #   build:
+  #     context: .
+  #     dockerfile: apps/api/Dockerfile
+  #   container_name: surveys-api
+  #   restart: unless-stopped
+  #   ports:
+  #     - "${API_PORT:-3000}:3000"
+  #   environment:
+  #     NODE_ENV: ${NODE_ENV:-development}
+  #     DATABASE_HOST: postgres
+  #     DATABASE_PORT: 5432
+  #     DATABASE_NAME: ${POSTGRES_DB:-surveys_dev}
+  #     DATABASE_USER: ${POSTGRES_USER:-surveys_user}
+  #     DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-change_this_password}
+  #     REDIS_HOST: redis
+  #     REDIS_PORT: 6379
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+
+  # Background Worker (production only - run locally during dev)
+  # worker:
+  #   build:
+  #     context: .
+  #     dockerfile: apps/worker/Dockerfile
+  #   container_name: surveys-worker
+  #   restart: unless-stopped
+  #   environment:
+  #     NODE_ENV: ${NODE_ENV:-development}
+  #     DATABASE_HOST: postgres
+  #     DATABASE_PORT: 5432
+  #     DATABASE_NAME: ${POSTGRES_DB:-surveys_dev}
+  #     DATABASE_USER: ${POSTGRES_USER:-surveys_user}
+  #     DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-change_this_password}
+  #     REDIS_HOST: redis
+  #     REDIS_PORT: 6379
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+
+  # Admin Dashboard (production only - run locally with Vite during dev)
+  # Note: In dev, run "pnpm --filter admin dev" for hot module replacement
+  # In production, this serves the static build from apps/admin/dist/
+  # admin:
+  #   image: nginx:alpine
+  #   container_name: surveys-admin
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8080:80"
+  #   volumes:
+  #     - ./apps/admin/dist:/usr/share/nginx/html:ro
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #   profiles:
+  #     - production
+
+  # Caddy Reverse Proxy (production only)
+  # In production, Caddy routes traffic to API and serves Admin static files
+  # caddy:
+  #   image: caddy:2-alpine
+  #   container_name: surveys-caddy
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./Caddyfile:/etc/caddy/Caddyfile
+  #     - ./apps/admin/dist:/srv/admin:ro
+  #     - caddy_data:/data
+  #     - caddy_config:/config
+  #   depends_on:
+  #     - api
+  #   profiles:
+  #     - production
+
+volumes:
+  postgres_data:
+    name: surveys_postgres_data
+  redis_data:
+    name: surveys_redis_data
+  caddy_data:
+    name: surveys_caddy_data
+  caddy_config:
+    name: surveys_caddy_config
+
+networks:
+  default:
+    name: surveys_network

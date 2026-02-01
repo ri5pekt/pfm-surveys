@@ -1,0 +1,121 @@
+Survey Platform
+
+Self-hosted, multi-tenant survey platform inspired by Hotjar Surveys. This project provides a production-ready system for embedding surveys on external websites, collecting responses securely, aggregating analytics using background jobs, and displaying results in an admin dashboard.
+
+The repository contains the Phase 1 MVP only. Advanced features and add-ons are intentionally out of scope.
+
+Purpose
+
+The purpose of this project is to build an internal alternative to SaaS survey tools that can be hosted on a private VPS. The system allows surveys to be embedded on websites using a lightweight JavaScript snippet, collects impressions and answers without blocking user interactions, and processes analytics asynchronously to keep dashboards fast and predictable.
+
+The architecture prioritizes correctness, performance, and extensibility over feature completeness.
+
+Version
+
+1.0.0 (MVP)
+
+Tech Stack
+
+The backend is implemented using Node.js with Fastify and TypeScript. PostgreSQL is used as the primary database, with Kysely as the SQL query builder. Redis and BullMQ are used for background jobs and queue processing. Authentication is handled using JWT access and refresh tokens.
+
+The admin frontend is built with Vue 3, Vite, and Pinia. PrimeVue with the Aura theme is used as the UI library.
+
+The embed script is written in vanilla JavaScript and built using Vite in library mode. It consists of a small async loader and a versioned widget bundle. Event delivery uses navigator.sendBeacon with a fetch keepalive fallback.
+
+Infrastructure is managed using Docker and Docker Compose. Caddy is used as the reverse proxy and HTTPS provider. The system is intended to run on a single VPS.
+
+Architecture Overview
+
+The system consists of an embed script running on customer websites, an API service responsible for configuration and ingestion, background workers that process events and build rollups, and an admin dashboard used to manage surveys and view results.
+
+All user-facing requests are kept lightweight. No analytics or aggregation logic is executed synchronously during ingestion.
+
+Multi-Tenancy Model
+
+The platform supports multiple tenants. Each tenant can own multiple sites. Each site is identified by a public site_id and a server-side site_secret used for request signing. Sites may optionally define an allowed domain list.
+
+All collected data is scoped by site.
+
+Survey Configuration Delivery
+
+Survey configuration is delivered through a live API endpoint. When the embed script loads, it requests configuration data for the given site. The API returns all active surveys and their rules. Eligibility and targeting decisions are evaluated on the client.
+
+Configuration responses support caching through ETag headers and client-side TTL.
+
+Identity and Dedupe Strategy
+
+All identity handling in Phase 1 is client-side only.
+
+Each browser is assigned a stable anonymous_user_id stored in localStorage. This identifier is used for frequency caps and approximate unique user counts.
+
+A session_id is also stored in localStorage and shared across tabs. Sessions expire after thirty minutes of inactivity.
+
+Each event includes a client_event_id generated on the client. This identifier is used to guarantee idempotency and is enforced with a unique constraint in PostgreSQL.
+
+No server-side identity validation or enforcement is performed in this phase.
+
+Embed Security
+
+All embed traffic is treated as hostile input. Event ingestion requests are signed using HMAC.
+
+Each request includes the site_id, a timestamp, a nonce, and a payload hash. The server validates the HMAC signature, checks that the timestamp falls within an acceptable window, and prevents nonce reuse using Redis with a TTL.
+
+This prevents spoofed events, replay attacks, and cross-site abuse.
+
+Event Flow
+
+When the embed script loads, it fetches survey configuration from the API. The client evaluates eligibility rules and renders the survey if applicable. Events are buffered on the client and flushed in batches either periodically or when a size threshold is reached. Events are sent using sendBeacon when possible, with fetch keepalive as a fallback.
+
+Failures are handled silently and never interfere with the host website.
+
+Ingestion Flow
+
+The API verifies and validates incoming requests, then enqueues events into BullMQ. The API responds immediately without performing database writes. Background workers consume queued jobs and insert raw events into PostgreSQL.
+
+Data Model Philosophy
+
+Raw events are append-only and never updated. They serve as the source of truth.
+
+Answers are stored separately, with one row per answer, supporting both text and multiple-choice questions.
+
+Rollups are pre-aggregated daily statistics derived from raw events. Rollups are built incrementally using event ID watermarks and are used exclusively by the admin dashboard.
+
+Rollup state tracks the last processed event ID per site, enabling deterministic and resumable aggregation. All rollups are disposable and can be rebuilt from raw data.
+
+Rollups
+
+Rollups are processed by background workers. Events are read incrementally by event ID, aggregated in small chunks, and written transactionally to rollup tables. Dashboards never query raw event tables.
+
+This design ensures predictable database load and consistently fast dashboards.
+
+Queues and Jobs
+
+Redis and BullMQ are used to decouple ingestion from persistence and aggregation. One queue handles event ingestion and another handles rollup processing. Rollup jobs run on a fixed interval and advance a per-site watermark as events are processed.
+
+Project Structure
+apps/
+  api/
+  worker/
+  admin/
+  embed/
+
+packages/
+  shared/
+
+docs/
+  decisions.md
+  architecture.md
+
+MVP Scope
+
+The MVP includes survey creation, single-question surveys, multiple-choice and text questions, URL-based targeting, time-on-page triggers, sampling, client-side frequency caps, secure ingestion, daily rollups, an admin dashboard, and basic operational visibility.
+
+Advanced targeting, multi-question surveys, exports, alerts, text analysis, and session recordings are intentionally excluded.
+
+Operational Principles
+
+User-facing requests must always be fast and non-blocking. All analytics work is performed in background jobs. Raw data is immutable. Rollups are disposable. Embed failures must never affect host sites. The client must fail silently.
+
+Status
+
+Architecture decisions are finalized. The project is ready for development.

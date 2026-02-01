@@ -1,0 +1,21 @@
+{
+  "name": "embed",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lightweight embed widget for displaying surveys on external websites",
+  "type": "module",
+  "scripts": {
+    "dev": "vite build --watch --mode development",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --ext .ts",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.11"
+  }
+}

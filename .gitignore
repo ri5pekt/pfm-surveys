@@ -1,0 +1,82 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+.temp/
+
+# Docker volumes (if running locally)
+postgres_data/
+redis_data/
+caddy_data/
+
+# OS files
+Thumbs.db
+Desktop.ini
+
+# Vite
+.vite/
+.vite-cache/
+
+# TypeScript
+*.tsbuildinfo
+
+# Production configs (if sensitive)
+docker-compose.prod.yml
+Caddyfile
+
+# Database dumps
+*.sql
+*.dump
+
+# Secrets and keys
+*.pem
+*.key
+*.cert
+secrets/
+
+# IDE specific
+.fleet/
+.cursor/
