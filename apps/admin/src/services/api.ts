@@ -53,7 +53,7 @@ export const sitesApi = {
         return data;
     },
 
-    async create(siteData: { name: string; domains?: string[] }): Promise<{ site: Site }> {
+    async create(siteData: { name: string; domains?: string[]; allow_any_domain?: boolean }): Promise<{ site: Site }> {
         const { data } = await api.post("/api/sites", siteData);
         return data;
     },
@@ -63,7 +63,7 @@ export const sitesApi = {
         return data;
     },
 
-    async update(id: string, siteData: { name: string; domains?: string[] }): Promise<{ site: Site }> {
+    async update(id: string, siteData: { name: string; domains?: string[]; allow_any_domain?: boolean }): Promise<{ site: Site }> {
         const { data } = await api.put(`/api/sites/${id}`, siteData);
         return data;
     },

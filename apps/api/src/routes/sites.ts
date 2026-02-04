@@ -6,6 +6,7 @@ import { z } from 'zod';
 const createSiteSchema = z.object({
   name: z.string().min(1),
   domains: z.array(z.string()).optional(),
+  allow_any_domain: z.boolean().optional(),
 });
 
 export default async function sitesRoutes(fastify: FastifyInstance) {
@@ -49,6 +50,7 @@ export default async function sitesRoutes(fastify: FastifyInstance) {
           site_id: siteId,
           site_secret: siteSecret,
           domains: data.domains || null,
+          allow_any_domain: data.allow_any_domain || false,
           active: true,
         })
         .returningAll()
@@ -104,6 +106,7 @@ export default async function sitesRoutes(fastify: FastifyInstance) {
         .set({
           name: data.name,
           domains: data.domains || null,
+          allow_any_domain: data.allow_any_domain !== undefined ? data.allow_any_domain : false,
           updated_at: new Date(),
         })
         .where('id', '=', id)

@@ -177,7 +177,10 @@
           </div>
         </div>
 
-        <button @click="viewingSite = null" class="btn-primary">Close</button>
+        <div class="modal-actions">
+          <button @click="editSiteFromView(viewingSite)" class="btn-secondary">Edit Domains</button>
+          <button @click="viewingSite = null" class="btn-primary">Close</button>
+        </div>
       </div>
     </div>
   </div>
@@ -248,7 +251,20 @@ async function handleSave() {
   error.value = null;
   
   if (editingSite.value) {
-    // Update logic here
+    // Update site
+    const updated = await sitesStore.updateSite(editingSite.value.id, {
+      name: formData.value.name,
+      domains: formData.value.domains.length > 0 ? formData.value.domains : undefined,
+      allow_any_domain: formData.value.allowAnyDomain,
+    });
+
+    if (updated) {
+      showAddModal.value = false;
+      editingSite.value = null;
+      formData.value = { name: '', domains: [], allowAnyDomain: false };
+    } else {
+      error.value = sitesStore.error || 'Failed to update website';
+    }
   } else {
     const site = await sitesStore.createSite({
       name: formData.value.name,
@@ -745,5 +761,29 @@ onMounted(async () => {
 .text-danger {
   color: #d73a49;
   font-weight: 500;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+.btn-secondary {
+  padding: 12px 24px;
+  background: #f5f5f5;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background: #e5e5e5;
+  border-color: #ccc;
 }
 </style>

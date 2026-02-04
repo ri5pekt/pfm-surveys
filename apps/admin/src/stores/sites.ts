@@ -81,6 +81,8 @@ export const useSitesStore = defineStore("sites", () => {
         hasSites,
         fetchSites,
         createSite,
+        updateSite,
+        deleteSite,
         selectSite,
         reset,
     };
