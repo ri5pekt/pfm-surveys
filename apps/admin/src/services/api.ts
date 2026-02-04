@@ -63,7 +63,10 @@ export const sitesApi = {
         return data;
     },
 
-    async update(id: string, siteData: { name: string; domains?: string[]; allow_any_domain?: boolean }): Promise<{ site: Site }> {
+    async update(
+        id: string,
+        siteData: { name: string; domains?: string[]; allow_any_domain?: boolean }
+    ): Promise<{ site: Site }> {
         const { data } = await api.put(`/api/sites/${id}`, siteData);
         return data;
     },
@@ -110,7 +113,7 @@ export const surveysApi = {
 
     async getResponses(
         surveyId: string,
-        params?: { question_id?: string; page?: number; limit?: number },
+        params?: { question_id?: string; page?: number; limit?: number }
     ): Promise<{ responses: ResponseRow[]; total: number }> {
         const { data } = await api.get(`/api/surveys/${surveyId}/responses`, {
             params,

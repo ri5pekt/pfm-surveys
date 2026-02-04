@@ -39,7 +39,7 @@ export const useSitesStore = defineStore("sites", () => {
         }
     }
 
-    async function createSite(data: { name: string; domains?: string[] }) {
+    async function createSite(data: { name: string; domains?: string[]; allow_any_domain?: boolean }) {
         loading.value = true;
         error.value = null;
 
@@ -55,6 +55,61 @@ export const useSitesStore = defineStore("sites", () => {
         } catch (err: any) {
             error.value = err.response?.data?.error || "Failed to create site";
             return null;
+        } finally {
+            loading.value = false;
+        }
+    }
+
+    async function updateSite(id: string, data: { name: string; domains?: string[]; allow_any_domain?: boolean }) {
+        loading.value = true;
+        error.value = null;
+
+        try {
+            const response = await sitesApi.update(id, data);
+            const updatedSite = response.site;
+
+            // Update site in local state
+            const index = sites.value.findIndex((s) => s.id === id);
+            if (index !== -1) {
+                sites.value[index] = updatedSite;
+            }
+
+            // Update current site if it's the one being updated
+            if (currentSite.value?.id === id) {
+                currentSite.value = updatedSite;
+            }
+
+            return updatedSite;
+        } catch (err: any) {
+            error.value = err.response?.data?.error || "Failed to update site";
+            return null;
+        } finally {
+            loading.value = false;
+        }
+    }
+
+    async function deleteSite(id: string) {
+        loading.value = true;
+        error.value = null;
+
+        try {
+            await sitesApi.delete(id);
+            sites.value = sites.value.filter((s) => s.id !== id);
+
+            // Clear current site if it was deleted
+            if (currentSite.value?.id === id) {
+                currentSite.value = sites.value[0] || null;
+                if (currentSite.value) {
+                    localStorage.setItem("current_site_id", currentSite.value.id);
+                } else {
+                    localStorage.removeItem("current_site_id");
+                }
+            }
+
+            return true;
+        } catch (err: any) {
+            error.value = err.response?.data?.error || "Failed to delete site";
+            return false;
         } finally {
             loading.value = false;
         }
