@@ -1,0 +1,31 @@
+v0.1.0: Security hardening and production deployment setup
+
+Security Features Implemented:
+- Domain validation with Origin/Referer checks
+- Three-tier rate limiting (global, per-IP, per-site)  
+- Request body limits and Zod validation
+- Input cleanup with safe output rendering
+- Database length constraints
+- Production HTTPS setup with Caddy
+
+Core Features:
+- Multi-tenant survey platform
+- Multiple question types
+- Event tracking and analytics
+- Geo-location detection
+- Email invitations
+- Real-time reporting with charts
+- Background job processing
+
+Technical:
+- FastifyAPI + TypeScript backend
+- Vue.js + Pinia frontend
+- PostgreSQL + Redis
+- Docker containerization
+- Automated migrations
+
+Version Tracking:
+- Added VERSION file
+- Version badge in UI (v0.1.0)
+
+See docs/SECURITY_IMPLEMENTATION.md for details.

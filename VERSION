@@ -1,0 +1,39 @@
+0.1.0
+
+## Version History
+
+### v0.1.0 (2026-02-04)
+**Initial Release with Security Hardening**
+
+Security Features:
+- Domain validation with Origin/Referer checks
+- Three-tier rate limiting (global, per-IP, per-site)
+- Request body limits and Zod validation
+- Input cleanup with safe output rendering
+- Database length constraints
+- Production HTTPS setup with Caddy
+
+Core Features:
+- Multi-tenant survey platform
+- Multiple question types (radio, checkbox, text, rating)
+- Display settings and targeting rules
+- Event tracking (impressions, responses, dismissals)
+- Geo-location detection
+- Email invitations via Mailjet
+- Real-time analytics and reporting
+- Background job processing with BullMQ
+
+Admin Features:
+- Site management with domain security
+- Survey builder with question editor
+- Response analytics with charts
+- Team management
+- My Surveys / All Surveys filtering
+
+Technical:
+- FastifyAPI backend with TypeScript
+- Vue.js admin frontend
+- PostgreSQL database
+- Redis for caching and queues
+- Docker containerization
+- Automated migrations

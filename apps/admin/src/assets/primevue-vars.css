@@ -1,0 +1,62 @@
+/* PrimeVue CSS Variables */
+:root {
+  --p-dialog-border-radius: 16px;
+  --p-dialog-background: #ffffff;
+  --p-dialog-border-color: rgba(0, 0, 0, 0.1);
+  --p-dialog-color: #1a1a1a;
+  --p-dialog-header-padding: 1.5rem;
+  --p-dialog-content-padding: 0 1.5rem 1.5rem;
+  --p-dialog-footer-padding: 1rem 1.5rem;
+  --p-dialog-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+/* Dialog mask/overlay */
+.p-dialog-mask {
+  background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+}
+
+/* Dialog base styles */
+.p-dialog {
+  background: var(--p-dialog-background);
+  border-radius: var(--p-dialog-border-radius);
+  box-shadow: var(--p-dialog-shadow);
+  color: var(--p-dialog-color);
+  overflow: hidden;
+}
+
+.p-dialog .p-dialog-header {
+  padding: var(--p-dialog-header-padding);
+  background: var(--p-dialog-background);
+  border-bottom: none;
+}
+
+.p-dialog .p-dialog-content {
+  padding: var(--p-dialog-content-padding);
+  background: var(--p-dialog-background);
+}
+
+.p-dialog .p-dialog-footer {
+  padding: var(--p-dialog-footer-padding);
+  background: var(--p-dialog-background);
+  border-top: none;
+}
+
+.p-dialog .p-dialog-header-close {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.p-dialog .p-dialog-header-close:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.p-dialog .p-dialog-header-close-icon {
+  width: 1rem;
+  height: 1rem;
+}

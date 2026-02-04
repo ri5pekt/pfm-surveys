@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch --clear-screen=false src/index.ts",
+    "rollup:trigger": "tsx scripts/trigger-rollup.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "eslint src --ext .ts",

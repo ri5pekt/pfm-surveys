@@ -223,7 +223,7 @@ curl http://localhost:3000/health
 
 ### Testing the Embed Script
 
-1. The embed script is built in `apps/embed/dist/`
+1. The embed is a build artifact: run `pnpm build:embed` (or `pnpm dev:api` from repo root to build embed then start API). The API serves **only** the built script from `apps/embed/dist/embed.js`; if it’s missing, `GET /embed/script.js` returns 503 with instructions.
 2. Create a simple HTML test page:
 
 ```html
@@ -234,11 +234,11 @@ curl http://localhost:3000/health
 </head>
 <body>
   <h1>Survey Embed Test</h1>
-  
+
   <script>
     (function() {
       var script = document.createElement('script');
-      script.src = 'http://localhost:3000/embed.js?site_id=YOUR_SITE_ID';
+      script.src = 'http://localhost:3000/embed/script.js?site_id=YOUR_SITE_ID';
       script.async = true;
       document.head.appendChild(script);
     })();

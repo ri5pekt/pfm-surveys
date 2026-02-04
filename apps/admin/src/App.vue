@@ -1,21 +1,26 @@
 <template>
-  <div id="app">
-    <h1>Survey Platform - Admin Dashboard</h1>
-    <p>Coming soon...</p>
-  </div>
+  <RouterView />
 </template>
 
 <script setup lang="ts">
-// Admin dashboard will be implemented here
+import { RouterView } from 'vue-router';
 </script>
 
-<style scoped>
-#app {
-  font-family: system-ui, -apple-system, sans-serif;
-  padding: 2rem;
+<style>
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-h1 {
-  color: #333;
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  width: 100%;
+  min-height: 100vh;
 }
 </style>

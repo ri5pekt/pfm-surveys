@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PFM Surveys - Embed Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      background: #f5f5f5;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+    p {
+      color: #666;
+      line-height: 1.6;
+    }
+    .content {
+      background: white;
+      padding: 40px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    .instructions {
+      background: #e7f3ff;
+      padding: 20px;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+    }
+    code {
+      background: #f4f4f4;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="content">
+    <h1>PFM Surveys - Embed Test Page</h1>
+    <p>This is a test page to verify the survey embed script is working correctly.</p>
+    <p>If everything is configured properly, you should see:</p>
+    <ul>
+      <li>✅ No console errors about CORS or JSON parsing</li>
+      <li>✅ Page view events being sent to the API</li>
+      <li>✅ A survey popup (if you've created one in the admin dashboard)</li>
+    </ul>
+  </div>
+
+  <div class="instructions">
+    <h2>What's Happening?</h2>
+    <p>The embed script is:</p>
+    <ol>
+      <li>Tracking your page visit (check the <code>events</code> table in the database)</li>
+      <li>Fetching active surveys for this site</li>
+      <li>Displaying surveys based on targeting rules</li>
+    </ol>
+    <p><strong>Next Step:</strong> Create a survey in the admin dashboard and refresh this page!</p>
+  </div>
+
+  <!-- PFM Surveys Embed Script -->
+  <script
+    src="https://nonappropriable-masked-tarah.ngrok-free.dev/embed/script.js?site_id=site_5627330ec0d41e8233f55ca974bf89fd"
+    defer
+  ></script>
+
+  <!-- Debug Console -->
+  <script>
+    console.log('%c[Test Page] Loaded', 'color: green; font-weight: bold');
+    console.log('[Test Page] Waiting for PFM Surveys script to initialize...');
+
+    // Check if events are being sent
+    setTimeout(() => {
+      console.log('%c[Test Page] Check your browser Network tab to see API requests', 'color: blue; font-weight: bold');
+      console.log('[Test Page] Expected requests:');
+      console.log('  1. GET /api/public/surveys');
+      console.log('  2. POST /api/public/events (impression, answer, dismiss)');
+    }, 2000);
+  </script>
+</body>
+</html>

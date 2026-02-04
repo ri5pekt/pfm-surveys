@@ -1,36 +1,39 @@
 {
-  "name": "pfm-surveys",
-  "version": "1.0.0",
-  "private": true,
-  "description": "Self-hosted multi-tenant survey platform",
-  "engines": {
-    "node": ">=20.0.0",
-    "pnpm": ">=8.0.0"
-  },
-  "packageManager": "pnpm@8.15.0",
-  "scripts": {
-    "dev": "pnpm -r --parallel dev",
-    "build": "pnpm -r --filter=\"!admin\" build && pnpm --filter admin build",
-    "lint": "pnpm -r lint",
-    "type-check": "pnpm -r type-check",
-    "test": "pnpm -r test",
-    "clean": "pnpm -r clean && rm -rf node_modules"
-  },
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
-  "keywords": [
-    "survey",
-    "feedback",
-    "analytics",
-    "multi-tenant",
-    "self-hosted"
-  ],
-  "author": "",
-  "license": "MIT",
-  "devDependencies": {
-    "@types/node": "^20.11.0",
-    "typescript": "^5.3.3"
-  }
+    "name": "pfm-surveys",
+    "version": "0.1.0",
+    "private": true,
+    "description": "Self-hosted multi-tenant survey platform",
+    "engines": {
+        "node": ">=20.0.0",
+        "pnpm": ">=8.0.0"
+    },
+    "packageManager": "pnpm@8.15.0",
+    "scripts": {
+        "dev": "pnpm -r --parallel dev",
+        "dev:api": "pnpm build:embed && pnpm --filter api --filter embed -r --parallel run dev",
+        "ngrok": "ngrok http 3000",
+        "build": "pnpm -r --filter=\"!admin\" build && pnpm --filter admin build",
+        "build:embed": "pnpm --filter embed build",
+        "lint": "pnpm -r lint",
+        "type-check": "pnpm -r type-check",
+        "test": "pnpm -r test",
+        "clean": "pnpm -r clean && rm -rf node_modules"
+    },
+    "workspaces": [
+        "apps/*",
+        "packages/*"
+    ],
+    "keywords": [
+        "survey",
+        "feedback",
+        "analytics",
+        "multi-tenant",
+        "self-hosted"
+    ],
+    "author": "",
+    "license": "MIT",
+    "devDependencies": {
+        "@types/node": "^20.11.0",
+        "typescript": "^5.3.3"
+    }
 }
