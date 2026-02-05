@@ -27,8 +27,8 @@ FROM nginx:alpine
 # Copy built static files
 COPY --from=builder /app/apps/admin/dist /usr/share/nginx/html
 
-# Copy nginx config (if you create one)
-# COPY nginx.conf /etc/nginx/nginx.conf
+# Copy custom nginx config for SPA routing
+COPY apps/admin/nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
