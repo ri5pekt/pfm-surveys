@@ -40,13 +40,9 @@
           {{ loading ? 'Signing in...' : 'Sign In' }}
         </button>
       </form>
-
-      <div class="register-link">
-        <p>Don't have an account? <a href="#" @click.prevent="showRegister = true">Register</a></p>
-      </div>
     </div>
 
-    <!-- Register Modal -->
+    <!-- Register Modal (invite-only, hidden from UI) -->
     <div v-if="showRegister" class="modal-overlay" @click="showRegister = false">
       <div class="modal-content" @click.stop>
         <h2>Create Account</h2>
