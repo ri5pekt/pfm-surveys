@@ -93,13 +93,14 @@ nano .env
 ```
 
 **Update these values in .env:**
-- `DATABASE_PASSWORD` - Use the password from Step 5
-- `POSTGRES_PASSWORD` - Same as DATABASE_PASSWORD
-- `JWT_ACCESS_SECRET` - First secret from Step 5
-- `JWT_REFRESH_SECRET` - Second secret from Step 5
-- `HMAC_SECRET` - Third secret from Step 5
-- `MAILJET_API_KEY` - Your Mailjet API key
-- `MAILJET_SECRET_KEY` - Your Mailjet secret key
+
+-   `DATABASE_PASSWORD` - Use the password from Step 5
+-   `POSTGRES_PASSWORD` - Same as DATABASE_PASSWORD
+-   `JWT_ACCESS_SECRET` - First secret from Step 5
+-   `JWT_REFRESH_SECRET` - Second secret from Step 5
+-   `HMAC_SECRET` - Third secret from Step 5
+-   `MAILJET_API_KEY` - Your Mailjet API key
+-   `MAILJET_SECRET_KEY` - Your Mailjet secret key
 
 Press `Ctrl+X`, then `Y`, then `Enter` to save.
 
@@ -147,6 +148,7 @@ bash scripts/deploy-prod.sh
 ```
 
 The script will:
+
 1. Validate .env configuration
 2. Build all Docker images (takes 5-10 minutes)
 3. Start PostgreSQL and Redis

@@ -1,138 +1,138 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${DATABASE_NAME}
-      POSTGRES_USER: ${DATABASE_USER}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./backups:/backups
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - backend
+    postgres:
+        image: postgres:16-alpine
+        restart: unless-stopped
+        environment:
+            POSTGRES_DB: ${DATABASE_NAME}
+            POSTGRES_USER: ${DATABASE_USER}
+            POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+            - ./backups:/backups
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER}"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        networks:
+            - backend
 
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-    networks:
-      - backend
+    redis:
+        image: redis:7-alpine
+        restart: unless-stopped
+        command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
+        volumes:
+            - redis_data:/data
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 10s
+            timeout: 3s
+            retries: 3
+        networks:
+            - backend
 
-  api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      DATABASE_HOST: postgres
-      DATABASE_PORT: 5432
-      DATABASE_NAME: ${DATABASE_NAME}
-      DATABASE_USER: ${DATABASE_USER}
-      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      JWT_SECRET: ${JWT_SECRET}
-      API_PORT: 3000
-      MAILJET_API_KEY: ${MAILJET_API_KEY}
-      MAILJET_SECRET_KEY: ${MAILJET_SECRET_KEY}
-      MAILJET_FROM_EMAIL: ${MAILJET_FROM_EMAIL}
-      MAILJET_FROM_NAME: ${MAILJET_FROM_NAME}
-      RATE_LIMIT_GLOBAL_MAX: ${RATE_LIMIT_GLOBAL_MAX:-1000}
-      RATE_LIMIT_IP_MAX: ${RATE_LIMIT_IP_MAX:-60}
-      RATE_LIMIT_SITE_MAX: ${RATE_LIMIT_SITE_MAX:-200}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - backend
-      - frontend
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O-", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    api:
+        build:
+            context: .
+            dockerfile: apps/api/Dockerfile
+        restart: unless-stopped
+        environment:
+            NODE_ENV: production
+            DATABASE_HOST: postgres
+            DATABASE_PORT: 5432
+            DATABASE_NAME: ${DATABASE_NAME}
+            DATABASE_USER: ${DATABASE_USER}
+            DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+            REDIS_HOST: redis
+            REDIS_PORT: 6379
+            JWT_SECRET: ${JWT_SECRET}
+            API_PORT: 3000
+            MAILJET_API_KEY: ${MAILJET_API_KEY}
+            MAILJET_SECRET_KEY: ${MAILJET_SECRET_KEY}
+            MAILJET_FROM_EMAIL: ${MAILJET_FROM_EMAIL}
+            MAILJET_FROM_NAME: ${MAILJET_FROM_NAME}
+            RATE_LIMIT_GLOBAL_MAX: ${RATE_LIMIT_GLOBAL_MAX:-1000}
+            RATE_LIMIT_IP_MAX: ${RATE_LIMIT_IP_MAX:-60}
+            RATE_LIMIT_SITE_MAX: ${RATE_LIMIT_SITE_MAX:-200}
+        depends_on:
+            postgres:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        networks:
+            - backend
+            - frontend
+        healthcheck:
+            test: ["CMD", "wget", "-q", "-O-", "http://localhost:3000/health"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
 
-  worker:
-    build:
-      context: .
-      dockerfile: apps/worker/Dockerfile
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      DATABASE_HOST: postgres
-      DATABASE_PORT: 5432
-      DATABASE_NAME: ${DATABASE_NAME}
-      DATABASE_USER: ${DATABASE_USER}
-      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      MAILJET_API_KEY: ${MAILJET_API_KEY}
-      MAILJET_SECRET_KEY: ${MAILJET_SECRET_KEY}
-      MAILJET_FROM_EMAIL: ${MAILJET_FROM_EMAIL}
-      MAILJET_FROM_NAME: ${MAILJET_FROM_NAME}
-    depends_on:
-      api:
-        condition: service_healthy
-    networks:
-      - backend
+    worker:
+        build:
+            context: .
+            dockerfile: apps/worker/Dockerfile
+        restart: unless-stopped
+        environment:
+            NODE_ENV: production
+            DATABASE_HOST: postgres
+            DATABASE_PORT: 5432
+            DATABASE_NAME: ${DATABASE_NAME}
+            DATABASE_USER: ${DATABASE_USER}
+            DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+            REDIS_HOST: redis
+            REDIS_PORT: 6379
+            MAILJET_API_KEY: ${MAILJET_API_KEY}
+            MAILJET_SECRET_KEY: ${MAILJET_SECRET_KEY}
+            MAILJET_FROM_EMAIL: ${MAILJET_FROM_EMAIL}
+            MAILJET_FROM_NAME: ${MAILJET_FROM_NAME}
+        depends_on:
+            api:
+                condition: service_healthy
+        networks:
+            - backend
 
-  admin:
-    build:
-      context: .
-      dockerfile: apps/admin/Dockerfile
-    restart: unless-stopped
-    networks:
-      - frontend
+    admin:
+        build:
+            context: .
+            dockerfile: apps/admin/Dockerfile
+        restart: unless-stopped
+        networks:
+            - frontend
 
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"  # HTTP/3
-    environment:
-      DOMAIN: ${DOMAIN}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - api
-      - admin
-    networks:
-      - frontend
+    caddy:
+        image: caddy:2-alpine
+        restart: unless-stopped
+        ports:
+            - "80:80"
+            - "443:443"
+            - "443:443/udp" # HTTP/3
+        environment:
+            DOMAIN: ${DOMAIN}
+        volumes:
+            - ./Caddyfile:/etc/caddy/Caddyfile
+            - caddy_data:/data
+            - caddy_config:/config
+        depends_on:
+            - api
+            - admin
+        networks:
+            - frontend
 
 volumes:
-  postgres_data:
-    driver: local
-  redis_data:
-    driver: local
-  caddy_data:
-    driver: local
-  caddy_config:
-    driver: local
+    postgres_data:
+        driver: local
+    redis_data:
+        driver: local
+    caddy_data:
+        driver: local
+    caddy_config:
+        driver: local
 
 networks:
-  frontend:
-    driver: bridge
-  backend:
-    driver: bridge
+    frontend:
+        driver: bridge
+    backend:
+        driver: bridge
