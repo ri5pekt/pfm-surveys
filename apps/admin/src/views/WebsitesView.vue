@@ -232,7 +232,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useSitesStore } from "../stores/sites";
 import type { Site } from "../types";
 
