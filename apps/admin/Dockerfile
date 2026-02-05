@@ -14,6 +14,10 @@ COPY apps/admin ./apps/admin
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
+# Accept build argument for API URL
+ARG VITE_API_BASE_URL
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+
 # Build
 RUN pnpm --filter admin build
 
