@@ -1,43 +1,17 @@
-import fp from 'fastify-plugin';
-import cors from '@fastify/cors';
-import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
+import fp from "fastify-plugin";
+import cors from "@fastify/cors";
+import type { FastifyPluginAsync } from "fastify";
 
 const corsPlugin: FastifyPluginAsync = async (fastify) => {
-  const isDevelopment = process.env.NODE_ENV !== 'production';
-  
-  fastify.register(cors, {
-    origin: (origin, cb, req: FastifyRequest) => {
-      // In development, allow all origins (for testing)
-      if (isDevelopment) {
-        cb(null, true);
-        return;
-      }
-      
-      // Allow all origins for public endpoints (embed widget and public API)
-      const isPublicEndpoint = req.url.startsWith('/api/public/') || 
-                                req.url.startsWith('/embed/') || 
-                                req.url === '/health';
-      
-      if (isPublicEndpoint) {
-        cb(null, true);
-        return;
-      }
-      
-      // For admin endpoints, use whitelist
-      const allowedOrigins = (process.env.CORS_ORIGINS || '').split(',').filter(Boolean);
-      
-      if (!origin || allowedOrigins.includes(origin)) {
-        cb(null, true);
-        return;
-      }
-      
-      cb(new Error('Not allowed by CORS'), false);
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
-    exposedHeaders: ['Content-Type'],
-  });
+    // Allow all origins for the embed widget to work on any website
+    // Security is handled by domain validation in the site configuration
+    fastify.register(cors, {
+        origin: true, // Allow all origins
+        credentials: true,
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allowedHeaders: ["Content-Type", "Authorization", "ngrok-skip-browser-warning"],
+        exposedHeaders: ["Content-Type"],
+    });
 };
 
 export default fp(corsPlugin);
