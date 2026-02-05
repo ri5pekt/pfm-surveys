@@ -49,7 +49,8 @@ services:
             DATABASE_PASSWORD: ${DATABASE_PASSWORD}
             REDIS_HOST: redis
             REDIS_PORT: 6379
-            JWT_SECRET: ${JWT_SECRET}
+            JWT_ACCESS_SECRET: ${JWT_SECRET}
+            JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-30d}
             API_PORT: 3000
             MAILJET_API_KEY: ${MAILJET_API_KEY}
             MAILJET_SECRET_KEY: ${MAILJET_SECRET_KEY}
