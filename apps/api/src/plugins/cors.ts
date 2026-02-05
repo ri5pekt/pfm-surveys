@@ -1,19 +1,29 @@
 import fp from 'fastify-plugin';
 import cors from '@fastify/cors';
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 
 const corsPlugin: FastifyPluginAsync = async (fastify) => {
   const isDevelopment = process.env.NODE_ENV !== 'production';
   
   fastify.register(cors, {
-    origin: (origin, cb) => {
+    origin: (origin, cb, req: FastifyRequest) => {
       // In development, allow all origins (for testing)
       if (isDevelopment) {
         cb(null, true);
         return;
       }
       
-      // In production, use whitelist
+      // Allow all origins for public endpoints (embed widget and public API)
+      const isPublicEndpoint = req.url.startsWith('/api/public/') || 
+                                req.url.startsWith('/embed/') || 
+                                req.url === '/health';
+      
+      if (isPublicEndpoint) {
+        cb(null, true);
+        return;
+      }
+      
+      // For admin endpoints, use whitelist
       const allowedOrigins = (process.env.CORS_ORIGINS || '').split(',').filter(Boolean);
       
       if (!origin || allowedOrigins.includes(origin)) {
