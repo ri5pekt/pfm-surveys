@@ -251,26 +251,8 @@ const formData = ref({
 
 const domainInput = ref("");
 
-// Detect API URL (check for ngrok or use localhost)
-const apiUrl = ref("http://localhost:3000");
-
-// Check if ngrok is available
-async function detectApiUrl() {
-    // First, try ngrok URL if available
-    const ngrokUrl = "https://nonappropriable-masked-tarah.ngrok-free.dev";
-    try {
-        const response = await fetch(`${ngrokUrl}/health`, { method: "HEAD" });
-        if (response.ok) {
-            apiUrl.value = ngrokUrl;
-            return;
-        }
-    } catch (e) {
-        // ngrok not available, use localhost
-    }
-
-    // Default to localhost
-    apiUrl.value = "http://localhost:3000";
-}
+// Use the configured API URL from environment
+const apiUrl = computed(() => import.meta.env.VITE_API_BASE_URL || "http://localhost:3000");
 
 function getEmbedScript(siteId: string): string {
     return `<script
@@ -383,7 +365,6 @@ async function copyToClipboard(text: string) {
 }
 
 onMounted(async () => {
-    await detectApiUrl();
     await sitesStore.fetchSites();
 });
 </script>
