@@ -151,6 +151,9 @@ function getEmbedScriptPath(): string | null {
     if (existsSync(fromMonorepoRoot)) return fromMonorepoRoot;
     const fromApiDir = join(process.cwd(), "..", "embed", "dist", "embed.js");
     if (existsSync(fromApiDir)) return fromApiDir;
+    // Production path when running with tsx
+    const fromProductionDist = join(process.cwd(), "dist", "client", "embed.js");
+    if (existsSync(fromProductionDist)) return fromProductionDist;
     const fromDist = join(__dirname, "../client/embed.js");
     if (existsSync(fromDist)) return fromDist;
     return null;
