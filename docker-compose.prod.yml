@@ -92,6 +92,7 @@ services:
             MAILJET_SECRET_KEY: ${MAILJET_SECRET_KEY}
             MAILJET_FROM_EMAIL: ${MAILJET_FROM_EMAIL}
             MAILJET_FROM_NAME: ${MAILJET_FROM_NAME}
+            IP_API_KEY: ${IP_API_KEY}
         depends_on:
             api:
                 condition: service_healthy
