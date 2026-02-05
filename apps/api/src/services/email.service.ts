@@ -28,8 +28,8 @@ export class EmailService {
   }
 
   static async sendInvitationEmail({ to, tempPassword, invitedBy }: SendInvitationEmailParams) {
-    const fromEmail = process.env.EMAIL_FROM || 'noreply@yourdomain.com';
-    const fromName = process.env.EMAIL_FROM_NAME || 'PFM Surveys';
+    const fromEmail = process.env.MAILJET_FROM_EMAIL || process.env.EMAIL_FROM || 'noreply@yourdomain.com';
+    const fromName = process.env.MAILJET_FROM_NAME || process.env.EMAIL_FROM_NAME || 'PFM Surveys';
 
     try {
       const request = this.getClient()
