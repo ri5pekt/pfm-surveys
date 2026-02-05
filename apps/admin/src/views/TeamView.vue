@@ -152,11 +152,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useAuthStore } from "../stores/auth";
 import { db } from "../services/api";
 
 const authStore = useAuthStore();
+const apiBaseUrl = computed(() => import.meta.env.VITE_API_BASE_URL || "http://localhost:3000");
 
 interface TeamMember {
     id: string;
@@ -215,7 +216,7 @@ async function handleInvite() {
     error.value = null;
 
     try {
-        const response = await fetch("http://localhost:3000/api/team/invite", {
+        const response = await fetch(`${apiBaseUrl.value}/api/team/invite`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -255,7 +256,7 @@ async function handleResendInvite(member: TeamMember) {
     resending.value = true;
 
     try {
-        const response = await fetch(`http://localhost:3000/api/team/${member.id}/resend-invite`, {
+        const response = await fetch(`${apiBaseUrl.value}/api/team/${member.id}/resend-invite`, {
             method: "POST",
             headers: {
                 Authorization: `Bearer ${authStore.token}`,
@@ -286,7 +287,7 @@ async function confirmRemove(member: TeamMember) {
     }
 
     try {
-        const response = await fetch(`http://localhost:3000/api/team/${member.id}`, {
+        const response = await fetch(`${apiBaseUrl.value}/api/team/${member.id}`, {
             method: "DELETE",
             headers: {
                 Authorization: `Bearer ${authStore.token}`,
@@ -308,7 +309,7 @@ async function confirmRemove(member: TeamMember) {
 async function fetchTeamMembers() {
     loading.value = true;
     try {
-        const response = await fetch("http://localhost:3000/api/team", {
+        const response = await fetch(`${apiBaseUrl.value}/api/team`, {
             headers: {
                 Authorization: `Bearer ${authStore.token}`,
             },

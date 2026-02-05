@@ -100,10 +100,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useAuthStore } from "../stores/auth";
 
 const authStore = useAuthStore();
+const apiBaseUrl = computed(() => import.meta.env.VITE_API_BASE_URL || "http://localhost:3000");
 
 const profileForm = ref({
     email: "",
@@ -139,7 +140,7 @@ async function handleUpdateProfile() {
     profileSuccess.value = null;
 
     try {
-        const response = await fetch("http://localhost:3000/api/user/profile", {
+        const response = await fetch(`${apiBaseUrl.value}/api/user/profile`, {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",
@@ -187,7 +188,7 @@ async function handleChangePassword() {
     }
 
     try {
-        const response = await fetch("http://localhost:3000/api/user/password", {
+        const response = await fetch(`${apiBaseUrl.value}/api/user/password`, {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",
