@@ -28,6 +28,24 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
+// Handle 401 errors (expired/invalid token) - auto logout and redirect to login
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            // Clear auth data
+            localStorage.removeItem("auth_token");
+            localStorage.removeItem("auth_user");
+            
+            // Redirect to login page
+            if (window.location.pathname !== '/login') {
+                window.location.href = '/login';
+            }
+        }
+        return Promise.reject(error);
+    }
+);
+
 // Auth API
 export const authApi = {
     async login(credentials: LoginCredentials): Promise<AuthResponse> {
