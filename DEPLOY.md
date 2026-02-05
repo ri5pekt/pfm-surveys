@@ -7,6 +7,7 @@ Quick reference guide for deploying updates to production at `https://surveys.pf
 ## 🚀 Quick Deploy (Most Common)
 
 ### Deploy Frontend Changes (Admin Dashboard)
+
 ```bash
 # 1. Commit and push your changes
 git add apps/admin/
@@ -22,6 +23,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d admin
 ```
 
 ### Deploy API Changes
+
 ```bash
 # 1. Commit and push your changes
 git add apps/api/
@@ -37,6 +39,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d api
 ```
 
 ### Deploy Worker Changes
+
 ```bash
 # 1. Commit and push your changes
 git add apps/worker/
@@ -52,6 +55,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d worker
 ```
 
 ### Deploy Embed Widget Changes
+
 ```bash
 # 1. Commit and push your changes
 git add apps/embed/
@@ -76,30 +80,33 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d api
 **If you need to add a new environment variable:**
 
 1. **Update `.env.production` template** (for documentation):
-   ```bash
-   # Add your variable with a comment explaining what it's for
-   NEW_VARIABLE=default_value_here
-   ```
+
+    ```bash
+    # Add your variable with a comment explaining what it's for
+    NEW_VARIABLE=default_value_here
+    ```
 
 2. **Add to `docker-compose.prod.yml`** in the appropriate service:
-   ```yaml
-   services:
-     api:  # or worker, admin, etc.
-       environment:
-         NEW_VARIABLE: ${NEW_VARIABLE}
-   ```
+
+    ```yaml
+    services:
+        api: # or worker, admin, etc.
+            environment:
+                NEW_VARIABLE: ${NEW_VARIABLE}
+    ```
 
 3. **Update production `.env` on VPS**:
-   ```bash
-   ssh root@31.220.56.146
-   cd /var/www/surveys.pfm-qa.com
-   echo 'NEW_VARIABLE=production_value' >> .env
-   ```
+
+    ```bash
+    ssh root@31.220.56.146
+    cd /var/www/surveys.pfm-qa.com
+    echo 'NEW_VARIABLE=production_value' >> .env
+    ```
 
 4. **Recreate the affected service**:
-   ```bash
-   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate api
-   ```
+    ```bash
+    docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate api
+    ```
 
 ---
 
@@ -110,34 +117,39 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d api
 **When you add new database changes:**
 
 1. **Create migration SQL file** in `apps/api/src/db/migrations/`:
-   ```bash
-   # Name it with timestamp: YYYYMMDD_description.sql
-   # Example: 20260205_add_user_preferences.sql
-   ```
+
+    ```bash
+    # Name it with timestamp: YYYYMMDD_description.sql
+    # Example: 20260205_add_user_preferences.sql
+    ```
 
 2. **Run migration on production**:
-   ```bash
-   # From local machine (Windows PowerShell):
-   type apps\api\src\db\migrations\20260205_add_user_preferences.sql | ssh root@31.220.56.146 "docker exec -i pfm-surveys-prod-postgres-1 psql -U surveys_user -d surveys_prod"
-   ```
+
+    ```bash
+    # From local machine (Windows PowerShell):
+    type apps\api\src\db\migrations\20260205_add_user_preferences.sql | ssh root@31.220.56.146 "docker exec -i pfm-surveys-prod-postgres-1 psql -U surveys_user -d surveys_prod"
+    ```
 
 3. **Verify migration**:
-   ```bash
-   ssh root@31.220.56.146 "docker exec -i pfm-surveys-prod-postgres-1 psql -U surveys_user -d surveys_prod -c '\dt'"
-   ```
+    ```bash
+    ssh root@31.220.56.146 "docker exec -i pfm-surveys-prod-postgres-1 psql -U surveys_user -d surveys_prod -c '\dt'"
+    ```
 
 ---
 
 ## 🐛 Common Issues & Solutions
 
 ### Issue: "Failed to fetch dynamically imported module"
-**Cause:** Browser cached old index.html after deployment  
-**Solution:** Have users hard refresh: `Ctrl + Shift + R` (Windows/Linux) or `Cmd + Shift + R` (Mac)  
+
+**Cause:** Browser cached old index.html after deployment
+**Solution:** Have users hard refresh: `Ctrl + Shift + R` (Windows/Linux) or `Cmd + Shift + R` (Mac)
 **Prevention:** Already fixed with nginx cache headers (no action needed)
 
 ### Issue: Users getting logged out / 401 errors
-**Cause:** JWT token expired or JWT_SECRET not set  
+
+**Cause:** JWT token expired or JWT_SECRET not set
 **Solution:**
+
 ```bash
 # Check if JWT_SECRET is set
 ssh root@31.220.56.146 "cat /var/www/surveys.pfm-qa.com/.env | grep JWT_SECRET"
@@ -151,8 +163,10 @@ ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && docker compose -f dock
 ```
 
 ### Issue: Geolocation not working
-**Cause:** IP_API_KEY not set  
+
+**Cause:** IP_API_KEY not set
 **Solution:**
+
 ```bash
 # Check if set
 ssh root@31.220.56.146 "cat /var/www/surveys.pfm-qa.com/.env | grep IP_API_KEY"
@@ -164,35 +178,41 @@ ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && docker compose -f dock
 ```
 
 ### Issue: Emails not sending
-**Cause:** Mailjet configuration or sender email not verified  
+
+**Cause:** Mailjet configuration or sender email not verified
 **Solution:**
+
 1. **Check environment variables**:
-   ```bash
-   ssh root@31.220.56.146 "docker exec pfm-surveys-prod-api-1 printenv | grep MAILJET"
-   ```
+
+    ```bash
+    ssh root@31.220.56.146 "docker exec pfm-surveys-prod-api-1 printenv | grep MAILJET"
+    ```
 
 2. **Verify sender email/domain is Active in Mailjet dashboard**
-   - Go to: https://app.mailjet.com/account/sender
-   - Make sure sender email matches `MAILJET_FROM_EMAIL` in .env
-   - Domain must be validated (Active status)
+
+    - Go to: https://app.mailjet.com/account/sender
+    - Make sure sender email matches `MAILJET_FROM_EMAIL` in .env
+    - Domain must be validated (Active status)
 
 3. **Update if needed**:
-   ```bash
-   ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && cat .env"
-   # Edit MAILJET_FROM_EMAIL to match verified sender
-   ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate api"
-   ```
+    ```bash
+    ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && cat .env"
+    # Edit MAILJET_FROM_EMAIL to match verified sender
+    ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate api"
+    ```
 
 ---
 
 ## 🔍 Debugging Commands
 
 ### Check Service Status
+
 ```bash
 ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && docker compose ps"
 ```
 
 ### View Logs
+
 ```bash
 # API logs
 ssh root@31.220.56.146 "docker logs pfm-surveys-prod-api-1 --tail=100"
@@ -208,6 +228,7 @@ ssh root@31.220.56.146 "docker logs -f pfm-surveys-prod-api-1"
 ```
 
 ### Check Environment Variables
+
 ```bash
 # API
 ssh root@31.220.56.146 "docker exec pfm-surveys-prod-api-1 printenv"
@@ -217,6 +238,7 @@ ssh root@31.220.56.146 "docker exec pfm-surveys-prod-worker-1 printenv"
 ```
 
 ### Restart Services
+
 ```bash
 # Restart single service
 ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && docker compose restart api"
@@ -226,6 +248,7 @@ ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && docker compose restart
 ```
 
 ### Connect to Database
+
 ```bash
 ssh root@31.220.56.146 "docker exec -it pfm-surveys-prod-postgres-1 psql -U surveys_user -d surveys_prod"
 
@@ -241,29 +264,34 @@ ssh root@31.220.56.146 "docker exec -it pfm-surveys-prod-postgres-1 psql -U surv
 ## 🎯 Deployment Checklist
 
 **Before deploying:**
-- [ ] Test changes locally with `pnpm dev`
-- [ ] Commit all changes with clear commit message
-- [ ] Push to GitHub
+
+-   [ ] Test changes locally with `pnpm dev`
+-   [ ] Commit all changes with clear commit message
+-   [ ] Push to GitHub
 
 **For frontend changes (Admin):**
-- [ ] Remember: `VITE_API_BASE_URL` is baked in at build time
-- [ ] If you changed API URL, rebuild admin container
+
+-   [ ] Remember: `VITE_API_BASE_URL` is baked in at build time
+-   [ ] If you changed API URL, rebuild admin container
 
 **For API changes:**
-- [ ] If you changed routes, update frontend accordingly
-- [ ] If you added database changes, run migrations
-- [ ] If you added environment variables, update `.env` on VPS
+
+-   [ ] If you changed routes, update frontend accordingly
+-   [ ] If you added database changes, run migrations
+-   [ ] If you added environment variables, update `.env` on VPS
 
 **After deploying:**
-- [ ] Check service logs for errors
-- [ ] Test the deployed feature on https://surveys.pfm-qa.com
-- [ ] Monitor logs for 5 minutes to catch any immediate issues
+
+-   [ ] Check service logs for errors
+-   [ ] Test the deployed feature on https://surveys.pfm-qa.com
+-   [ ] Monitor logs for 5 minutes to catch any immediate issues
 
 ---
 
 ## 🚨 Rollback (If Something Goes Wrong)
 
 ### Quick Rollback
+
 ```bash
 ssh root@31.220.56.146
 cd /var/www/surveys.pfm-qa.com
@@ -282,6 +310,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ## 📊 Health Checks
 
 ### Check if everything is running correctly:
+
 ```bash
 # Quick health check
 curl https://surveys.pfm-qa.com/health
@@ -291,10 +320,11 @@ ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && docker compose ps"
 ```
 
 Expected output:
-- All containers should show "Up" status
-- API should show "(healthy)"
-- Admin should be serving on port 3001
-- API should be serving on port 3000
+
+-   All containers should show "Up" status
+-   API should show "(healthy)"
+-   Admin should be serving on port 3001
+-   API should be serving on port 3000
 
 ---
 
@@ -311,10 +341,10 @@ Expected output:
 
 ## 📞 Emergency Contacts
 
-- **VPS:** Hostinger VPS at `31.220.56.146`
-- **Domain:** `surveys.pfm-qa.com` (DNS managed by domain provider)
-- **Email Service:** Mailjet (https://app.mailjet.com)
-- **Repository:** GitHub - ri5pekt/pfm-surveys
+-   **VPS:** Hostinger VPS at `31.220.56.146`
+-   **Domain:** `surveys.pfm-qa.com` (DNS managed by domain provider)
+-   **Email Service:** Mailjet (https://app.mailjet.com)
+-   **Repository:** GitHub - ri5pekt/pfm-surveys
 
 ---
 
@@ -335,11 +365,11 @@ Expected output:
 
 ## 🎓 Learning Resources
 
-- **Docker Compose docs:** https://docs.docker.com/compose/
-- **Fastify docs:** https://fastify.dev/
-- **Vue 3 docs:** https://vuejs.org/
-- **Caddy docs:** https://caddyserver.com/docs/
+-   **Docker Compose docs:** https://docs.docker.com/compose/
+-   **Fastify docs:** https://fastify.dev/
+-   **Vue 3 docs:** https://vuejs.org/
+-   **Caddy docs:** https://caddyserver.com/docs/
 
 ---
 
-*Last updated: 2026-02-05*
+_Last updated: 2026-02-05_

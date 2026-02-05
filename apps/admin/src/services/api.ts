@@ -36,10 +36,10 @@ api.interceptors.response.use(
             // Clear auth data
             localStorage.removeItem("auth_token");
             localStorage.removeItem("auth_user");
-            
+
             // Redirect to login page
-            if (window.location.pathname !== '/login') {
-                window.location.href = '/login';
+            if (window.location.pathname !== "/login") {
+                window.location.href = "/login";
             }
         }
         return Promise.reject(error);

@@ -1,53 +1,53 @@
-import Mailjet from 'node-mailjet';
+import Mailjet from "node-mailjet";
 
 interface SendInvitationEmailParams {
-  to: string;
-  tempPassword: string;
-  invitedBy: string;
+    to: string;
+    tempPassword: string;
+    invitedBy: string;
 }
 
 export class EmailService {
-  private static client: any;
+    private static client: any;
 
-  private static getClient() {
-    if (!this.client) {
-      const apiKey = process.env.MAILJET_API_KEY;
-      const secretKey = process.env.MAILJET_SECRET_KEY;
+    private static getClient() {
+        if (!this.client) {
+            const apiKey = process.env.MAILJET_API_KEY;
+            const secretKey = process.env.MAILJET_SECRET_KEY;
 
-      if (!apiKey || !secretKey) {
-        throw new Error('Mailjet API credentials not configured');
-      }
+            if (!apiKey || !secretKey) {
+                throw new Error("Mailjet API credentials not configured");
+            }
 
-      this.client = new Mailjet({
-        apiKey,
-        apiSecret: secretKey,
-      });
+            this.client = new Mailjet({
+                apiKey,
+                apiSecret: secretKey,
+            });
+        }
+
+        return this.client;
     }
 
-    return this.client;
-  }
+    static async sendInvitationEmail({ to, tempPassword, invitedBy }: SendInvitationEmailParams) {
+        const fromEmail = process.env.MAILJET_FROM_EMAIL || process.env.EMAIL_FROM || "noreply@yourdomain.com";
+        const fromName = process.env.MAILJET_FROM_NAME || process.env.EMAIL_FROM_NAME || "PFM Surveys";
 
-  static async sendInvitationEmail({ to, tempPassword, invitedBy }: SendInvitationEmailParams) {
-    const fromEmail = process.env.MAILJET_FROM_EMAIL || process.env.EMAIL_FROM || 'noreply@yourdomain.com';
-    const fromName = process.env.MAILJET_FROM_NAME || process.env.EMAIL_FROM_NAME || 'PFM Surveys';
-
-    try {
-      const request = this.getClient()
-        .post('send', { version: 'v3.1' })
-        .request({
-          Messages: [
-            {
-              From: {
-                Email: fromEmail,
-                Name: fromName,
-              },
-              To: [
-                {
-                  Email: to,
-                },
-              ],
-              Subject: 'You\'ve been invited to PFM Surveys',
-              TextPart: `Hi!
+        try {
+            const request = this.getClient()
+                .post("send", { version: "v3.1" })
+                .request({
+                    Messages: [
+                        {
+                            From: {
+                                Email: fromEmail,
+                                Name: fromName,
+                            },
+                            To: [
+                                {
+                                    Email: to,
+                                },
+                            ],
+                            Subject: "You've been invited to PFM Surveys",
+                            TextPart: `Hi!
 
 ${invitedBy} has invited you to join their team on PFM Surveys.
 
@@ -57,13 +57,13 @@ Password: ${tempPassword}
 
 Please log in and change your password after your first login.
 
-Login here: ${process.env.ADMIN_URL || 'http://localhost:5173'}
+Login here: ${process.env.ADMIN_URL || "http://localhost:5173"}
 
 Welcome aboard!
 
 ---
 PFM Surveys Team`,
-              HTMLPart: `
+                            HTMLPart: `
 <!DOCTYPE html>
 <html>
 <head>
@@ -137,9 +137,9 @@ PFM Surveys Team`,
     <div class="header">
       <h1>🎉 You've Been Invited!</h1>
     </div>
-    
+
     <p><strong>${invitedBy}</strong> has invited you to join their team on <strong>PFM Surveys</strong>.</p>
-    
+
     <div class="credentials">
       <p><strong>Your Login Credentials:</strong></p>
       <p>
@@ -151,15 +151,15 @@ PFM Surveys Team`,
         ⚠️ Please change this password after your first login.
       </p>
     </div>
-    
+
     <p style="text-align: center;">
-      <a href="${process.env.ADMIN_URL || 'http://localhost:5173'}" class="button">
+      <a href="${process.env.ADMIN_URL || "http://localhost:5173"}" class="button">
         Log In Now
       </a>
     </p>
-    
+
     <p>Welcome aboard! 🚀</p>
-    
+
     <div class="footer">
       <p>PFM Surveys Team</p>
     </div>
@@ -167,24 +167,24 @@ PFM Surveys Team`,
 </body>
 </html>
 `,
-            },
-          ],
-        });
+                        },
+                    ],
+                });
 
-      const result = await request;
-      return { success: true, messageId: result.body.Messages[0].Status };
-    } catch (error: any) {
-      console.error('Failed to send invitation email:', error);
-      throw new Error(`Failed to send email: ${error.message}`);
+            const result = await request;
+            return { success: true, messageId: result.body.Messages[0].Status };
+        } catch (error: any) {
+            console.error("Failed to send invitation email:", error);
+            throw new Error(`Failed to send email: ${error.message}`);
+        }
     }
-  }
 
-  static async testConnection() {
-    try {
-      this.getClient();
-      return true;
-    } catch (error) {
-      return false;
+    static async testConnection() {
+        try {
+            this.getClient();
+            return true;
+        } catch (error) {
+            return false;
+        }
     }
-  }
 }
