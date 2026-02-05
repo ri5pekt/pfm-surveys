@@ -99,6 +99,11 @@ export const surveysApi = {
         return data;
     },
 
+    async copy(id: string): Promise<{ survey: Survey }> {
+        const { data } = await api.post(`/api/surveys/${id}/copy`);
+        return data;
+    },
+
     async delete(id: string): Promise<{ success: boolean }> {
         const { data } = await api.delete(`/api/surveys/${id}`);
         return data;
@@ -113,7 +118,7 @@ export const surveysApi = {
 
     async getResponses(
         surveyId: string,
-        params?: { question_id?: string; page?: number; limit?: number }
+        params?: { question_id?: string; page?: number; limit?: number; event_id?: number }
     ): Promise<{ responses: ResponseRow[]; total: number }> {
         const { data } = await api.get(`/api/surveys/${surveyId}/responses`, {
             params,

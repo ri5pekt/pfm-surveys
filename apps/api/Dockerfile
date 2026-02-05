@@ -8,15 +8,13 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Copy workspace files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages ./packages
 COPY apps/api ./apps/api
 COPY apps/embed ./apps/embed
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
-# Build shared package, embed widget, and API
-RUN pnpm --filter shared build || true
+# Build embed widget and API
 RUN pnpm --filter embed build
 RUN pnpm --filter api build
 
@@ -33,7 +31,6 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Copy workspace files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages ./packages
 COPY apps/api/package.json ./apps/api/
 
 # Install production dependencies only

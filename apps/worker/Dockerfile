@@ -8,14 +8,12 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Copy workspace files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages ./packages
 COPY apps/worker ./apps/worker
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
-# Build shared package and worker
-RUN pnpm --filter shared build || true
+# Build worker
 RUN pnpm --filter worker build
 
 # Production stage
@@ -28,7 +26,6 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Copy workspace files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages ./packages
 COPY apps/worker/package.json ./apps/worker/
 
 # Install production dependencies only

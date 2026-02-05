@@ -39,12 +39,12 @@ const EventsRequestSchema = z.object({
 
 /**
  * Domain validation utility - checks if request Origin/Referer is allowed
- * 
+ *
  * Security model:
  * - Empty domains = DENY by default (unless allowAnyDomain flag is true)
  * - Supports wildcard patterns (*.example.com)
  * - Fallback: tries Origin first, then Referer (for privacy-conscious browsers)
- * 
+ *
  * @param origin - Origin header from request
  * @param referer - Referer header from request
  * @param allowedDomains - Array of allowed domain patterns (supports wildcards)
@@ -96,10 +96,10 @@ function isOriginAllowed(
 
 /**
  * Basic text cleanup - removes control characters and enforces length limits
- * 
+ *
  * NOT "XSS prevention" - just garbage cleanup. Real XSS prevention happens
  * at display time via Vue's {{ }} text interpolation (auto-escapes HTML).
- * 
+ *
  * @param input - Input to clean
  * @param maxLength - Maximum allowed length (default 10000)
  * @returns Cleaned text or null if invalid
@@ -122,10 +122,10 @@ function cleanText(input: unknown, maxLength: number = 10000): string | null {
 
 /**
  * URL cleanup - validates and cleans URL strings
- * 
+ *
  * Does NOT try to "sanitize" URLs with regex - just removes control chars.
  * Legitimate URLs can contain characters that look suspicious.
- * 
+ *
  * @param input - Input URL to clean
  * @returns Cleaned URL or null if invalid
  */
@@ -249,6 +249,8 @@ const embedRoutes: FastifyPluginAsync = async (fastify) => {
                         "sample_rate",
                         "show_close_button",
                         "show_minimize_button",
+                        "timing_mode",
+                        "scroll_percentage",
                         "widget_background_color",
                         "widget_background_opacity",
                         "widget_border_radius",
@@ -323,160 +325,151 @@ const embedRoutes: FastifyPluginAsync = async (fastify) => {
 
             const { nonce, site_id, events } = body;
 
-        // Capture client IP server-side (proxy-safe: X-Forwarded-For, X-Real-IP, then request.ip)
-        const forwarded = (request.headers["x-forwarded-for"] as string) ?? "";
-        const firstForwarded = forwarded.split(",")[0]?.trim();
-        const clientIp = firstForwarded || (request.headers["x-real-ip"] as string) || request.ip || null;
+            // Capture client IP server-side (proxy-safe: X-Forwarded-For, X-Real-IP, then request.ip)
+            const forwarded = (request.headers["x-forwarded-for"] as string) ?? "";
+            const firstForwarded = forwarded.split(",")[0]?.trim();
+            const clientIp = firstForwarded || (request.headers["x-real-ip"] as string) || request.ip || null;
 
-        fastify.log.info({ site_id, eventCount: events?.length }, "📥 Events received from embed script");
+            fastify.log.info({ site_id, eventCount: events?.length }, "📥 Events received from embed script");
 
-        if (!site_id || !events || !Array.isArray(events)) {
-            fastify.log.warn("Invalid request: missing site_id or events array");
-            return reply.code(400).send({ error: "Invalid request" });
-        }
-
-        // Replay protection: if client sent nonce, it must be first use
-        if (nonce) {
-            const firstUse = await setNonceOnce(nonce);
-            if (!firstUse) {
-                fastify.log.warn({ nonce: nonce.slice(0, 8) + "…" }, "Replay rejected: nonce already used");
-                return reply.code(409).send({ error: "Request already processed (replay)" });
+            if (!site_id || !events || !Array.isArray(events)) {
+                fastify.log.warn("Invalid request: missing site_id or events array");
+                return reply.code(400).send({ error: "Invalid request" });
             }
-        }
 
-        // Get site internal id and domain settings
-        const site = await db
-            .selectFrom("sites")
-            .select(["id", "domains", "allow_any_domain"])
-            .where("site_id", "=", site_id)
-            .where("active", "=", true)
-            .executeTakeFirst();
+            // Get site internal id and domain settings
+            const site = await db
+                .selectFrom("sites")
+                .select(["id", "domains", "allow_any_domain"])
+                .where("site_id", "=", site_id)
+                .where("active", "=", true)
+                .executeTakeFirst();
 
-        if (!site) {
-            fastify.log.warn({ site_id }, "Site not found or inactive");
-            return reply.code(404).send({ error: "Site not found" });
-        }
+            if (!site) {
+                fastify.log.warn({ site_id }, "Site not found or inactive");
+                return reply.code(404).send({ error: "Site not found" });
+            }
 
-        // Validate origin/referer (primary anti-abuse defense)
-        const origin = request.headers.origin as string | undefined;
-        const referer = request.headers.referer as string | undefined;
+            // Validate origin/referer (primary anti-abuse defense)
+            const origin = request.headers.origin as string | undefined;
+            const referer = request.headers.referer as string | undefined;
 
-        if (!isOriginAllowed(origin, referer, site.domains, site.allow_any_domain ?? false)) {
-            fastify.log.warn(
-                {
-                    site_id,
-                    origin,
-                    referer,
-                    allowed_domains: site.domains,
-                    allow_any: site.allow_any_domain,
-                },
-                "Domain not authorized"
-            );
+            if (!isOriginAllowed(origin, referer, site.domains, site.allow_any_domain ?? false)) {
+                fastify.log.warn(
+                    {
+                        site_id,
+                        origin,
+                        referer,
+                        allowed_domains: site.domains,
+                        allow_any: site.allow_any_domain,
+                    },
+                    "Domain not authorized"
+                );
 
-            return reply.code(403).send({
-                error: "Domain not authorized",
-                message: "This domain is not allowed to send events for this site",
-            });
-        }
+                return reply.code(403).send({
+                    error: "Domain not authorized",
+                    message: "This domain is not allowed to send events for this site",
+                });
+            }
 
-        // Per-site rate limit (limits REQUESTS per minute, not total events)
-        // Note: Each request can contain up to 50 events (batch)
-        const redis = getRedis();
-        const currentMinute = Math.floor(Date.now() / 60000);
-        const siteKey = `rl:site:${site.id}:${currentMinute}`;
-        const siteRequestCount = await redis.incr(siteKey);
+            // Per-site rate limit (limits REQUESTS per minute, not total events)
+            // Note: Each request can contain up to 50 events (batch)
+            const redis = getRedis();
+            const currentMinute = Math.floor(Date.now() / 60000);
+            const siteKey = `rl:site:${site.id}:${currentMinute}`;
+            const siteRequestCount = await redis.incr(siteKey);
 
-        if (siteRequestCount === 1) {
-            await redis.expire(siteKey, 60); // TTL for current minute
-        }
+            if (siteRequestCount === 1) {
+                await redis.expire(siteKey, 60); // TTL for current minute
+            }
 
-        const SITE_REQUEST_LIMIT = parseInt(process.env.RATE_LIMIT_SITE_MAX || "200", 10);
-        if (siteRequestCount > SITE_REQUEST_LIMIT) {
-            fastify.log.warn(
-                {
-                    site_id,
-                    request_count: siteRequestCount,
-                    event_count: events.length,
-                },
-                "Site rate limit exceeded"
-            );
+            const SITE_REQUEST_LIMIT = parseInt(process.env.RATE_LIMIT_SITE_MAX || "200", 10);
+            if (siteRequestCount > SITE_REQUEST_LIMIT) {
+                fastify.log.warn(
+                    {
+                        site_id,
+                        request_count: siteRequestCount,
+                        event_count: events.length,
+                    },
+                    "Site rate limit exceeded"
+                );
 
-            // Add rate limit headers
+                // Add rate limit headers
+                reply.header("X-RateLimit-Limit", String(SITE_REQUEST_LIMIT));
+                reply.header("X-RateLimit-Remaining", "0");
+
+                return reply.code(429).send({
+                    error: "Site rate limit exceeded",
+                    message: "Too many requests for this site. Try again in a minute.",
+                });
+            }
+
+            // Add rate limit headers for successful requests
             reply.header("X-RateLimit-Limit", String(SITE_REQUEST_LIMIT));
-            reply.header("X-RateLimit-Remaining", "0");
+            reply.header("X-RateLimit-Remaining", String(Math.max(0, SITE_REQUEST_LIMIT - siteRequestCount)));
 
-            return reply.code(429).send({
-                error: "Site rate limit exceeded",
-                message: "Too many requests for this site. Try again in a minute.",
-            });
-        }
-
-        // Add rate limit headers for successful requests
-        reply.header("X-RateLimit-Limit", String(SITE_REQUEST_LIMIT));
-        reply.header("X-RateLimit-Remaining", String(Math.max(0, SITE_REQUEST_LIMIT - siteRequestCount)));
-
-        // Replay protection: if client sent nonce, it must be first use
-        if (nonce) {
-            const firstUse = await setNonceOnce(nonce);
-            if (!firstUse) {
-                fastify.log.warn({ nonce: nonce.slice(0, 8) + "…" }, "Replay rejected: nonce already used");
-                return reply.code(409).send({ error: "Request already processed (replay)" });
+            // Replay protection: if client sent nonce, it must be first use
+            if (nonce) {
+                const firstUse = await setNonceOnce(nonce);
+                if (!firstUse) {
+                    fastify.log.warn({ nonce: nonce.slice(0, 8) + "…" }, "Replay rejected: nonce already used");
+                    return reply.code(409).send({ error: "Request already processed (replay)" });
+                }
             }
-        }
 
-        // Normalize events (event contract: timestamp UTC; ensure required fields; attach server-captured IP)
-        // Apply cleanText/cleanUrl to user-controlled fields (defense-in-depth)
-        const normalized = events
-            .filter((e) => e && typeof e.event_type === "string" && typeof e.client_event_id === "string")
-            .map((e) => ({
-                event_type: e.event_type,
-                client_event_id: e.client_event_id,
-                timestamp: e.timestamp ?? Date.now(),
-                survey_id: e.survey_id ?? null,
-                anonymous_user_id: cleanText(e.anonymous_user_id, 100),
-                session_id: cleanText(e.session_id, 100),
-                page_url: cleanUrl(e.page_url), // URL-specific cleanup
-                event_data: e.event_data
-                    ? {
-                          ...e.event_data,
-                          answer_text: cleanText((e.event_data as any).answer_text, 10000),
-                      }
-                    : undefined,
-                browser: cleanText(e.browser, 50),
-                os: cleanText(e.os, 50),
-                device: cleanText(e.device, 50),
-                ip: typeof clientIp === "string" && clientIp.length > 0 ? clientIp : null,
-            }));
+            // Normalize events (event contract: timestamp UTC; ensure required fields; attach server-captured IP)
+            // Apply cleanText/cleanUrl to user-controlled fields (defense-in-depth)
+            const normalized = events
+                .filter((e) => e && typeof e.event_type === "string" && typeof e.client_event_id === "string")
+                .map((e) => ({
+                    event_type: e.event_type,
+                    client_event_id: e.client_event_id,
+                    timestamp: e.timestamp ?? Date.now(),
+                    survey_id: e.survey_id ?? null,
+                    anonymous_user_id: cleanText(e.anonymous_user_id, 100),
+                    session_id: cleanText(e.session_id, 100),
+                    page_url: cleanUrl(e.page_url), // URL-specific cleanup
+                    event_data: e.event_data
+                        ? {
+                              ...e.event_data,
+                              answer_text: cleanText((e.event_data as any).answer_text, 10000),
+                          }
+                        : undefined,
+                    browser: cleanText(e.browser, 50),
+                    os: cleanText(e.os, 50),
+                    device: cleanText(e.device, 50),
+                    ip: typeof clientIp === "string" && clientIp.length > 0 ? clientIp : null,
+                }));
 
-        if (normalized.length === 0) {
-            return reply.code(400).send({ error: "No valid events" });
-        }
+            if (normalized.length === 0) {
+                return reply.code(400).send({ error: "No valid events" });
+            }
 
-        // Enqueue batch jobs to event-ingestion queue (must not lose events)
-        let jobCount: number;
-        try {
-            jobCount = await addEventIngestionJobs(site.id, normalized, BATCH_SIZE);
-        } catch (err) {
-            fastify.log.error(
-                { err, site_id: site.id, eventCount: normalized.length },
-                "Failed to enqueue events (Redis/queue down)"
+            // Enqueue batch jobs to event-ingestion queue (must not lose events)
+            let jobCount: number;
+            try {
+                jobCount = await addEventIngestionJobs(site.id, normalized, BATCH_SIZE);
+            } catch (err) {
+                fastify.log.error(
+                    { err, site_id: site.id, eventCount: normalized.length },
+                    "Failed to enqueue events (Redis/queue down)"
+                );
+                return reply.code(503).send({
+                    error: "Event queue unavailable",
+                    message: "Events could not be queued. Please retry.",
+                });
+            }
+
+            fastify.log.info(
+                { accepted: normalized.length, jobs: jobCount },
+                `✓ Events enqueued: ${normalized.length} events in ${jobCount} job(s)`
             );
-            return reply.code(503).send({
-                error: "Event queue unavailable",
-                message: "Events could not be queued. Please retry.",
+
+            reply.code(202).send({
+                success: true,
+                accepted: normalized.length,
             });
         }
-
-        fastify.log.info(
-            { accepted: normalized.length, jobs: jobCount },
-            `✓ Events enqueued: ${normalized.length} events in ${jobCount} job(s)`
-        );
-
-        reply.code(202).send({
-            success: true,
-            accepted: normalized.length,
-        });
-    }
     );
 };
 

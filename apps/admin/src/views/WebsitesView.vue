@@ -5,7 +5,7 @@
             <button @click="showAddModal = true" class="btn-primary">Add Website</button>
         </div>
 
-        <div v-if="loading" class="loading">Loading websites...</div>
+        <div v-if="sitesStore.loading" class="loading">Loading websites...</div>
 
         <div v-else-if="sitesStore.sites.length === 0" class="empty-state">
             <p>No websites yet</p>
@@ -53,7 +53,7 @@
         </table>
 
         <!-- Add/Edit Website Modal -->
-        <div v-if="showAddModal" class="modal-overlay" @click="showAddModal = false">
+        <div v-if="showAddModal" class="modal-overlay" @click.self="closeModal">
             <div class="modal-content" @click.stop>
                 <h3>{{ editingSite ? "Edit Website" : "Add New Website" }}</h3>
 
@@ -71,16 +71,25 @@
 
                     <div class="form-group">
                         <label>Allowed Domains (Security) *</label>
-                        <input
-                            v-model="domainInput"
-                            type="text"
-                            placeholder="example.com or *.example.com"
-                            @keydown.enter.prevent="addDomain"
-                            :disabled="formData.allowAnyDomain"
-                        />
+                        <div class="domain-input-row">
+                            <input
+                                v-model="domainInput"
+                                type="text"
+                                placeholder="example.com or *.example.com"
+                                @keydown.enter.prevent="addDomain"
+                                :disabled="formData.allowAnyDomain"
+                            />
+                            <button
+                                type="button"
+                                @click="addDomain"
+                                class="btn-add-domain"
+                                :disabled="formData.allowAnyDomain"
+                            >
+                                Add
+                            </button>
+                        </div>
                         <span class="help-text">
-                            Only these domains can send survey events. Use *.example.com for subdomains. Press Enter to
-                            add.
+                            Type a domain and click "Add" or press Enter. Use *.example.com for subdomains.
                         </span>
 
                         <div v-if="formData.domains.length > 0" class="tags">
@@ -103,12 +112,20 @@
                         </div>
                     </div>
 
-                    <div v-if="error" class="error-message">{{ error }}</div>
+                    <div v-if="error" class="error-message">
+                        {{ error }}
+                    </div>
+
+                    <div v-if="sitesStore.error" class="error-message">
+                        {{ sitesStore.error }}
+                    </div>
 
                     <div class="modal-actions">
-                        <button type="button" @click="showAddModal = false" class="btn-secondary">Cancel</button>
-                        <button type="submit" class="btn-primary">
-                            {{ editingSite ? "Update" : "Create" }}
+                        <button type="button" @click="closeModal" class="btn-secondary" :disabled="sitesStore.loading">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn-primary" :disabled="sitesStore.loading">
+                            {{ sitesStore.loading ? "Saving..." : editingSite ? "Update" : "Create" }}
                         </button>
                     </div>
                 </form>
@@ -221,7 +238,6 @@ import type { Site } from "../types";
 
 const sitesStore = useSitesStore();
 
-const loading = ref(false);
 const showAddModal = ref(false);
 const editingSite = ref<Site | null>(null);
 const viewingSite = ref<Site | null>(null);
@@ -265,9 +281,17 @@ function getEmbedScript(siteId: string): string {
 
 function addDomain() {
     const domain = domainInput.value.trim();
+    console.log("➕ Adding domain:", domain);
+    console.log("📋 Current domains:", formData.value.domains);
+
     if (domain && !formData.value.domains.includes(domain)) {
         formData.value.domains.push(domain);
         domainInput.value = "";
+        console.log("✅ Domain added. New domains:", formData.value.domains);
+    } else if (!domain) {
+        console.warn("⚠️ Domain is empty");
+    } else {
+        console.warn("⚠️ Domain already exists");
     }
 }
 
@@ -275,48 +299,68 @@ function removeDomain(index: number) {
     formData.value.domains.splice(index, 1);
 }
 
+function closeModal() {
+    showAddModal.value = false;
+    editingSite.value = null;
+    formData.value = { name: "", domains: [], allowAnyDomain: false };
+    error.value = null;
+}
+
 async function handleSave() {
     error.value = null;
 
-    if (editingSite.value) {
-        // Update site
-        const updated = await sitesStore.updateSite(editingSite.value.id, {
-            name: formData.value.name,
-            domains: formData.value.domains.length > 0 ? formData.value.domains : undefined,
-            allow_any_domain: formData.value.allowAnyDomain,
-        });
+    try {
+        if (editingSite.value) {
+            const updated = await sitesStore.updateSite(editingSite.value.id, {
+                name: formData.value.name,
+                domains: formData.value.domains,
+                allow_any_domain: formData.value.allowAnyDomain,
+            });
 
-        if (updated) {
-            showAddModal.value = false;
-            editingSite.value = null;
-            formData.value = { name: "", domains: [], allowAnyDomain: false };
+            if (updated) {
+                closeModal();
+                await sitesStore.fetchSites();
+            } else {
+                error.value = sitesStore.error || "Failed to update website";
+            }
         } else {
-            error.value = sitesStore.error || "Failed to update website";
-        }
-    } else {
-        const site = await sitesStore.createSite({
-            name: formData.value.name,
-            domains: formData.value.domains.length > 0 ? formData.value.domains : undefined,
-            allow_any_domain: formData.value.allowAnyDomain,
-        });
+            const site = await sitesStore.createSite({
+                name: formData.value.name,
+                domains: formData.value.domains,
+                allow_any_domain: formData.value.allowAnyDomain,
+            });
 
-        if (site) {
-            showAddModal.value = false;
-            formData.value = { name: "", domains: [], allowAnyDomain: false };
-        } else {
-            error.value = sitesStore.error || "Failed to create website";
+            if (site) {
+                closeModal();
+            } else {
+                error.value = sitesStore.error || "Failed to create website";
+            }
         }
+    } catch (err) {
+        console.error("Failed to save site:", err);
+        error.value = String(err);
     }
+}
+
+function editSiteFromView(site: Site) {
+    // Close view modal and open edit modal
+    viewingSite.value = null;
+    editingSite.value = site;
+    formData.value = {
+        name: site.name,
+        domains: site.domains || [],
+        allowAnyDomain: site.allow_any_domain || false,
+    };
+    showAddModal.value = true;
 }
 
 function viewSite(site: Site) {
     viewingSite.value = site;
 }
 
-function confirmDelete(site: Site) {
+async function confirmDelete(site: Site) {
     if (confirm(`Are you sure you want to delete "${site.name}"?`)) {
-        // Delete logic here
-        console.log("Delete site:", site.id);
+        await sitesStore.deleteSite(site.id);
     }
 }
 
@@ -339,10 +383,8 @@ async function copyToClipboard(text: string) {
 }
 
 onMounted(async () => {
-    loading.value = true;
     await detectApiUrl();
     await sitesStore.fetchSites();
-    loading.value = false;
 });
 </script>
 
@@ -525,7 +567,7 @@ onMounted(async () => {
     gap: 8px;
 }
 
-.form-group label {
+.form-group label:not(.checkbox-inline):not(.checkbox-label):not(.radio-label) {
     font-size: 14px;
     font-weight: 500;
     color: #333;
@@ -747,7 +789,7 @@ onMounted(async () => {
 .checkbox-label {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     font-weight: normal;
     margin-top: 12px;
     cursor: pointer;
@@ -792,6 +834,36 @@ onMounted(async () => {
     font-weight: 500;
 }
 
+.domain-input-row {
+    display: flex;
+    gap: 8px;
+}
+
+.domain-input-row input {
+    flex: 1;
+}
+
+.btn-add-domain {
+    padding: 12px 20px;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btn-add-domain:hover:not(:disabled) {
+    background: #5568d3;
+}
+
+.btn-add-domain:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
 .modal-actions {
     display: flex;
     gap: 12px;
@@ -814,5 +886,35 @@ onMounted(async () => {
 .btn-secondary:hover {
     background: #e5e5e5;
     border-color: #ccc;
+}
+
+.domain-input-row {
+    display: flex;
+    gap: 8px;
+}
+
+.domain-input-row input {
+    flex: 1;
+}
+
+.btn-add-domain {
+    padding: 12px 20px;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btn-add-domain:hover:not(:disabled) {
+    background: #5568d3;
+}
+
+.btn-add-domain:disabled {
+    background: #ccc;
+    cursor: not-allowed;
 }
 </style>

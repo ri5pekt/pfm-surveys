@@ -38,7 +38,7 @@
             <thead>
                 <tr>
                     <th>Name</th>
-                    <th>Interactions</th>
+                    <th>Impressions</th>
                     <th>Responses</th>
                     <th>Created By</th>
                     <th>Date Created</th>
@@ -51,13 +51,8 @@
                 <tr v-for="survey in currentSurveys" :key="survey.id">
                     <td class="survey-name" @click="viewResults(survey.id)">{{ survey.name }}</td>
                     <td>
-                        <span
-                            class="metric-value"
-                            :title="`${survey.impressions || 0} impressions, ${survey.responses || 0} responses, ${
-                                survey.dismissals || 0
-                            } dismissals`"
-                        >
-                            {{ survey.interactions || 0 }}
+                        <span class="metric-value" :title="`Survey was shown ${survey.impressions || 0} time(s)`">
+                            {{ survey.impressions || 0 }}
                         </span>
                     </td>
                     <td>{{ survey.responses || 0 }}</td>
@@ -67,9 +62,65 @@
                         <span class="badge">{{ survey.type }}</span>
                     </td>
                     <td>
-                        <button class="btn-text" @click="viewResults(survey.id)">View Results</button>
-                        <button @click="editSurvey(survey.id)" class="btn-text">Edit</button>
-                        <button @click="showDeleteConfirm(survey)" class="btn-text text-danger">Delete</button>
+                        <div class="actions-panel">
+                            <button class="action-btn" @click="viewResults(survey.id)" title="View Results">
+                                <svg
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <path d="M3 3v18h18"></path>
+                                    <path d="M18 17V9l-5 5-3-3-4 4"></path>
+                                </svg>
+                            </button>
+                            <button class="action-btn" @click="editSurvey(survey.id)" title="Edit">
+                                <svg
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                            </button>
+                            <button class="action-btn" @click="showCopyConfirm(survey)" title="Copy">
+                                <svg
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                            </button>
+                            <button
+                                class="action-btn action-btn-danger"
+                                @click="showDeleteConfirm(survey)"
+                                title="Delete"
+                            >
+                                <svg
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <path d="M3 6h18"></path>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+                                    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
+                        </div>
                     </td>
                     <td>
                         <label class="toggle-label">
@@ -124,6 +175,45 @@
                     <button class="btn-dialog-secondary" @click="cancelToggle">Cancel</button>
                     <button class="btn-dialog-primary" @click="confirmToggle">
                         {{ confirmAction === "activate" ? "Activate" : "Deactivate" }}
+                    </button>
+                </div>
+            </template>
+        </Dialog>
+
+        <!-- Copy Confirmation Dialog -->
+        <Dialog v-model:visible="showCopyDialog" modal :closable="true" :style="{ width: '28rem' }">
+            <template #header>
+                <div class="dialog-header-content">
+                    <div class="dialog-icon confirm-icon-circle">
+                        <svg
+                            width="32"
+                            height="32"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.5"
+                        >
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </div>
+                    <h3>Copy Survey</h3>
+                </div>
+            </template>
+            <div class="dialog-body">
+                <p>
+                    Create a copy of <strong>"{{ surveyToCopy?.name }}"</strong>?
+                </p>
+                <p class="dialog-hint">
+                    The copy will include all questions, settings, and appearance. It will start as inactive so you can
+                    review and edit before publishing.
+                </p>
+            </div>
+            <template #footer>
+                <div class="dialog-footer">
+                    <button class="btn-dialog-secondary" @click="cancelCopy">Cancel</button>
+                    <button class="btn-dialog-primary" @click="confirmCopy" :disabled="copying">
+                        {{ copying ? "Copying..." : "Create Copy" }}
                     </button>
                 </div>
             </template>
@@ -194,6 +284,9 @@ const showMyOnly = ref(localStorage.getItem("pfm_showMySurveys") === "true");
 const showConfirmDialog = ref(false);
 const pendingSurvey = ref<Survey | null>(null);
 const confirmAction = ref<"activate" | "deactivate">("activate");
+const showCopyDialog = ref(false);
+const surveyToCopy = ref<Survey | null>(null);
+const copying = ref(false);
 const showDeleteDialog = ref(false);
 const surveyToDelete = ref<Survey | null>(null);
 const deleting = ref(false);
@@ -304,6 +397,36 @@ async function confirmDelete() {
         // TODO: Show error dialog
     } finally {
         deleting.value = false;
+    }
+}
+
+function showCopyConfirm(survey: Survey) {
+    surveyToCopy.value = survey;
+    showCopyDialog.value = true;
+}
+
+function cancelCopy() {
+    showCopyDialog.value = false;
+    surveyToCopy.value = null;
+}
+
+async function confirmCopy() {
+    if (!surveyToCopy.value) return;
+
+    const surveyId = surveyToCopy.value.id;
+    copying.value = true;
+
+    try {
+        const response = await surveysApi.copy(surveyId);
+        // Navigate to edit the new copy
+        router.push({ name: "survey-edit", params: { id: response.survey.id } });
+    } catch (error) {
+        console.error("Failed to copy survey:", error);
+        // TODO: Show error dialog
+    } finally {
+        copying.value = false;
+        showCopyDialog.value = false;
+        surveyToCopy.value = null;
     }
 }
 
@@ -501,22 +624,47 @@ watch(() => sitesStore.currentSite, fetchSurveys);
     text-transform: capitalize;
 }
 
-.btn-text {
-    background: none;
-    border: none;
-    color: #667eea;
-    font-size: 14px;
+.actions-panel {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    color: #4a5568;
     cursor: pointer;
-    padding: 4px 8px;
-    margin-right: 8px;
+    transition: all 0.2s ease;
 }
 
-.btn-text:hover {
-    text-decoration: underline;
+.action-btn:hover {
+    background: #edf2f7;
+    border-color: #cbd5e0;
+    color: #667eea;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.text-danger {
-    color: #d73a49;
+.action-btn:active {
+    transform: translateY(0);
+}
+
+.action-btn-danger {
+    color: #e53e3e;
+}
+
+.action-btn-danger:hover {
+    background: #fff5f5;
+    border-color: #feb2b2;
+    color: #c53030;
 }
 
 .toggle-label {

@@ -8,16 +8,16 @@ export interface User {
 }
 
 export interface Site {
-  id: string;
-  tenant_id: string;
-  name: string;
-  site_id: string;
-  site_secret: string;
-  domains: string[] | null;
-  allow_any_domain: boolean | null;
-  active: boolean;
-  created_at: string;
-  updated_at: string;
+    id: string;
+    tenant_id: string;
+    name: string;
+    site_id: string;
+    site_secret: string;
+    domains: string[] | null;
+    allow_any_domain: boolean | null;
+    active: boolean;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface Survey {
@@ -82,6 +82,8 @@ export interface ResponseSummary {
     totalAnswers: number;
     topAnswer: { label: string; percentage: number; count: number } | null;
     bars: { label: string; count: number; percentage: number }[];
+    /** For open-text questions: most used 2-word phrases (phrase + how many answers contain it) */
+    twoWordPhrases?: { phrase: string; answerCount: number }[];
     metrics?: {
         interactions: number;
         impressions: number;

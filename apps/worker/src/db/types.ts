@@ -101,6 +101,10 @@ export interface DisplaySettingsTable {
     display_frequency: string;
     sample_rate: number;
     max_responses: number | null;
+    show_close_button: boolean;
+    show_minimize_button: boolean;
+    timing_mode: string;
+    scroll_percentage: number;
     created_at: Date;
 }
 

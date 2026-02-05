@@ -1,15 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "../stores/auth";
-import LoginView from "../views/LoginView.vue";
-import DashboardLayout from "../views/DashboardLayout.vue";
-import SurveysView from "../views/SurveysView.vue";
-import SurveyEditorView from "../views/SurveyEditorView.vue";
-import SurveyResponsesView from "../views/SurveyResponsesView.vue";
-import AddSiteView from "../views/AddSiteView.vue";
-import WebsitesView from "../views/WebsitesView.vue";
-import TeamView from "../views/TeamView.vue";
-import ProfileView from "../views/ProfileView.vue";
-import OperationsView from "../views/OperationsView.vue";
 
 const router = createRouter({
     history: createWebHistory(),
@@ -17,58 +7,58 @@ const router = createRouter({
         {
             path: "/login",
             name: "login",
-            component: LoginView,
+            component: () => import("../views/LoginView.vue"),
             meta: { requiresAuth: false },
         },
         {
             path: "/",
-            component: DashboardLayout,
+            component: () => import("../views/DashboardLayout.vue"),
             meta: { requiresAuth: true },
             children: [
                 {
                     path: "",
                     name: "surveys",
-                    component: SurveysView,
+                    component: () => import("../views/SurveysView.vue"),
                 },
                 {
                     path: "survey/new",
                     name: "survey-new",
-                    component: SurveyEditorView,
+                    component: () => import("../views/SurveyEditorView.vue"),
                 },
                 {
                     path: "survey/:id/responses",
                     name: "survey-responses",
-                    component: SurveyResponsesView,
+                    component: () => import("../views/SurveyResponsesView.vue"),
                 },
                 {
                     path: "survey/:id",
                     name: "survey-edit",
-                    component: SurveyEditorView,
+                    component: () => import("../views/SurveyEditorView.vue"),
                 },
                 {
                     path: "websites",
                     name: "websites",
-                    component: WebsitesView,
+                    component: () => import("../views/WebsitesView.vue"),
                 },
                 {
                     path: "team",
                     name: "team",
-                    component: TeamView,
+                    component: () => import("../views/TeamView.vue"),
                 },
                 {
                     path: "operations",
                     name: "operations",
-                    component: OperationsView,
+                    component: () => import("../views/OperationsView.vue"),
                 },
                 {
                     path: "profile",
                     name: "profile",
-                    component: ProfileView,
+                    component: () => import("../views/ProfileView.vue"),
                 },
                 {
                     path: "add-site",
                     name: "add-site",
-                    component: AddSiteView,
+                    component: () => import("../views/AddSiteView.vue"),
                 },
             ],
         },

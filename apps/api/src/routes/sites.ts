@@ -116,14 +116,25 @@ export default async function sitesRoutes(fastify: FastifyInstance) {
                 const { id } = request.params as { id: string };
                 const data = createSiteSchema.parse(request.body);
 
+                // Build update object
+                const updateData: any = {
+                    name: data.name,
+                    updated_at: new Date(),
+                };
+
+                // Handle domains - ensure it's saved as array
+                if (data.domains !== undefined) {
+                    updateData.domains = data.domains.length > 0 ? data.domains : null;
+                }
+
+                // Handle allow_any_domain flag
+                if (data.allow_any_domain !== undefined) {
+                    updateData.allow_any_domain = data.allow_any_domain;
+                }
+
                 const site = await db
                     .updateTable("sites")
-                    .set({
-                        name: data.name,
-                        domains: data.domains || null,
-                        allow_any_domain: data.allow_any_domain !== undefined ? data.allow_any_domain : false,
-                        updated_at: new Date(),
-                    })
+                    .set(updateData)
                     .where("id", "=", id)
                     .where("tenant_id", "=", tenant_id)
                     .returningAll()
@@ -132,6 +143,11 @@ export default async function sitesRoutes(fastify: FastifyInstance) {
                 if (!site) {
                     return reply.status(404).send({ error: "Site not found" });
                 }
+
+                fastify.log.info(
+                    { site_id: site.id, domains: site.domains, allow_any: site.allow_any_domain },
+                    "Site updated"
+                );
 
                 return { site };
             } catch (error) {

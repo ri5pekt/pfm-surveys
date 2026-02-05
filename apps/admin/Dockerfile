@@ -8,7 +8,6 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Copy workspace files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages ./packages
 COPY apps/admin ./apps/admin
 
 # Install dependencies

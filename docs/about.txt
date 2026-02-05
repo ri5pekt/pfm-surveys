@@ -99,9 +99,6 @@ apps/
   admin/
   embed/
 
-packages/
-  shared/
-
 docs/
   decisions.md
   architecture.md

@@ -220,11 +220,10 @@ export function createSurveyHTML(survey: Survey): string {
           ">Next</button>
         </div>
       </div>
-      <div class="pfm-survey-minimized" style="display: none; position: absolute; left: 0; right: 0; bottom: 0; top: 0; border-radius: ${widgetBorderRadius}; background: ${widgetBg}; box-shadow: 0 8px 40px rgba(0,0,0,0.3); align-items: center; padding: 0 16px;">
-        <button type="button" class="pfm-expand-btn" style="flex: 1; text-align: left; background: none; border: none; cursor: pointer; font-size: ${answerFontSize}; color: ${textColor}; padding: 16px 0; font-family: inherit;">
-          <span class="pfm-minimized-question-text"></span>
+      <div class="pfm-survey-minimized" style="display: none; width: 100%; border-radius: ${widgetBorderRadius}; background: transparent; align-items: center; padding: 14px 20px; flex-direction: row; box-sizing: border-box;">
+        <button type="button" class="pfm-expand-btn" style="flex: 1; min-width: 0; text-align: left; background: none; border: none; cursor: pointer; font-size: ${questionTextSize}; color: ${textColor}; padding: 0; padding-right: 50px; font-family: inherit; font-weight: 600; line-height: 1.5;">
+          <span class="pfm-minimized-question-text" style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
         </button>
-        <span style="color: ${textColor}99; font-size: 18px;">↑</span>
       </div>
       ${
           survey.thank_you_message
@@ -265,6 +264,23 @@ export function createSurveyHTML(survey: Survey): string {
       textarea:focus { outline: none; border-color: ${textColor}80; }
       .pfm-rating-btn:hover { border-color: ${buttonBgColor} !important; color: ${buttonBgColor} !important; }
       .pfm-rating-btn.selected { background: ${buttonBgColor} !important; color: ${textColor} !important; border-color: ${buttonBgColor} !important; }
+
+      /* Mobile styles: full width, flush with edges, no shadow */
+      @media (max-width: 767px) {
+        #pfm-survey-${survey.id}.pfm-survey-expanded,
+        #pfm-survey-${survey.id}.pfm-survey-minimized-bar {
+          bottom: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+          top: auto !important;
+          max-width: none !important;
+          min-width: 0 !important;
+          transform: none !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+          margin: 0 !important;
+        }
+      }
     </style>
   `;
 }

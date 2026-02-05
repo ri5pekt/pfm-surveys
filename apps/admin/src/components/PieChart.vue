@@ -40,6 +40,7 @@ const createChart = () => {
         options: {
             responsive: true,
             maintainAspectRatio: true,
+            animation: false,
             plugins: {
                 legend: {
                     display: false,

@@ -3,10 +3,14 @@
         <header class="header">
             <div class="header-left">
                 <div class="logo-container">
-                    <img src="../assets/pfm-surveys.svg" alt="PFM Surveys" class="logo" />
-                    <h1>PFM Surveys</h1>
+                    <div class="logo-row">
+                        <img src="../assets/pfm-surveys.svg" alt="PFM Surveys" class="logo" />
+                        <div class="title-column">
+                            <h1>PFM Surveys</h1>
+                            <span class="version-badge">v0.1.0</span>
+                        </div>
+                    </div>
                 </div>
-                <span class="version-badge">v0.1.0</span>
             </div>
 
             <div class="header-center" v-if="sitesStore.hasSites">
@@ -231,22 +235,32 @@ function handleLogout() {
 
 .logo-container {
     display: flex;
+}
+
+.logo-row {
+    display: flex;
     align-items: center;
     gap: 12px;
+}
+
+.title-column {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
 .version-badge {
     font-size: 11px;
     font-weight: 500;
-    padding: 4px 8px;
-    background: #f0f0f0;
-    color: #666;
-    border-radius: 4px;
+    padding: 0;
+    background: transparent;
+    color: #999;
     font-family: monospace;
+    line-height: 1;
 }
 
 .logo {
-    height: 32px;
+    height: 40px;
     width: auto;
 }
 

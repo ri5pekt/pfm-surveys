@@ -63,10 +63,6 @@ Desktop.ini
 # TypeScript
 *.tsbuildinfo
 
-# Production configs (if sensitive)
-docker-compose.prod.yml
-Caddyfile
-
 # Database dumps
 *.sql
 *.dump

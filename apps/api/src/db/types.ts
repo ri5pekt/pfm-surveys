@@ -103,6 +103,8 @@ export interface DisplaySettingsTable {
     max_responses: number | null;
     show_close_button: boolean;
     show_minimize_button: boolean;
+    timing_mode: string;
+    scroll_percentage: number;
     created_at: Date;
 }
 

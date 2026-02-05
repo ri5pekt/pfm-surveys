@@ -41,21 +41,57 @@ function init(): void {
     function showNextSurvey(): void {
         const nextSurvey = findNextSurvey();
         if (nextSurvey) {
+            const timingMode = (nextSurvey.displaySettings as any)?.timing_mode || "immediate";
             const delay = nextSurvey.displaySettings?.show_delay_ms ?? 0;
-            console.log(
-                `%c[PFM Surveys] 🎉 Showing next survey "${nextSurvey.name}" after ${delay}ms delay`,
-                "color: #667eea; font-weight: bold"
-            );
-            setTimeout(() => {
-                const displaySurvey = createDisplaySurvey({
-                    queueEvent,
-                    siteId: config.siteId,
-                    onClose: showNextSurvey,
-                });
-                displaySurvey(nextSurvey);
-                // Mark as shown in this cycle immediately after display
-                shownInThisCycle.add(nextSurvey.id);
-            }, delay);
+            const scrollPercentage = (nextSurvey.displaySettings as any)?.scroll_percentage ?? 50;
+
+            const displaySurvey = createDisplaySurvey({
+                queueEvent,
+                siteId: config.siteId,
+                onClose: showNextSurvey,
+            });
+
+            if (timingMode === "scroll") {
+                console.log(
+                    `%c[PFM Surveys] 📜 Waiting for user to scroll ${scrollPercentage}% down the page for survey "${nextSurvey.name}"`,
+                    "color: #667eea; font-weight: bold"
+                );
+
+                let scrollTriggered = false;
+                const handleScroll = () => {
+                    if (scrollTriggered) return;
+
+                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                    const docHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+                    const scrolledPercent = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+
+                    if (scrolledPercent >= scrollPercentage) {
+                        scrollTriggered = true;
+                        window.removeEventListener("scroll", handleScroll);
+                        console.log(
+                            `%c[PFM Surveys] 🎉 Scroll threshold reached (${scrolledPercent.toFixed(
+                                1
+                            )}%), showing survey "${nextSurvey.name}"`,
+                            "color: #667eea; font-weight: bold"
+                        );
+                        displaySurvey(nextSurvey);
+                        shownInThisCycle.add(nextSurvey.id);
+                    }
+                };
+
+                window.addEventListener("scroll", handleScroll, { passive: true });
+                // Also check immediately in case already scrolled
+                handleScroll();
+            } else {
+                console.log(
+                    `%c[PFM Surveys] 🎉 Showing next survey "${nextSurvey.name}" after ${delay}ms delay`,
+                    "color: #667eea; font-weight: bold"
+                );
+                setTimeout(() => {
+                    displaySurvey(nextSurvey);
+                    shownInThisCycle.add(nextSurvey.id);
+                }, delay);
+            }
         } else {
             console.log("%c[PFM Surveys] ✓ No more surveys to show", "color: #999");
         }

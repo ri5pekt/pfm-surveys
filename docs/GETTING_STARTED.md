@@ -8,25 +8,26 @@ This guide will help you set up the survey platform for local development.
 
 **Hybrid approach for optimal developer experience:**
 
-- **Infrastructure (Docker):** PostgreSQL and Redis run in Docker containers
-- **Application Code (Local):** API, Worker, and Admin dashboard run as local Node.js/Vite processes
-- **Production (Full Docker):** All services containerized for consistent deployment
+-   **Infrastructure (Docker):** PostgreSQL and Redis run in Docker containers
+-   **Application Code (Local):** API, Worker, and Admin dashboard run as local Node.js/Vite processes
+-   **Production (Full Docker):** All services containerized for consistent deployment
 
 **Why?**
-- ✅ Fast hot module replacement (HMR) for Vue app
-- ✅ Instant backend restarts with nodemon/tsx
-- ✅ No container rebuild delays during development
-- ✅ Easy debugging with direct log access
-- ✅ Production parity with Docker in production
+
+-   ✅ Fast hot module replacement (HMR) for Vue app
+-   ✅ Instant backend restarts with nodemon/tsx
+-   ✅ No container rebuild delays during development
+-   ✅ Easy debugging with direct log access
+-   ✅ Production parity with Docker in production
 
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:
 
-- **Node.js** 20+ (LTS recommended)
-- **npm** or **pnpm** (pnpm recommended for monorepo performance)
-- **Docker** and **Docker Compose** (for PostgreSQL and Redis)
-- **Git** (for version control)
+-   **Node.js** 20+ (LTS recommended)
+-   **npm** or **pnpm** (pnpm recommended for monorepo performance)
+-   **Docker** and **Docker Compose** (for PostgreSQL and Redis)
+-   **Git** (for version control)
 
 ## Project Structure
 
@@ -153,10 +154,11 @@ pnpm dev
 ```
 
 This will start:
-- API on `http://localhost:3000` (Node.js process, local)
-- Worker (background process, local)
-- Admin dashboard on `http://localhost:5173` (Vite dev server, local)
-- Embed build in watch mode (local)
+
+-   API on `http://localhost:3000` (Node.js process, local)
+-   Worker (background process, local)
+-   Admin dashboard on `http://localhost:5173` (Vite dev server, local)
+-   Embed build in watch mode (local)
 
 #### Option B: Run Services Individually
 
@@ -177,35 +179,36 @@ pnpm --filter embed dev
 ```
 
 **Why this approach?**
-- Vite dev server provides instant hot module replacement (HMR)
-- Backend services support live reload with nodemon/tsx
-- Faster iteration without container rebuilds
-- Direct access to logs and debugging tools
+
+-   Vite dev server provides instant hot module replacement (HMR)
+-   Backend services support live reload with nodemon/tsx
+-   Faster iteration without container rebuilds
+-   Direct access to logs and debugging tools
 
 ## Quick Reference: What Runs Where?
 
 ### Development Environment
 
-| Service | Runs In | Command | Port | URL |
-|---------|---------|---------|------|-----|
-| PostgreSQL | 🐳 Docker | `docker-compose up -d` | 5432 | - |
-| Redis | 🐳 Docker | `docker-compose up -d` | 6379 | - |
-| API | 💻 Local | `pnpm --filter api dev` | 3000 | http://localhost:3000 |
-| Worker | 💻 Local | `pnpm --filter worker dev` | - | - |
-| Admin | 💻 Local | `pnpm --filter admin dev` | 5173 | http://localhost:5173 |
-| Embed | 💻 Local | `pnpm --filter embed dev` | - | (builds to dist/) |
+| Service    | Runs In   | Command                    | Port | URL                   |
+| ---------- | --------- | -------------------------- | ---- | --------------------- |
+| PostgreSQL | 🐳 Docker | `docker-compose up -d`     | 5432 | -                     |
+| Redis      | 🐳 Docker | `docker-compose up -d`     | 6379 | -                     |
+| API        | 💻 Local  | `pnpm --filter api dev`    | 3000 | http://localhost:3000 |
+| Worker     | 💻 Local  | `pnpm --filter worker dev` | -    | -                     |
+| Admin      | 💻 Local  | `pnpm --filter admin dev`  | 5173 | http://localhost:5173 |
+| Embed      | 💻 Local  | `pnpm --filter embed dev`  | -    | (builds to dist/)     |
 
 ### Production Environment
 
-| Service | Runs In | Command | Notes |
-|---------|---------|---------|-------|
+| Service    | Runs In   | Command                                        | Notes            |
+| ---------- | --------- | ---------------------------------------------- | ---------------- |
 | PostgreSQL | 🐳 Docker | `docker-compose -f docker-compose.prod.yml up` | Data persistence |
-| Redis | 🐳 Docker | `docker-compose -f docker-compose.prod.yml up` | Queue & cache |
-| API | 🐳 Docker | Built from Dockerfile | Serves REST API |
-| Worker | 🐳 Docker | Built from Dockerfile | Background jobs |
-| Admin | 🐳 Docker | Served by Caddy/nginx | Static files |
-| Embed | 🐳 Docker | Served by API | Via /embed.js |
-| Caddy | 🐳 Docker | Reverse proxy | HTTPS + routing |
+| Redis      | 🐳 Docker | `docker-compose -f docker-compose.prod.yml up` | Queue & cache    |
+| API        | 🐳 Docker | Built from Dockerfile                          | Serves REST API  |
+| Worker     | 🐳 Docker | Built from Dockerfile                          | Background jobs  |
+| Admin      | 🐳 Docker | Served by Caddy/nginx                          | Static files     |
+| Embed      | 🐳 Docker | Served by API                                  | Via /embed.js    |
+| Caddy      | 🐳 Docker | Reverse proxy                                  | HTTPS + routing  |
 
 ## Development Workflow
 
@@ -229,32 +232,32 @@ curl http://localhost:3000/health
 ```html
 <!DOCTYPE html>
 <html>
-<head>
-  <title>Embed Test</title>
-</head>
-<body>
-  <h1>Survey Embed Test</h1>
+    <head>
+        <title>Embed Test</title>
+    </head>
+    <body>
+        <h1>Survey Embed Test</h1>
 
-  <script>
-    (function() {
-      var script = document.createElement('script');
-      script.src = 'http://localhost:3000/embed/script.js?site_id=YOUR_SITE_ID';
-      script.async = true;
-      document.head.appendChild(script);
-    })();
-  </script>
-</body>
+        <script>
+            (function () {
+                var script = document.createElement("script");
+                script.src = "http://localhost:3000/embed/script.js?site_id=YOUR_SITE_ID";
+                script.async = true;
+                document.head.appendChild(script);
+            })();
+        </script>
+    </body>
 </html>
 ```
 
 ### Accessing Services
 
-| Service | URL | Description |
-|---------|-----|-------------|
-| API | http://localhost:3000 | Backend API |
-| Admin Dashboard | http://localhost:5173 | Vue 3 frontend |
-| PostgreSQL | localhost:5432 | Database |
-| Redis | localhost:6379 | Queue and cache |
+| Service         | URL                   | Description     |
+| --------------- | --------------------- | --------------- |
+| API             | http://localhost:3000 | Backend API     |
+| Admin Dashboard | http://localhost:5173 | Vue 3 frontend  |
+| PostgreSQL      | localhost:5432        | Database        |
+| Redis           | localhost:6379        | Queue and cache |
 
 ## Common Commands
 
@@ -301,29 +304,8 @@ This project uses a monorepo structure with workspace dependencies:
 pnpm --filter api add fastify
 pnpm --filter admin add vue
 
-# Add to shared package
-pnpm --filter shared add zod
-
 # Add dev dependency to workspace root
 pnpm add -D -w typescript
-```
-
-### Referencing Shared Package
-
-In `apps/api/package.json`:
-
-```json
-{
-  "dependencies": {
-    "shared": "workspace:*"
-  }
-}
-```
-
-Then import in code:
-
-```typescript
-import { SurveyConfig } from 'shared';
 ```
 
 ## Database Management
@@ -437,10 +419,11 @@ pnpm build
 ```
 
 This creates production-ready builds:
-- `apps/api/dist/` - Compiled TypeScript
-- `apps/worker/dist/` - Compiled TypeScript
-- `apps/admin/dist/` - Static assets (optimized Vue app bundle)
-- `apps/embed/dist/` - Minified embed script
+
+-   `apps/api/dist/` - Compiled TypeScript
+-   `apps/worker/dist/` - Compiled TypeScript
+-   `apps/admin/dist/` - Static assets (optimized Vue app bundle)
+-   `apps/embed/dist/` - Minified embed script
 
 ### Docker Compose Production
 
@@ -458,31 +441,35 @@ docker-compose -f docker-compose.prod.yml --profile production up -d
 ```
 
 **Production containers:**
-- `api` - Serves the REST API
-- `worker` - Processes background jobs
-- `admin` - Static files served by Caddy or nginx
-- `postgres` - Database
-- `redis` - Queue and cache
-- `caddy` - Reverse proxy with automatic HTTPS
+
+-   `api` - Serves the REST API
+-   `worker` - Processes background jobs
+-   `admin` - Static files served by Caddy or nginx
+-   `postgres` - Database
+-   `redis` - Queue and cache
+-   `caddy` - Reverse proxy with automatic HTTPS
 
 **Dev vs Production:**
-- **Dev:** API, Worker, Admin run as local Node/Vite processes (fast HMR)
-- **Prod:** All services containerized (consistent deployment)
+
+-   **Dev:** API, Worker, Admin run as local Node/Vite processes (fast HMR)
+-   **Prod:** All services containerized (consistent deployment)
 
 ## Environment-Specific Configs
 
 ### Development (.env)
-- Hot reload enabled
-- Detailed logging
-- CORS enabled for localhost
-- No rate limiting
+
+-   Hot reload enabled
+-   Detailed logging
+-   CORS enabled for localhost
+-   No rate limiting
 
 ### Production (.env.production)
-- Optimized builds
-- Error logging only
-- Strict CORS
-- Rate limiting enabled
-- HTTPS enforced
+
+-   Optimized builds
+-   Error logging only
+-   Strict CORS
+-   Rate limiting enabled
+-   HTTPS enforced
 
 ## Next Steps
 
@@ -499,27 +486,28 @@ When building the Vue 3 admin dashboard, refer to the complete UI specifications
 📋 **[Admin Dashboard Screens Documentation](./admin-screens.md)**
 
 This includes detailed requirements for:
-- Login and authentication screens
-- Site management (list, add, edit)
-- Survey list with active/inactive tabs
-- Survey builder with live preview
-- Results screen with charts and response table
-- All components, layouts, and user flows
+
+-   Login and authentication screens
+-   Site management (list, add, edit)
+-   Survey list with active/inactive tabs
+-   Survey builder with live preview
+-   Results screen with charts and response table
+-   All components, layouts, and user flows
 
 ## Useful Resources
 
-- [Fastify Documentation](https://fastify.dev/)
-- [Kysely Query Builder](https://kysely.dev/)
-- [BullMQ Guide](https://docs.bullmq.io/)
-- [Vue 3 Documentation](https://vuejs.org/)
-- [PrimeVue Components](https://primevue.org/)
-- [Vite Documentation](https://vitejs.dev/)
+-   [Fastify Documentation](https://fastify.dev/)
+-   [Kysely Query Builder](https://kysely.dev/)
+-   [BullMQ Guide](https://docs.bullmq.io/)
+-   [Vue 3 Documentation](https://vuejs.org/)
+-   [PrimeVue Components](https://primevue.org/)
+-   [Vite Documentation](https://vitejs.dev/)
 
 ## Getting Help
 
-- Check `docs/architecture.md` for system design details
-- Check `docs/decisions.md` for architectural decision records
-- Review API documentation at `http://localhost:3000/documentation` (when implemented)
+-   Check `docs/architecture.md` for system design details
+-   Check `docs/decisions.md` for architectural decision records
+-   Review API documentation at `http://localhost:3000/documentation` (when implemented)
 
 ---
 

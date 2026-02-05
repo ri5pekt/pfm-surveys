@@ -28,11 +28,32 @@ export function createDisplaySurvey(deps: DisplayDeps) {
         let currentIndex = 0;
         const answers: Record<string, string | string[]> = {};
 
-        // Appearance settings with defaults
+        // Appearance settings with defaults (match render.ts for minimized bar)
         const textColor = displaySettings?.text_color ?? "#ffffff";
         const questionTextSize = displaySettings?.question_text_size ?? "1em";
         const answerFontSize = displaySettings?.answer_font_size ?? "0.875em";
         const buttonBgColor = displaySettings?.button_background_color ?? "#292d56";
+        const widgetBgColor = displaySettings?.widget_background_color ?? "#141a2c";
+        const widgetBgOpacity = displaySettings?.widget_background_opacity ?? 1.0;
+        const widgetBorderRadius = displaySettings?.widget_border_radius ?? "8px";
+        const hexToRgba = (hex: string, opacity: number): string => {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+        };
+        const widgetBg = hexToRgba(widgetBgColor, widgetBgOpacity);
+
+        // Mobile detection
+        const isMobile = (): boolean => window.innerWidth < 768;
+
+        // Apply mobile styles immediately if on mobile
+        if (isMobile()) {
+            surveyEl.setAttribute(
+                "style",
+                `position: fixed; bottom: 0; left: 0; right: 0; z-index: 999999; max-width: none; background: ${widgetBg}; border-radius: 0; box-shadow: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; animation: pfm-slide-in 0.3s ease-out;`
+            );
+        }
 
         function showQuestion(index: number): void {
             const body = surveyEl.querySelector(".pfm-survey-body")!;
@@ -197,6 +218,12 @@ export function createDisplaySurvey(deps: DisplayDeps) {
                 main.style.display = "none";
                 thankYou.style.display = "block";
 
+                // Hide close and minimize buttons on thank you screen
+                const closeBtn = surveyEl.querySelector(".pfm-close-btn") as HTMLElement | null;
+                const minimizeBtn = surveyEl.querySelector(".pfm-minimize-btn") as HTMLElement | null;
+                if (closeBtn) closeBtn.style.display = "none";
+                if (minimizeBtn) minimizeBtn.style.display = "none";
+
                 // Add Close button listener
                 const closeThankYouBtn = surveyEl.querySelector(".pfm-close-thank-you-btn");
                 if (closeThankYouBtn) {
@@ -233,26 +260,53 @@ export function createDisplaySurvey(deps: DisplayDeps) {
         function setMinimized(minimized: boolean): void {
             const main = surveyEl.querySelector(".pfm-survey-main") as HTMLElement;
             const minDiv = surveyEl.querySelector(".pfm-survey-minimized") as HTMLElement;
+            const minimizeBtn = surveyEl.querySelector(".pfm-minimize-btn") as HTMLElement;
+            const mobile = isMobile();
+
             if (minimized) {
                 surveyEl.classList.remove("pfm-survey-expanded");
                 surveyEl.classList.add("pfm-survey-minimized-bar");
-                surveyEl.setAttribute(
-                    "style",
-                    "position: fixed; bottom: 0; left: 0; right: 0; z-index: 999999; max-width: none; border-radius: 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.15); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: white;"
-                );
+
+                if (mobile) {
+                    // Mobile: full width at bottom, flush with edges, no shadow
+                    surveyEl.setAttribute(
+                        "style",
+                        `position: fixed; bottom: 0; left: 0; right: 0; z-index: 999999; max-width: none; background: ${widgetBg}; border-radius: 0; box-shadow: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0;`
+                    );
+                } else {
+                    // Desktop: positioned widget
+                    surveyEl.setAttribute(
+                        "style",
+                        `position: fixed; ${
+                            POSITION_STYLES[position] ?? POSITION_STYLES["bottom-right"]
+                        } z-index: 999999; min-width: 300px; max-width: 420px; background: ${widgetBg}; border-radius: ${widgetBorderRadius}; box-shadow: 0 8px 40px rgba(0,0,0,0.3); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;`
+                    );
+                }
                 main.style.display = "none";
                 minDiv.style.display = "flex";
+                if (minimizeBtn) minimizeBtn.textContent = "+";
             } else {
                 surveyEl.classList.add("pfm-survey-expanded");
                 surveyEl.classList.remove("pfm-survey-minimized-bar");
-                surveyEl.setAttribute(
-                    "style",
-                    `position: fixed; ${
-                        POSITION_STYLES[position] ?? POSITION_STYLES["bottom-right"]
-                    } z-index: 999999; max-width: 400px; background: white; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;`
-                );
+
+                if (mobile) {
+                    // Mobile: full width at bottom, flush with edges, no shadow
+                    surveyEl.setAttribute(
+                        "style",
+                        `position: fixed; bottom: 0; left: 0; right: 0; z-index: 999999; max-width: none; background: ${widgetBg}; border-radius: 0; box-shadow: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0;`
+                    );
+                } else {
+                    // Desktop: positioned widget
+                    surveyEl.setAttribute(
+                        "style",
+                        `position: fixed; ${
+                            POSITION_STYLES[position] ?? POSITION_STYLES["bottom-right"]
+                        } z-index: 999999; min-width: 300px; max-width: 420px; background: ${widgetBg}; border-radius: ${widgetBorderRadius}; box-shadow: 0 8px 40px rgba(0,0,0,0.3); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;`
+                    );
+                }
                 main.style.display = "block";
                 minDiv.style.display = "none";
+                if (minimizeBtn) minimizeBtn.textContent = "−";
             }
         }
 
@@ -274,9 +328,15 @@ export function createDisplaySurvey(deps: DisplayDeps) {
         const minimizeBtn = surveyEl.querySelector(".pfm-minimize-btn");
         if (minimizeBtn) {
             minimizeBtn.addEventListener("click", () => {
-                console.log(`[PFM Surveys] Survey "${survey.name}" minimized by user`);
-                queueEvent("dismiss", { survey_id: survey.id, event_data: { reason: "minimize" } });
-                setMinimized(true);
+                const isMinimized = surveyEl.classList.contains("pfm-survey-minimized-bar");
+                if (isMinimized) {
+                    console.log(`[PFM Surveys] Survey "${survey.name}" expanded by user`);
+                    setMinimized(false);
+                } else {
+                    console.log(`[PFM Surveys] Survey "${survey.name}" minimized by user`);
+                    queueEvent("dismiss", { survey_id: survey.id, event_data: { reason: "minimize" } });
+                    setMinimized(true);
+                }
             });
         }
 
