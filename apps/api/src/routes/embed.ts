@@ -276,7 +276,7 @@ const embedRoutes: FastifyPluginAsync = async (fastify) => {
                     pageType: targetingRules.length > 0 ? "specific" : "all",
                     pageRules: targetingRules.map((rule) => ({
                         type: rule.rule_type,
-                        value: JSON.parse(rule.rule_config as string).value,
+                        value: (rule.rule_config as any).value,
                     })),
                 };
 
