@@ -430,7 +430,7 @@ const eventCount = await redis.incrby(`rl:events:${site.id}:${minute}`, events.l
    - `DOMAIN`: Your production domain
    - `DATABASE_PASSWORD`: Strong password
    - `JWT_SECRET`: Generate with `openssl rand -hex 32`
-   - `MAILJET_*`: Your Mailjet credentials
+   - `SMTP_*`: SMTP credentials (e.g. Hostinger surveys@pfm-qa.com)
 
 3. **Run deployment script**:
    ```bash

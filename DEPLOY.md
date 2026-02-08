@@ -179,25 +179,24 @@ ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && docker compose -f dock
 
 ### Issue: Emails not sending
 
-**Cause:** Mailjet configuration or sender email not verified
+**Cause:** SMTP (Hostinger) configuration or credentials
 **Solution:**
 
 1. **Check environment variables**:
 
     ```bash
-    ssh root@31.220.56.146 "docker exec pfm-surveys-prod-api-1 printenv | grep MAILJET"
+    ssh root@31.220.56.146 "docker exec pfm-surveys-prod-api-1 printenv | grep SMTP"
     ```
 
-2. **Verify sender email/domain is Active in Mailjet dashboard**
-
-    - Go to: https://app.mailjet.com/account/sender
-    - Make sure sender email matches `MAILJET_FROM_EMAIL` in .env
-    - Domain must be validated (Active status)
+2. **Verify Hostinger mailbox (surveys@pfm-qa.com)**
+    - Ensure the mailbox exists in hPanel (Emails → Email accounts)
+    - Use the correct password for `SMTP_PASS`
+    - Hostinger SMTP: smtp.hostinger.com, port 465 (SSL)
 
 3. **Update if needed**:
     ```bash
     ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && cat .env"
-    # Edit MAILJET_FROM_EMAIL to match verified sender
+    # Edit SMTP_USER and SMTP_PASS to match Hostinger mailbox
     ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate api"
     ```
 
@@ -265,26 +264,26 @@ ssh root@31.220.56.146 "docker exec -it pfm-surveys-prod-postgres-1 psql -U surv
 
 **Before deploying:**
 
--   [ ] Test changes locally with `pnpm dev`
--   [ ] Commit all changes with clear commit message
--   [ ] Push to GitHub
+- [ ] Test changes locally with `pnpm dev`
+- [ ] Commit all changes with clear commit message
+- [ ] Push to GitHub
 
 **For frontend changes (Admin):**
 
--   [ ] Remember: `VITE_API_BASE_URL` is baked in at build time
--   [ ] If you changed API URL, rebuild admin container
+- [ ] Remember: `VITE_API_BASE_URL` is baked in at build time
+- [ ] If you changed API URL, rebuild admin container
 
 **For API changes:**
 
--   [ ] If you changed routes, update frontend accordingly
--   [ ] If you added database changes, run migrations
--   [ ] If you added environment variables, update `.env` on VPS
+- [ ] If you changed routes, update frontend accordingly
+- [ ] If you added database changes, run migrations
+- [ ] If you added environment variables, update `.env` on VPS
 
 **After deploying:**
 
--   [ ] Check service logs for errors
--   [ ] Test the deployed feature on https://surveys.pfm-qa.com
--   [ ] Monitor logs for 5 minutes to catch any immediate issues
+- [ ] Check service logs for errors
+- [ ] Test the deployed feature on https://surveys.pfm-qa.com
+- [ ] Monitor logs for 5 minutes to catch any immediate issues
 
 ---
 
@@ -321,10 +320,10 @@ ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && docker compose ps"
 
 Expected output:
 
--   All containers should show "Up" status
--   API should show "(healthy)"
--   Admin should be serving on port 3001
--   API should be serving on port 3000
+- All containers should show "Up" status
+- API should show "(healthy)"
+- Admin should be serving on port 3001
+- API should be serving on port 3000
 
 ---
 
@@ -341,10 +340,10 @@ Expected output:
 
 ## 📞 Emergency Contacts
 
--   **VPS:** Hostinger VPS at `31.220.56.146`
--   **Domain:** `surveys.pfm-qa.com` (DNS managed by domain provider)
--   **Email Service:** Mailjet (https://app.mailjet.com)
--   **Repository:** GitHub - ri5pekt/pfm-surveys
+- **VPS:** Hostinger VPS at `31.220.56.146`
+- **Domain:** `surveys.pfm-qa.com` (DNS managed by domain provider)
+- **Email Service:** Hostinger mailbox (surveys@pfm-qa.com, SMTP)
+- **Repository:** GitHub - ri5pekt/pfm-surveys
 
 ---
 
@@ -365,10 +364,10 @@ Expected output:
 
 ## 🎓 Learning Resources
 
--   **Docker Compose docs:** https://docs.docker.com/compose/
--   **Fastify docs:** https://fastify.dev/
--   **Vue 3 docs:** https://vuejs.org/
--   **Caddy docs:** https://caddyserver.com/docs/
+- **Docker Compose docs:** https://docs.docker.com/compose/
+- **Fastify docs:** https://fastify.dev/
+- **Vue 3 docs:** https://vuejs.org/
+- **Caddy docs:** https://caddyserver.com/docs/
 
 ---
 

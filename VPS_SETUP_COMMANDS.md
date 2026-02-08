@@ -99,8 +99,8 @@ nano .env
 -   `JWT_ACCESS_SECRET` - First secret from Step 5
 -   `JWT_REFRESH_SECRET` - Second secret from Step 5
 -   `HMAC_SECRET` - Third secret from Step 5
--   `MAILJET_API_KEY` - Your Mailjet API key
--   `MAILJET_SECRET_KEY` - Your Mailjet secret key
+-   `SMTP_USER` - surveys@pfm-qa.com
+-   `SMTP_PASS` - Hostinger mailbox password
 
 Press `Ctrl+X`, then `Y`, then `Enter` to save.
 

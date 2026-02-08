@@ -1,4 +1,5 @@
-import Mailjet from "node-mailjet";
+import nodemailer from "nodemailer";
+import type { Transporter } from "nodemailer";
 
 interface SendInvitationEmailParams {
     to: string;
@@ -7,63 +8,35 @@ interface SendInvitationEmailParams {
 }
 
 export class EmailService {
-    private static client: any;
+    private static transporter: Transporter | null = null;
 
-    private static getClient() {
-        if (!this.client) {
-            const apiKey = process.env.MAILJET_API_KEY;
-            const secretKey = process.env.MAILJET_SECRET_KEY;
+    private static getTransporter(): Transporter {
+        if (!this.transporter) {
+            const host = process.env.SMTP_HOST;
+            const port = process.env.SMTP_PORT;
+            const user = process.env.SMTP_USER;
+            const pass = process.env.SMTP_PASS;
 
-            if (!apiKey || !secretKey) {
-                throw new Error("Mailjet API credentials not configured");
+            if (!host || !user || !pass) {
+                throw new Error("SMTP credentials not configured (SMTP_HOST, SMTP_USER, SMTP_PASS required)");
             }
 
-            this.client = new Mailjet({
-                apiKey,
-                apiSecret: secretKey,
+            this.transporter = nodemailer.createTransport({
+                host,
+                port: port ? parseInt(port, 10) : 465,
+                secure: true,
+                auth: { user, pass },
             });
         }
 
-        return this.client;
+        return this.transporter;
     }
 
     static async sendInvitationEmail({ to, tempPassword, invitedBy }: SendInvitationEmailParams) {
-        const fromEmail = process.env.MAILJET_FROM_EMAIL || process.env.EMAIL_FROM || "noreply@yourdomain.com";
-        const fromName = process.env.MAILJET_FROM_NAME || process.env.EMAIL_FROM_NAME || "PFM Surveys";
+        const fromEmail = process.env.SMTP_USER || process.env.EMAIL_FROM || "surveys@pfm-qa.com";
+        const fromName = process.env.EMAIL_FROM_NAME || "PFM Surveys";
 
-        try {
-            const request = this.getClient()
-                .post("send", { version: "v3.1" })
-                .request({
-                    Messages: [
-                        {
-                            From: {
-                                Email: fromEmail,
-                                Name: fromName,
-                            },
-                            To: [
-                                {
-                                    Email: to,
-                                },
-                            ],
-                            Subject: "You've been invited to PFM Surveys",
-                            TextPart: `Hi!
-
-${invitedBy} has invited you to join their team on PFM Surveys.
-
-Your temporary login credentials:
-Email: ${to}
-Password: ${tempPassword}
-
-Please log in and change your password after your first login.
-
-Login here: ${process.env.ADMIN_URL || "http://localhost:5173"}
-
-Welcome aboard!
-
----
-PFM Surveys Team`,
-                            HTMLPart: `
+        const html = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -166,13 +139,35 @@ PFM Surveys Team`,
   </div>
 </body>
 </html>
-`,
-                        },
-                    ],
-                });
+`;
 
-            const result = await request;
-            return { success: true, messageId: result.body.Messages[0].Status };
+        const text = `Hi!
+
+${invitedBy} has invited you to join their team on PFM Surveys.
+
+Your temporary login credentials:
+Email: ${to}
+Password: ${tempPassword}
+
+Please log in and change your password after your first login.
+
+Login here: ${process.env.ADMIN_URL || "http://localhost:5173"}
+
+Welcome aboard!
+
+---
+PFM Surveys Team`;
+
+        try {
+            const info = await this.getTransporter().sendMail({
+                from: `"${fromName}" <${fromEmail}>`,
+                to,
+                subject: "You've been invited to PFM Surveys",
+                text,
+                html,
+            });
+
+            return { success: true, messageId: info.messageId };
         } catch (error: any) {
             console.error("Failed to send invitation email:", error);
             throw new Error(`Failed to send email: ${error.message}`);
@@ -181,9 +176,9 @@ PFM Surveys Team`,
 
     static async testConnection() {
         try {
-            this.getClient();
+            await this.getTransporter().verify();
             return true;
-        } catch (error) {
+        } catch {
             return false;
         }
     }

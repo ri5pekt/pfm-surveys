@@ -19,7 +19,7 @@ Core Features:
 - Display settings and targeting rules
 - Event tracking (impressions, responses, dismissals)
 - Geo-location detection
-- Email invitations via Mailjet
+- Email invitations via SMTP (Hostinger)
 - Real-time analytics and reporting
 - Background job processing with BullMQ
 

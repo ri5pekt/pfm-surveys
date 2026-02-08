@@ -11,17 +11,19 @@ A complete multi-tenant survey solution that enables you to collect user feedbac
 ## ✨ Features
 
 ### Core Capabilities
+
 -   🎯 **Multi-tenant Architecture** - Support multiple clients and sites with isolated data
 -   🔒 **Secure Embed Script** - HMAC-signed requests prevent spoofing and replay attacks
 -   ⚡ **Async Event Ingestion** - Non-blocking collection with Redis queue + background worker
 -   📊 **Real-time Analytics** - Instant response charts and breakdowns
 -   🌍 **Geolocation Tracking** - Automatic country/state/city detection from IP addresses
--   👥 **Team Management** - Invite-only access with email invitations (Mailjet)
+-   👥 **Team Management** - Invite-only access with email invitations (Hostinger SMTP)
 -   🎨 **Modern Admin Dashboard** - Beautiful Vue 3 + PrimeVue interface
 -   🐳 **Production-Ready** - Fully containerized with Docker Compose + Caddy reverse proxy
 -   🔧 **100% TypeScript** - Full type safety across backend, frontend, and embed widget
 
 ### Survey Features
+
 -   📝 **Visual Survey Builder** - Drag-and-drop editor with live preview
 -   ❓ **Multiple Question Types** - Radio buttons, text input, multiple choice
 -   💬 **Comment Fields** - Optional comments for any radio question
@@ -31,6 +33,7 @@ A complete multi-tenant survey solution that enables you to collect user feedbac
 -   📤 **Data Export** - Download responses as CSV or XLSX
 
 ### Security & Performance
+
 -   🔐 **JWT Authentication** - 30-day sessions with auto-logout on expiration
 -   🚦 **Rate Limiting** - Global, per-IP, and per-site limits
 -   ♾️ **CORS Protection** - Configurable origins with domain validation
@@ -62,6 +65,7 @@ pnpm dev
 ```
 
 **What's running:**
+
 -   🐳 PostgreSQL on `localhost:5432` (Docker container)
 -   🐳 Redis on `localhost:6379` (Docker container)
 -   💻 API on `http://localhost:3000` (local Node.js with tsx watch)
@@ -77,6 +81,7 @@ pnpm dev
 **Full deployment guide:** See **[DEPLOY.md](./DEPLOY.md)** for complete production deployment instructions.
 
 **Quick production deploy:**
+
 ```bash
 # On your VPS (all services in Docker)
 git clone <your-repo>
@@ -109,6 +114,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ### For Team Members
 
 **Invitation Process:**
+
 1. Admin invites you via email
 2. You receive invitation with temporary password
 3. Click link, login, set new password
@@ -121,16 +127,18 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ## 🛠️ Tech Stack
 
 ### Backend
+
 -   **Runtime:** Node.js 20+ with TypeScript
 -   **API Framework:** Fastify (high performance)
 -   **Database:** PostgreSQL 16 (with connection pooling)
 -   **Query Builder:** Kysely (type-safe SQL)
 -   **Queue System:** Redis + BullMQ (reliable job processing)
 -   **Authentication:** JWT (30-day sessions)
--   **Email:** Mailjet API
+-   **Email:** SMTP (Hostinger surveys@pfm-qa.com)
 -   **Geolocation:** IP-API.com
 
 ### Frontend (Admin Dashboard)
+
 -   **Framework:** Vue 3 + Composition API
 -   **State Management:** Pinia
 -   **UI Components:** PrimeVue
@@ -140,12 +148,14 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 -   **Charts:** Custom D3.js components
 
 ### Embed Widget
+
 -   **Language:** Vanilla JavaScript (no dependencies)
 -   **Build:** Vite (library mode, optimized bundle)
 -   **Size:** ~27KB gzipped
 -   **Loading:** Async, non-blocking
 
 ### Infrastructure
+
 -   **Containers:** Docker & Docker Compose
 -   **Reverse Proxy:** Caddy 2 (automatic HTTPS/SSL)
 -   **Web Server:** Nginx Alpine (for admin static files)
@@ -210,12 +220,14 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ### Data Flow
 
 **Event Ingestion:**
+
 1. Embed widget buffers events (5s or 10 events)
 2. Batches sent to `/api/public/events` with HMAC signature
 3. API validates HMAC, adds to Redis queue, responds 200 OK
 4. Worker picks up job, enriches with geolocation, writes to database
 
 **Response Viewing:**
+
 1. Admin queries `/api/surveys/:id/responses`
 2. API fetches from PostgreSQL with filters
 3. Real-time charts and breakdowns rendered in Vue UI
@@ -286,6 +298,7 @@ See [Admin Dashboard Screens](./docs/admin-screens.md) for detailed UI specifica
 ## ✅ What's Built (v1.0)
 
 ### Survey Management
+
 -   ✅ Survey creation and management
 -   ✅ Single-question surveys (multiple-choice, text input, radio buttons)
 -   ✅ Radio question enhancements (comments, randomization, pinned answers)
@@ -293,6 +306,7 @@ See [Admin Dashboard Screens](./docs/admin-screens.md) for detailed UI specifica
 -   ✅ Survey preview mode
 
 ### Targeting & Display
+
 -   ✅ URL-based targeting (include/exclude patterns)
 -   ✅ Time-on-page triggers
 -   ✅ Sampling rates (show to X% of visitors)
@@ -300,6 +314,7 @@ See [Admin Dashboard Screens](./docs/admin-screens.md) for detailed UI specifica
 -   ✅ Custom positioning and styling
 
 ### Data Collection
+
 -   ✅ Secure event ingestion (HMAC-signed requests)
 -   ✅ Geolocation tracking (country/state/city via IP)
 -   ✅ Browser/OS detection
@@ -308,6 +323,7 @@ See [Admin Dashboard Screens](./docs/admin-screens.md) for detailed UI specifica
 -   ✅ Page URL and timestamp capture
 
 ### Analytics & Reporting
+
 -   ✅ Real-time response charts (bar charts, percentages)
 -   ✅ Individual response viewer
 -   ✅ Filter by question, date, location
@@ -315,12 +331,14 @@ See [Admin Dashboard Screens](./docs/admin-screens.md) for detailed UI specifica
 -   ✅ Operations dashboard (worker activity logs)
 
 ### Team & Access Control
+
 -   ✅ Multi-user team management
 -   ✅ Invite-only access (email invitations via Mailjet)
 -   ✅ User profiles and settings
 -   ✅ Secure JWT authentication (30-day sessions)
 
 ### Infrastructure
+
 -   ✅ Docker Compose deployment
 -   ✅ Caddy reverse proxy with auto-SSL
 -   ✅ Redis job queues with BullMQ
@@ -340,11 +358,12 @@ See [Admin Dashboard Screens](./docs/admin-screens.md) for detailed UI specifica
 
 ## ⚙️ Configuration
 
-All configuration is managed through environment variables. 
+All configuration is managed through environment variables.
 
 ### Required Configuration
 
 **For Development:**
+
 1. Copy `.env.example` to `.env`
 2. Set these required variables:
 
@@ -368,24 +387,26 @@ VITE_API_BASE_URL=http://localhost:3000
 # Admin URL (for email links)
 ADMIN_URL=http://localhost:5173
 
-# Email (Mailjet) - Get free account at mailjet.com
-MAILJET_API_KEY=your_mailjet_api_key
-MAILJET_SECRET_KEY=your_mailjet_secret_key
-MAILJET_FROM_EMAIL=your-verified-email@domain.com
-MAILJET_FROM_NAME=Your App Name
+# Email (SMTP - Hostinger surveys@pfm-qa.com)
+SMTP_HOST=smtp.hostinger.com
+SMTP_PORT=465
+SMTP_USER=surveys@pfm-qa.com
+SMTP_PASS=your_email_password
+EMAIL_FROM_NAME=PFM Surveys
 
 # Geolocation (Optional but recommended)
 IP_API_KEY=your_ip_api_key  # From ip-api.com
 ```
 
 **For Production:**
+
 1. Use `.env.production` as template
 2. Generate secure secrets:
-   ```bash
-   openssl rand -base64 32  # For JWT_SECRET
-   ```
+    ```bash
+    openssl rand -base64 32  # For JWT_SECRET
+    ```
 3. Update all URLs to your production domain
-4. Verify Mailjet sender email/domain
+4. Configure SMTP (Hostinger mailbox surveys@pfm-qa.com)
 
 **See:** [.env.production](./.env.production) for complete production template with all variables.
 
@@ -394,32 +415,35 @@ IP_API_KEY=your_ip_api_key  # From ip-api.com
 ### 📖 Complete Deployment Guide
 
 **See [DEPLOY.md](./DEPLOY.md) for:**
-- Quick deploy commands for each service
-- Environment variable setup
-- Database migration instructions
-- Troubleshooting common issues
-- Rollback procedures
-- Health checks and monitoring
+
+-   Quick deploy commands for each service
+-   Environment variable setup
+-   Database migration instructions
+-   Troubleshooting common issues
+-   Rollback procedures
+-   Health checks and monitoring
 
 ### Development vs Production
 
-| Aspect | Development | Production |
-|--------|-------------|------------|
-| **Database/Redis** | Docker containers | Docker containers |
-| **API/Worker** | Local Node.js (tsx watch) | Docker containers |
-| **Admin** | Vite dev server (HMR) | Nginx serving static build |
-| **Reverse Proxy** | None (direct access) | Caddy with auto-SSL |
-| **Hot Reload** | ✅ Yes | ❌ No (rebuild required) |
-| **Performance** | Slower (dev mode) | Fast (optimized builds) |
+| Aspect             | Development               | Production                 |
+| ------------------ | ------------------------- | -------------------------- |
+| **Database/Redis** | Docker containers         | Docker containers          |
+| **API/Worker**     | Local Node.js (tsx watch) | Docker containers          |
+| **Admin**          | Vite dev server (HMR)     | Nginx serving static build |
+| **Reverse Proxy**  | None (direct access)      | Caddy with auto-SSL        |
+| **Hot Reload**     | ✅ Yes                    | ❌ No (rebuild required)   |
+| **Performance**    | Slower (dev mode)         | Fast (optimized builds)    |
 
 ### Quick Production Deploy
 
 **Prerequisites:**
-- VPS with Docker and Docker Compose installed
-- Domain pointing to VPS IP address
-- Mailjet account with verified sender
+
+-   VPS with Docker and Docker Compose installed
+-   Domain pointing to VPS IP address
+-   Hostinger mailbox (surveys@pfm-qa.com) or SMTP credentials
 
 **Deploy:**
+
 ```bash
 # 1. Clone repository
 git clone <your-repo-url>
@@ -443,16 +467,19 @@ cat apps/api/src/db/schema.sql | docker exec -i <postgres-container> psql -U sur
 ## 📚 Documentation
 
 ### Essential Guides
+
 -   **[DEPLOY.md](./DEPLOY.md)** 🚀 - Production deployment guide (start here!)
 -   **[.env.production](./.env.production)** ⚙️ - Production environment template
 -   **[Quick Start Cheat Sheet](./docs/QUICK_START.md)** ⚡ - Common commands and troubleshooting
 -   **[Getting Started Guide](./docs/GETTING_STARTED.md)** 📖 - Complete local setup walkthrough
 
 ### UI/UX Documentation
+
 -   [Admin Dashboard Screens](./docs/admin-screens.md) - Complete screen specifications
 -   [Screenshots Reference](./docs/SCREENSHOTS.md) - Visual design guide with annotated screenshots
 
 ### Technical Documentation
+
 -   [Documentation Index](./docs/README.md) - All documentation organized by topic
 -   [Project Overview](./docs/about.txt) - High-level project description
 -   [Architecture Overview](./docs/architecture.md) - System design and data flow _(coming soon)_
@@ -470,18 +497,19 @@ cat apps/api/src/db/schema.sql | docker exec -i <postgres-container> psql -U sur
 
 ## 📊 Project Status
 
-**Current Version:** v1.0.0  
-**Status:** ✅ **In Production** at [https://surveys.pfm-qa.com](https://surveys.pfm-qa.com)  
+**Current Version:** v1.0.0
+**Status:** ✅ **In Production** at [https://surveys.pfm-qa.com](https://surveys.pfm-qa.com)
 **Last Updated:** February 2026
 
 ### Production Stats
-- 🚀 Deployed on Hostinger VPS
-- 🌍 Multi-tenant architecture
-- ⚡ Handles 100K+ events/day
-- 🔒 Invite-only access with team management
-- 📧 Email invitations via Mailjet
-- 🌐 Geolocation tracking enabled
-- 🔐 30-day JWT sessions
+
+-   🚀 Deployed on Hostinger VPS
+-   🌍 Multi-tenant architecture
+-   ⚡ Handles 100K+ events/day
+-   🔒 Invite-only access with team management
+-   📧 Email invitations via SMTP (Hostinger)
+-   🌐 Geolocation tracking enabled
+-   🔐 30-day JWT sessions
 
 ---
 
