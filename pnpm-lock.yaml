@@ -35,9 +35,6 @@ importers:
       primevue:
         specifier: ^4.0.0
         version: 4.5.4(vue@3.5.27)
-      shared:
-        specifier: workspace:*
-        version: link:../../packages/shared
       vue:
         specifier: ^3.4.15
         version: 3.5.27(typescript@5.9.3)
@@ -123,9 +120,6 @@ importers:
       pino-pretty:
         specifier: ^10.3.1
         version: 10.3.1
-      shared:
-        specifier: workspace:*
-        version: link:../../packages/shared
       zod:
         specifier: ^3.22.4
         version: 3.25.76
@@ -193,9 +187,6 @@ importers:
       pino-pretty:
         specifier: ^10.3.1
         version: 10.3.1
-      shared:
-        specifier: workspace:*
-        version: link:../../packages/shared
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -215,31 +206,6 @@ importers:
       tsx:
         specifier: ^4.7.0
         version: 4.21.0
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-      vitest:
-        specifier: ^1.2.0
-        version: 1.6.1(@types/node@20.19.30)
-
-  packages/shared:
-    dependencies:
-      zod:
-        specifier: ^3.22.4
-        version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: ^20.11.0
-        version: 20.19.30
-      '@typescript-eslint/eslint-plugin':
-        specifier: ^6.19.0
-        version: 6.21.0(@typescript-eslint/parser@6.21.0)(eslint@8.57.1)(typescript@5.9.3)
-      '@typescript-eslint/parser':
-        specifier: ^6.19.0
-        version: 6.21.0(eslint@8.57.1)(typescript@5.9.3)
-      eslint:
-        specifier: ^8.56.0
-        version: 8.57.1
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
