@@ -63,8 +63,9 @@ Desktop.ini
 # TypeScript
 *.tsbuildinfo
 
-# Database dumps
+# Database dumps (allow migration SQL in api)
 *.sql
+!apps/api/src/db/migrations/*.sql
 *.dump
 
 # Secrets and keys

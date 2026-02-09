@@ -34,8 +34,9 @@ COPY apps/api/package.json ./apps/api/
 # Install production dependencies only
 RUN pnpm install --frozen-lockfile --prod
 
-# Copy source code and built embed
+# Copy source code, scripts (migrations), and built embed
 COPY --from=builder /app/apps/api/src ./apps/api/src
+COPY --from=builder /app/apps/api/scripts ./apps/api/scripts
 COPY --from=builder /app/apps/embed/dist ./apps/api/dist/client
 
 WORKDIR /app/apps/api
