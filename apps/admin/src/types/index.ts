@@ -97,7 +97,6 @@ export interface ResponseSummary {
 
 export interface ResponseRow {
     id: number;
-    event_id: number;
     question_id: string;
     answer_option_id: string | null;
     answer_text: string | null;
@@ -112,4 +111,5 @@ export interface ResponseRow {
     state: string | null;
     state_name: string | null;
     city: string | null;
+    session_id: string | null;
 }

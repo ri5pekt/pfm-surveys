@@ -155,59 +155,20 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                 const dismissalCounts = new Map<string, number>();
 
                 if (surveyIds.length > 0) {
-                    // Count responses (distinct event_id from answers)
-                    const counts = await db
-                        .selectFrom("answers")
-                        .select(["survey_id", sql<number>`count(distinct event_id)`.as("count")])
+                    const statsRows = await db
+                        .selectFrom("survey_stats")
+                        .select(["survey_id", "total_responses", "total_impressions", "total_dismissals"])
                         .where("survey_id", "in", surveyIds)
-                        .groupBy("survey_id")
                         .execute();
-                    for (const row of counts) {
-                        responseCounts.set(row.survey_id, Number(row.count));
-                    }
-
-                    // Count total interactions (all events)
-                    const interactionResults = await db
-                        .selectFrom("events")
-                        .select(["survey_id", sql<number>`count(*)`.as("count")])
-                        .where("survey_id", "in", surveyIds)
-                        .where("survey_id", "is not", null)
-                        .groupBy("survey_id")
-                        .execute();
-                    for (const row of interactionResults) {
-                        if (row.survey_id) {
-                            interactionCounts.set(row.survey_id, Number(row.count));
-                        }
-                    }
-
-                    // Count impressions
-                    const impressionResults = await db
-                        .selectFrom("events")
-                        .select(["survey_id", sql<number>`count(*)`.as("count")])
-                        .where("survey_id", "in", surveyIds)
-                        .where("survey_id", "is not", null)
-                        .where("event_type", "=", "impression")
-                        .groupBy("survey_id")
-                        .execute();
-                    for (const row of impressionResults) {
-                        if (row.survey_id) {
-                            impressionCounts.set(row.survey_id, Number(row.count));
-                        }
-                    }
-
-                    // Count dismissals (close and minimize)
-                    const dismissalResults = await db
-                        .selectFrom("events")
-                        .select(["survey_id", sql<number>`count(*)`.as("count")])
-                        .where("survey_id", "in", surveyIds)
-                        .where("survey_id", "is not", null)
-                        .where("event_type", "=", "dismiss")
-                        .groupBy("survey_id")
-                        .execute();
-                    for (const row of dismissalResults) {
-                        if (row.survey_id) {
-                            dismissalCounts.set(row.survey_id, Number(row.count));
-                        }
+                    for (const row of statsRows) {
+                        responseCounts.set(row.survey_id, Number(row.total_responses));
+                        impressionCounts.set(row.survey_id, Number(row.total_impressions));
+                        dismissalCounts.set(row.survey_id, Number(row.total_dismissals));
+                        const total =
+                            Number(row.total_impressions) +
+                            Number(row.total_responses) +
+                            Number(row.total_dismissals);
+                        interactionCounts.set(row.survey_id, total);
                     }
                 }
 
@@ -305,18 +266,35 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                     }
                 }
 
-                // Save targeting rules
+                // Save targeting rules (page rules + user geo rules)
                 if (data.targeting) {
                     if (data.targeting.pageType === "specific" && data.targeting.pageRules) {
                         for (const rule of data.targeting.pageRules) {
                             if (rule.value) {
-                                // Only save if value is not empty
                                 await db
                                     .insertInto("targeting_rules")
                                     .values({
                                         survey_id: survey.id,
                                         rule_type: rule.type,
                                         rule_config: JSON.stringify({ value: rule.value }),
+                                    })
+                                    .execute();
+                            }
+                        }
+                    }
+                    if (data.targeting.userType === "specific" && data.targeting.userRules) {
+                        for (const r of data.targeting.userRules) {
+                            if (r.type === "geo") {
+                                await db
+                                    .insertInto("targeting_rules")
+                                    .values({
+                                        survey_id: survey.id,
+                                        rule_type: "geo",
+                                        rule_config: JSON.stringify({
+                                            country: r.country ?? "",
+                                            state: r.state ?? "",
+                                            city: r.city ?? "",
+                                        }),
                                     })
                                     .execute();
                             }
@@ -429,16 +407,16 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                 const isTextQuestion = questionRow?.question_type === "text";
 
                 const answers = await db
-                    .selectFrom("answers")
-                    .leftJoin("answer_options", "answers.answer_option_id", "answer_options.id")
+                    .selectFrom("responses")
+                    .leftJoin("answer_options", "responses.answer_option_id", "answer_options.id")
                     .select([
-                        "answers.id",
-                        "answers.answer_option_id",
-                        "answers.answer_text",
+                        "responses.id",
+                        "responses.answer_option_id",
+                        "responses.answer_text",
                         "answer_options.option_text as option_text",
                     ])
-                    .where("answers.survey_id", "=", surveyId)
-                    .where("answers.question_id", "=", questionId)
+                    .where("responses.survey_id", "=", surveyId)
+                    .where("responses.question_id", "=", questionId)
                     .execute();
 
                 const totalAnswers = answers.length;
@@ -476,53 +454,30 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                 }
 
                 const totalResponsesResult = await db
-                    .selectFrom("answers")
+                    .selectFrom("responses")
                     .select(db.fn.countAll().as("count"))
                     .where("survey_id", "=", surveyId)
                     .executeTakeFirst();
                 const totalResponses = Number((totalResponsesResult as any)?.count ?? 0);
 
-                // Get interaction metrics
-                const impressionsResult = await db
-                    .selectFrom("events")
-                    .select(db.fn.countAll().as("count"))
-                    .where("survey_id", "=", surveyId)
-                    .where("event_type", "=", "impression")
-                    .executeTakeFirst();
-                const impressions = Number((impressionsResult as any)?.count ?? 0);
-
-                const answersResult = await db
-                    .selectFrom("events")
-                    .select(db.fn.countAll().as("count"))
-                    .where("survey_id", "=", surveyId)
-                    .where("event_type", "=", "answer")
-                    .executeTakeFirst();
-                const answerEvents = Number((answersResult as any)?.count ?? 0);
-
-                const dismissalsResult = await db
-                    .selectFrom("events")
-                    .select(db.fn.countAll().as("count"))
-                    .where("survey_id", "=", surveyId)
-                    .where("event_type", "=", "dismiss")
-                    .executeTakeFirst();
-                const dismissals = Number((dismissalsResult as any)?.count ?? 0);
-
-                // Count close vs minimize dismissals
-                const dismissalDetailsResult = await db
-                    .selectFrom("events")
+                const stats = await db
+                    .selectFrom("survey_stats")
                     .select([
-                        sql<string>`COALESCE(event_data->>'reason', 'close')`.as("reason"),
-                        sql<number>`count(*)`.as("count"),
+                        "total_impressions",
+                        "total_responses",
+                        "total_dismissals",
+                        "total_closes",
+                        "total_minimizes",
                     ])
                     .where("survey_id", "=", surveyId)
-                    .where("event_type", "=", "dismiss")
-                    .groupBy(sql`COALESCE(event_data->>'reason', 'close')`)
-                    .execute();
+                    .executeTakeFirst();
 
-                const closeCount = dismissalDetailsResult.find((r) => r.reason === "close")?.count ?? 0;
-                const minimizeCount = dismissalDetailsResult.find((r) => r.reason === "minimize")?.count ?? 0;
-                const autoCloseCount = dismissalDetailsResult.find((r) => r.reason === "auto_close")?.count ?? 0;
-
+                const impressions = Number(stats?.total_impressions ?? 0);
+                const answerEvents = Number(stats?.total_responses ?? 0);
+                const dismissals = Number(stats?.total_dismissals ?? 0);
+                const closeCount = Number(stats?.total_closes ?? 0);
+                const minimizeCount = Number(stats?.total_minimizes ?? 0);
+                const autoCloseCount = 0; // no longer tracked separately
                 const interactions = impressions + answerEvents + dismissals;
 
                 return reply.send({
@@ -548,10 +503,10 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
         }
     );
 
-    // GET /api/surveys/:id/responses — paginated list with display_label (or all answers for one event if event_id provided)
+    // GET /api/surveys/:id/responses — paginated list with display_label (metadata from responses table)
     fastify.get<{
         Params: { id: string };
-        Querystring: { question_id?: string; page?: string; limit?: string; event_id?: string };
+        Querystring: { question_id?: string; page?: string; limit?: string; session_id?: string };
     }>(
         "/:id/responses",
         {
@@ -561,41 +516,47 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
             try {
                 const { tenant_id } = request.user as { tenant_id: string };
                 const { id: surveyId } = request.params;
-                const { question_id: questionId, page: pageStr, limit: limitStr, event_id: eventIdStr } = request.query;
+                const { question_id: questionId, page: pageStr, limit: limitStr, session_id: sessionId } = request.query;
 
                 const ownership = await ensureSurveyOwnership(surveyId, tenant_id);
                 if (!ownership) {
                     return reply.status(404).send({ error: "Survey not found" });
                 }
 
-                const eventId = eventIdStr ? parseInt(eventIdStr, 10) : null;
-                const isFullSession = eventId != null && !Number.isNaN(eventId);
-
                 const page = Math.max(1, parseInt(pageStr || "1", 10));
                 const limit = Math.min(100, Math.max(1, parseInt(limitStr || "25", 10)));
-                const offset = isFullSession ? 0 : (page - 1) * limit;
+                const offset = (page - 1) * limit;
 
                 let baseQuery = db
-                    .selectFrom("answers")
-                    .where("answers.survey_id", "=", surveyId)
-                    .$if(!!questionId, (q) => q.where("answers.question_id", "=", questionId!))
-                    .$if(isFullSession, (q) => q.where("answers.event_id", "=", eventId!));
+                    .selectFrom("responses")
+                    .where("responses.survey_id", "=", surveyId)
+                    .$if(!!questionId, (q) => q.where("responses.question_id", "=", questionId!))
+                    .$if(!!sessionId, (q) => q.where("responses.session_id", "=", sessionId));
 
                 const totalCount = await baseQuery.select(db.fn.countAll().as("count")).executeTakeFirst();
                 const totalNum = Number((totalCount as any)?.count ?? 0);
 
                 const responsesPage = await baseQuery
                     .select([
-                        "answers.id",
-                        "answers.event_id",
-                        "answers.question_id",
-                        "answers.answer_option_id",
-                        "answers.answer_text",
-                        "answers.page_url",
-                        "answers.timestamp",
+                        "responses.id",
+                        "responses.question_id",
+                        "responses.answer_option_id",
+                        "responses.answer_text",
+                        "responses.page_url",
+                        "responses.timestamp",
+                        "responses.browser",
+                        "responses.os",
+                        "responses.device",
+                        "responses.ip",
+                        "responses.country",
+                        "responses.state",
+                        "responses.state_name",
+                        "responses.city",
+                        "responses.session_id",
                     ])
-                    .orderBy("answers.timestamp", "desc")
-                    .$if(!isFullSession, (q) => q.limit(limit).offset(offset))
+                    .orderBy("responses.timestamp", "desc")
+                    .limit(limit)
+                    .offset(offset)
                     .execute();
 
                 const optionIds = [
@@ -611,97 +572,38 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                     for (const o of opts) optionsMap.set(o.id, o.option_text);
                 }
 
-                const eventIds = [...new Set(responsesPage.map((r) => r.event_id))];
-                const eventDataMap = new Map<
-                    number,
-                    {
-                        browser?: string;
-                        os?: string;
-                        device?: string;
-                        ip?: string;
-                        country?: string;
-                        state?: string;
-                        state_name?: string;
-                        city?: string;
-                    }
-                >([]);
-                if (eventIds.length > 0) {
-                    const events = await db
-                        .selectFrom("events")
-                        .select(["id", "event_data"])
-                        .where("id", "in", eventIds)
-                        .execute();
-                    for (const ev of events) {
-                        let data: {
-                            browser?: string;
-                            os?: string;
-                            device?: string;
-                            ip?: string;
-                            country?: string;
-                            state?: string;
-                            state_name?: string;
-                            city?: string;
-                        } = {};
-                        let d: Record<string, unknown> | null = null;
-                        if (typeof ev.event_data === "object" && ev.event_data !== null) {
-                            d = ev.event_data as Record<string, unknown>;
-                        } else if (typeof ev.event_data === "string") {
-                            try {
-                                d = JSON.parse(ev.event_data) as Record<string, unknown>;
-                            } catch {
-                                d = null;
-                            }
-                        }
-                        if (d && typeof d.browser === "string") data.browser = d.browser;
-                        if (d && typeof d.os === "string") data.os = d.os;
-                        if (d && typeof d.device === "string") data.device = d.device;
-                        if (d && typeof d.ip === "string") data.ip = d.ip;
-                        if (d && typeof d.country === "string") data.country = d.country;
-                        if (d && typeof d.state === "string") data.state = d.state;
-                        if (d && typeof d.state_name === "string") data.state_name = d.state_name;
-                        if (d && typeof d.city === "string") data.city = d.city;
-                        eventDataMap.set(ev.id, data);
-                    }
-                }
-
                 const responsesWithLabel = responsesPage.map((r) => {
-                    const eventMeta = eventDataMap.get(r.event_id) ?? {};
-                    // Build display_label: option text + comment if present
                     let displayLabel = "(No answer)";
                     if (r.answer_option_id) {
                         const optionText = optionsMap.get(r.answer_option_id);
                         if (optionText && r.answer_text) {
-                            // Radio option with comment: "Other: It's the best"
                             displayLabel = `${optionText}: ${r.answer_text}`;
                         } else if (optionText) {
-                            // Radio option without comment
                             displayLabel = optionText;
                         } else if (r.answer_text) {
-                            // Fallback to just the text
                             displayLabel = r.answer_text;
                         }
                     } else if (r.answer_text) {
-                        // Text answer (no option)
                         displayLabel = r.answer_text;
                     }
 
                     return {
                         id: r.id,
-                        event_id: r.event_id,
                         question_id: r.question_id,
                         answer_option_id: r.answer_option_id,
                         answer_text: r.answer_text,
                         display_label: displayLabel,
                         page_url: r.page_url,
                         timestamp: r.timestamp,
-                        browser: eventMeta.browser ?? null,
-                        os: eventMeta.os ?? null,
-                        device: eventMeta.device ?? null,
-                        ip: eventMeta.ip ?? null,
-                        country: eventMeta.country ?? null,
-                        state: eventMeta.state ?? null,
-                        state_name: eventMeta.state_name ?? null,
-                        city: eventMeta.city ?? null,
+                        browser: r.browser ?? null,
+                        os: r.os ?? null,
+                        device: r.device ?? null,
+                        ip: r.ip ?? null,
+                        country: r.country ?? null,
+                        state: r.state ?? null,
+                        state_name: r.state_name ?? null,
+                        city: r.city ?? null,
+                        session_id: r.session_id ?? null,
                     };
                 });
 
@@ -739,7 +641,7 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                 }
 
                 const deleted = await db
-                    .deleteFrom("answers")
+                    .deleteFrom("responses")
                     .where("survey_id", "=", surveyId)
                     .where("id", "in", answerIds)
                     .executeTakeFirst();
@@ -1074,8 +976,8 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
 
                             // Check if any answers reference this question's options
                             const answerCount = await db
-                                .selectFrom("answers")
-                                .innerJoin("answer_options", "answers.answer_option_id", "answer_options.id")
+                                .selectFrom("responses")
+                                .innerJoin("answer_options", "responses.answer_option_id", "answer_options.id")
                                 .select(db.fn.countAll().as("count"))
                                 .where("answer_options.question_id", "=", questionId)
                                 .executeTakeFirst();
@@ -1166,9 +1068,8 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                     }
                 }
 
-                // Update targeting rules if provided
+                // Update targeting rules if provided (page rules + user geo rules)
                 if (data.targeting) {
-                    // Delete existing targeting rules
                     await db.deleteFrom("targeting_rules").where("survey_id", "=", id).execute();
 
                     if (data.targeting.pageType === "specific" && data.targeting.pageRules) {
@@ -1180,6 +1081,24 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                                         survey_id: id,
                                         rule_type: rule.type,
                                         rule_config: JSON.stringify({ value: rule.value }),
+                                    })
+                                    .execute();
+                            }
+                        }
+                    }
+                    if (data.targeting.userType === "specific" && data.targeting.userRules) {
+                        for (const r of data.targeting.userRules) {
+                            if (r.type === "geo") {
+                                await db
+                                    .insertInto("targeting_rules")
+                                    .values({
+                                        survey_id: id,
+                                        rule_type: "geo",
+                                        rule_config: JSON.stringify({
+                                            country: r.country ?? "",
+                                            state: r.state ?? "",
+                                            city: r.city ?? "",
+                                        }),
                                     })
                                     .execute();
                             }
@@ -1316,16 +1235,12 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                     fastify.log.warn(`Failed to clean queue for survey ${id}:`, queueErr);
                 }
 
-                // Delete related data from database to avoid foreign key constraint violations
-                // Order matters! answers references events via event_id
+                // Delete related data (responses, survey_stats, event_dedup have FK or reference survey_id)
+                await db.deleteFrom("responses").where("survey_id", "=", id).execute();
+                await db.deleteFrom("survey_stats").where("survey_id", "=", id).execute();
+                await db.deleteFrom("event_dedup").where("survey_id", "=", id).execute();
 
-                // 1. Delete answers FIRST (they reference events via event_id FK)
-                await db.deleteFrom("answers").where("survey_id", "=", id).execute();
-
-                // 2. Delete events (now safe to delete)
-                await db.deleteFrom("events").where("survey_id", "=", id).execute();
-
-                // 3. Get question IDs to delete answer_options
+                // Get question IDs to delete answer_options
                 const questions = await db.selectFrom("questions").select("id").where("survey_id", "=", id).execute();
 
                 const questionIds = questions.map((q) => q.id);
@@ -1333,16 +1248,10 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                     await db.deleteFrom("answer_options").where("question_id", "in", questionIds).execute();
                 }
 
-                // 4. Delete questions
+                // Delete questions, display settings, targeting rules, then survey
                 await db.deleteFrom("questions").where("survey_id", "=", id).execute();
-
-                // 5. Delete display settings
                 await db.deleteFrom("display_settings").where("survey_id", "=", id).execute();
-
-                // 6. Delete targeting rules
                 await db.deleteFrom("targeting_rules").where("survey_id", "=", id).execute();
-
-                // 7. Finally, delete the survey itself
                 await db.deleteFrom("surveys").where("id", "=", id).execute();
 
                 return { success: true };

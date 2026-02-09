@@ -146,7 +146,7 @@ export const surveysApi = {
 
     async getResponses(
         surveyId: string,
-        params?: { question_id?: string; page?: number; limit?: number; event_id?: number }
+        params?: { question_id?: string; page?: number; limit?: number; session_id?: string }
     ): Promise<{ responses: ResponseRow[]; total: number }> {
         const { data } = await api.get(`/api/surveys/${surveyId}/responses`, {
             params,
@@ -245,7 +245,6 @@ export interface OperationsEvent {
 
 export interface OperationsResponse {
     id: number;
-    event_id: number;
     site_id: string;
     survey_id: string;
     question_id: string;
@@ -255,6 +254,15 @@ export interface OperationsResponse {
     anonymous_user_id: string | null;
     page_url: string | null;
     timestamp: string;
+    browser: string | null;
+    os: string | null;
+    device: string | null;
+    ip: string | null;
+    country: string | null;
+    state: string | null;
+    state_name: string | null;
+    city: string | null;
+    session_id: string | null;
 }
 
 export default api;

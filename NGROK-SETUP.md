@@ -18,29 +18,27 @@ If `pnpm run ngrok` fails with "ngrok not found", start ngrok from the **ngrok a
 
 ## ⚠️ One-Time Browser Setup Required
 
-Ngrok's free tier shows a browser warning on first access. You must complete this one-time setup:
+Ngrok's free tier shows a **browser warning (interstitial)** on first access. For `<script src="https://your-ngrok.dev/embed/script.js">` the browser cannot send custom headers, so ngrok may return that HTML instead of the real script — the embed then fails (e.g. "Unexpected token '<'").
+
+You must complete this one-time setup **in the same browser** you use to test the embed:
 
 ### Steps:
 
-1. **Open your browser** and visit:
+1. **Open your browser** and visit the **exact embed script URL** (so the cookie is set for script requests):
 
     ```
-    https://nonappropriable-masked-tarah.ngrok-free.dev/health
+    https://nonappropriable-masked-tarah.ngrok-free.dev/embed/script.js?site_id=YOUR_SITE_ID
     ```
 
-2. **Click "Visit Site"** on the ngrok warning page
+    Replace `YOUR_SITE_ID` with your real site id (e.g. `site_5627330ec0d41e8233f55ca974bf89fd`), or at least use any valid site_id.
 
-3. **Verify** you see:
+2. **Click "Visit Site"** on the ngrok warning page.
 
-    ```json
-    {
-        "status": "ok",
-        "database": "connected",
-        "timestamp": "..."
-    }
-    ```
+3. You should then see either:
+   - **JavaScript code** (embed script) → ngrok and API are working.
+   - **503 / "Embed script not available"** → API is reachable but the embed wasn’t built; run `pnpm build:embed` and restart the API.
 
-4. **Refresh your website** - the embed script will now work!
+4. **Reload the page** where the embed is used — the script should now load (browser sends the ngrok cookie on subsequent requests).
 
 ---
 
@@ -73,3 +71,14 @@ For production, deploy to a real domain without ngrok:
 -   Use Cloudflare Tunnel (alternative to ngrok)
 
 Then update the `API_URL` in `.env` to your production domain.
+
+---
+
+## 🔧 Troubleshooting: "Embed / ngrok endpoint not working"
+
+| Symptom | What to do |
+|--------|------------|
+| Blank widget or console error like `Unexpected token '<'` | Ngrok is returning the "Visit Site" HTML instead of the script. **Open the exact script URL** in the same browser (e.g. `https://your-ngrok.ngrok-free.dev/embed/script.js?site_id=...`), click **Visit Site**, then reload the page that embeds the script. |
+| 503 "Embed script not available" | API is running but the embed file is missing. From repo root run `pnpm build:embed` (or `pnpm --filter embed build`), then restart the API. |
+| Connection refused / no response | Ensure the API is running (e.g. `pnpm dev` on port 3000) and ngrok is tunneling to that port (`ngrok http 3000`). |
+| New ngrok URL | After restarting ngrok you get a new URL. Update the embed script URL in your test page and in Admin → Websites (Embed API URL), and do the "Visit Site" step again for the new URL. |

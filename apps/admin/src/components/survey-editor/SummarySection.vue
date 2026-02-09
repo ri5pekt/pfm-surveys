@@ -13,7 +13,10 @@
                 <strong>Pages:</strong>
                 {{ targeting.pageType === "all" ? "All pages" : `${targeting.pageRules.length} rule(s)` }}
             </div>
-            <div class="summary-item"><strong>Users:</strong> All users</div>
+            <div class="summary-item">
+                <strong>Users:</strong>
+                {{ targeting.userType === "all" ? "All users" : `${targeting.userRules.length} user rule(s)` }}
+            </div>
         </div>
 
         <div class="summary-section">

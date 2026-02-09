@@ -33,7 +33,7 @@ export class EmailService {
     }
 
     static async sendInvitationEmail({ to, tempPassword, invitedBy }: SendInvitationEmailParams) {
-        const fromEmail = process.env.SMTP_USER || process.env.EMAIL_FROM || "surveys@pfm-qa.com";
+        const fromEmail = process.env.EMAIL_FROM || process.env.SMTP_USER || "surveys@pfm-qa.com";
         const fromName = process.env.EMAIL_FROM_NAME || "PFM Surveys";
 
         const html = `

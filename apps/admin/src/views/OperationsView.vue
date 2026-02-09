@@ -2,7 +2,7 @@
   <div class="operations-view">
     <div class="header-section">
       <h2>Operations</h2>
-      <p class="subtitle">Worker activity, events stream, and responses (read-only)</p>
+      <p class="subtitle">Worker activity and responses (read-only)</p>
     </div>
 
     <!-- Tabs -->
@@ -12,12 +12,6 @@
         @click="activeTab = 'activity'"
       >
         Worker activity
-      </button>
-      <button
-        :class="['tab', { active: activeTab === 'events' }]"
-        @click="switchToTab('events')"
-      >
-        Events stream
       </button>
       <button
         :class="['tab', { active: activeTab === 'responses' }]"
@@ -34,10 +28,6 @@
           <span class="health-label">Last ingestion success</span>
           <span class="health-value">{{ health.last_ingestion_success ? formatIso(health.last_ingestion_success) : '—' }}</span>
         </div>
-        <div class="health-card">
-          <span class="health-label">Last rollup success</span>
-          <span class="health-value">{{ health.last_rollup_success ? formatIso(health.last_rollup_success) : '—' }}</span>
-        </div>
       </div>
       <div class="filters">
         <div class="filter-group">
@@ -45,7 +35,6 @@
           <select v-model="filters.service" @change="loadActivity">
             <option value="">All</option>
             <option value="worker-ingestion">worker-ingestion</option>
-            <option value="worker-rollups">worker-rollups</option>
           </select>
         </div>
         <div class="filter-group">
@@ -100,7 +89,7 @@
               <td><span :class="['badge', 'status', log.status]">{{ log.status }}</span></td>
               <td>{{ log.duration_ms != null ? `${log.duration_ms} ms` : '—' }}</td>
               <td>{{ log.items_in != null && log.items_out != null ? `${log.items_in} → ${log.items_out}` : '—' }}</td>
-              <td>{{ log.from_event_id != null && log.to_event_id != null ? `${log.from_event_id} → ${log.to_event_id}` : '—' }}</td>
+              <td>—</td>
               <td class="error-cell">{{ log.error_message ? truncate(log.error_message, 40) : '—' }}</td>
               <td>
                 <button class="btn-text" @click="openDetail(log)">Details</button>
@@ -112,67 +101,7 @@
       </div>
     </div>
 
-    <!-- Tab 2: Events stream -->
-    <div v-show="activeTab === 'events'" class="tab-panel">
-      <div class="filters">
-        <div class="filter-group">
-          <label>Site</label>
-          <select v-model="eventsFilters.site_id" @change="loadEvents">
-            <option value="">All</option>
-            <option v-for="site in sitesStore.sites" :key="site.id" :value="site.id">{{ site.name }}</option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <label>Event type</label>
-          <select v-model="eventsFilters.event_type" @change="loadEvents">
-            <option value="">All</option>
-            <option value="impression">impression</option>
-            <option value="answer">answer</option>
-            <option value="dismiss">dismiss</option>
-            <option value="page_view">page_view</option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <label>From date</label>
-          <input type="date" v-model="eventsFilters.from_date" @change="loadEvents" />
-        </div>
-        <div class="filter-group">
-          <label>To date</label>
-          <input type="date" v-model="eventsFilters.to_date" @change="loadEvents" />
-        </div>
-        <button class="btn-secondary" @click="loadEvents" :disabled="loadingEvents">Refresh</button>
-      </div>
-      <div v-if="loadingEvents" class="loading">Loading events...</div>
-      <div v-else class="table-wrap">
-        <table class="operations-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Time</th>
-              <th>Type</th>
-              <th>Site</th>
-              <th>Survey</th>
-              <th>Client event ID</th>
-              <th>User (anon)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="ev in events" :key="ev.id">
-              <td>{{ ev.id }}</td>
-              <td>{{ formatIso(ev.timestamp) }}</td>
-              <td><span class="badge event-type">{{ ev.event_type }}</span></td>
-              <td>{{ getSiteName(ev.site_id) }}</td>
-              <td>{{ ev.survey_id ? ev.survey_id.slice(0, 8) + '…' : '—' }}</td>
-              <td class="mono">{{ ev.client_event_id.slice(0, 8) }}…</td>
-              <td>{{ ev.anonymous_user_id ? ev.anonymous_user_id.slice(0, 8) + '…' : '—' }}</td>
-            </tr>
-          </tbody>
-        </table>
-        <p v-if="events.length === 0" class="empty">No events match the filters.</p>
-      </div>
-    </div>
-
-    <!-- Tab 3: Responses -->
+    <!-- Tab 2: Responses -->
     <div v-show="activeTab === 'responses'" class="tab-panel">
       <div class="filters">
         <div class="filter-group">
@@ -197,26 +126,28 @@
           <thead>
             <tr>
               <th>ID</th>
-              <th>Event ID</th>
               <th>Time</th>
               <th>Site</th>
               <th>Survey</th>
+              <th>Browser</th>
+              <th>OS</th>
+              <th>IP</th>
+              <th>Country</th>
               <th>Page URL</th>
-              <th>Question</th>
-              <th>Answer #</th>
               <th>Option / Text</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="r in responses" :key="r.id">
               <td>{{ r.id }}</td>
-              <td>{{ r.event_id }}</td>
               <td>{{ formatIso(r.timestamp) }}</td>
               <td>{{ getSiteName(r.site_id) }}</td>
               <td>{{ r.survey_id.slice(0, 8) }}…</td>
+              <td>{{ r.browser || '—' }}</td>
+              <td>{{ r.os || '—' }}</td>
+              <td class="mono">{{ r.ip || '—' }}</td>
+              <td>{{ r.country || '—' }}</td>
               <td class="page-url-cell" :title="r.page_url || ''">{{ r.page_url ? truncate(r.page_url, 50) : '—' }}</td>
-              <td class="mono">{{ r.question_id.slice(0, 8) }}…</td>
-              <td>{{ r.answer_index }}</td>
               <td>{{ r.answer_option_id ? r.answer_option_id.slice(0, 8) + '…' : (r.answer_text || '—') }}</td>
             </tr>
           </tbody>
@@ -250,19 +181,18 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue';
-import { operationsApi, surveysApi, type WorkerActivityLog, type OperationsEvent, type OperationsResponse } from '../services/api';
+import { operationsApi, surveysApi, type WorkerActivityLog, type OperationsResponse } from '../services/api';
 import { useSitesStore } from '../stores/sites';
 import type { Survey } from '../types';
 
 const sitesStore = useSitesStore();
-const activeTab = ref<'activity' | 'events' | 'responses'>('activity');
+const activeTab = ref<'activity' | 'responses'>('activity');
 
 // Worker activity
 const loadingActivity = ref(false);
 const logs = ref<WorkerActivityLog[]>([]);
-const health = reactive<{ last_ingestion_success: string | null; last_rollup_success: string | null }>({
+const health = reactive<{ last_ingestion_success: string | null }>({
   last_ingestion_success: null,
-  last_rollup_success: null,
 });
 const filters = reactive({
   service: '',
@@ -273,17 +203,6 @@ const filters = reactive({
 });
 const detailVisible = ref(false);
 const selectedLog = ref<WorkerActivityLog | null>(null);
-
-// Events stream
-const loadingEvents = ref(false);
-const events = ref<OperationsEvent[]>([]);
-const eventsFilters = reactive({
-  site_id: '',
-  survey_id: '',
-  event_type: '',
-  from_date: '',
-  to_date: '',
-});
 
 // Responses
 const loadingResponses = ref(false);
@@ -315,9 +234,8 @@ function openDetail(log: WorkerActivityLog): void {
   detailVisible.value = true;
 }
 
-function switchToTab(tab: 'events' | 'responses'): void {
+function switchToTab(tab: 'responses'): void {
   activeTab.value = tab;
-  if (tab === 'events' && events.value.length === 0) loadEvents();
   if (tab === 'responses' && responses.value.length === 0) loadResponses();
 }
 
@@ -345,28 +263,8 @@ async function loadHealth(): Promise<void> {
   try {
     const res = await operationsApi.getHealth();
     health.last_ingestion_success = res.last_ingestion_success;
-    health.last_rollup_success = res.last_rollup_success;
   } catch (e) {
     console.error('Failed to load health', e);
-  }
-}
-
-async function loadEvents(): Promise<void> {
-  loadingEvents.value = true;
-  try {
-    const params: Record<string, string | number | undefined> = { limit: 100 };
-    if (eventsFilters.site_id) params.site_id = eventsFilters.site_id;
-    if (eventsFilters.survey_id) params.survey_id = eventsFilters.survey_id;
-    if (eventsFilters.event_type) params.event_type = eventsFilters.event_type;
-    if (eventsFilters.from_date) params.from_date = eventsFilters.from_date;
-    if (eventsFilters.to_date) params.to_date = eventsFilters.to_date;
-    const res = await operationsApi.getEvents(params);
-    events.value = res.events;
-  } catch (e) {
-    console.error('Failed to load events', e);
-    events.value = [];
-  } finally {
-    loadingEvents.value = false;
   }
 }
 

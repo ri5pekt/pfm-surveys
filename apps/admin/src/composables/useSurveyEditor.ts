@@ -74,27 +74,36 @@ export function useSurveyEditor(
                     survey.displaySettings.button_background_color || "#2a44b7";
             }
 
-            // Load targeting rules
-            if (survey.targetingRules && Array.isArray(survey.targetingRules) && survey.targetingRules.length > 0) {
-                surveyData.value.targeting = {
-                    pageType: "specific",
-                    pageRules: survey.targetingRules.map((rule: any) => {
-                        const config =
-                            typeof rule.rule_config === "string" ? JSON.parse(rule.rule_config) : rule.rule_config;
-                        return {
-                            type: rule.rule_type,
-                            value: config.value || "",
-                        };
-                    }),
-                    users: "all",
+            // Load targeting rules (page rules: exact/contains; user rules: geo)
+            const rules = survey.targetingRules && Array.isArray(survey.targetingRules) ? survey.targetingRules : [];
+            const pageRulesRaw = rules.filter((r: any) => r.rule_type === "exact" || r.rule_type === "contains");
+            const userRulesRaw = rules.filter((r: any) => r.rule_type === "geo");
+
+            const pageRules =
+                pageRulesRaw.length > 0
+                    ? pageRulesRaw.map((rule: any) => {
+                          const config =
+                              typeof rule.rule_config === "string" ? JSON.parse(rule.rule_config) : rule.rule_config;
+                          return { type: rule.rule_type, value: config?.value ?? "" };
+                      })
+                    : [{ type: "exact" as const, value: "" }];
+            const userRules = userRulesRaw.map((rule: any) => {
+                const config = typeof rule.rule_config === "string" ? JSON.parse(rule.rule_config) : rule.rule_config;
+                return {
+                    type: "geo" as const,
+                    country: config?.country ?? "",
+                    state: config?.state ?? "",
+                    city: config?.city ?? "",
                 };
-            } else {
-                surveyData.value.targeting = {
-                    pageType: "all",
-                    pageRules: [{ type: "exact", value: "" }],
-                    users: "all",
-                };
-            }
+            });
+
+            surveyData.value.targeting = {
+                pageType: pageRulesRaw.length > 0 ? "specific" : "all",
+                pageRules,
+                users: userRules.length > 0 ? "all" : "all",
+                userType: userRules.length > 0 ? "specific" : "all",
+                userRules,
+            };
 
             // Load behavior settings
             if (survey.displaySettings) {
@@ -151,6 +160,11 @@ export function useSurveyEditor(
                     pageRules:
                         surveyData.value.targeting.pageType === "specific"
                             ? surveyData.value.targeting.pageRules.filter((r) => r.value.trim())
+                            : [],
+                    userType: surveyData.value.targeting.userType,
+                    userRules:
+                        surveyData.value.targeting.userType === "specific"
+                            ? surveyData.value.targeting.userRules
                             : [],
                 },
                 behavior: {

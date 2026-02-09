@@ -209,6 +209,26 @@ See [Quick Start Cheat Sheet](./QUICK_START.md) for all commands.
 -   Text analysis
 -   Custom integrations
 
+## 🧪 Testing geo targeting (logs)
+
+When testing **Specific users** + **Geo location** targeting:
+
+**Browser console (embed page):**
+
+- `[PFM Surveys] 🚀 Initializing...` — script loaded
+- `[PFM Surveys] ✓ Found N survey(s)` — surveys fetched
+- If any survey has user (geo) rules: `[PFM Surveys] At least one survey has user (geo) rules; fetching userGeo now...` then `[PFM Surveys] userGeo for targeting:` with `{ country, region, city }` (or a warning if geo failed)
+- For each survey: `[PFM Surveys] 🔍 Evaluating survey: "..."` with targeting and display settings
+- Geo rule check: `[PFM Surveys] user rule (geo):` with **Survey rule** (what you set in Admin) vs **Visitor location (from IP)**; then either `user targeting: at least one geo rule matched` or `user targeting: no user rule matched` with visitor location and survey rules
+- Final: `✓ Targeting rules matched` / `not shown (page or user targeting rules not met)` and frequency/sample logs
+
+**API server logs (terminal where API runs):**
+
+- `[PFM Surveys] Returning surveys; some have user (geo) rules` when `/api/public/surveys` returns surveys that have geo rules
+- `[PFM Surveys] GET /api/public/geo: resolved userGeo for targeting` when `/api/public/geo` resolves the client IP (with `clientIp` and `userGeo` in the log payload)
+
+If geo is not resolved (e.g. localhost or API/ip-api failure), embed will log `userGeo is null` and surveys with geo rules will be skipped.
+
 ## 🤝 Contributing
 
 When adding documentation:

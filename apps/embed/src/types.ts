@@ -30,9 +30,25 @@ export interface PageRule {
     value: string;
 }
 
+/** User targeting rule: Geo location (country, state, city — each optional = any). */
+export interface UserGeoRule {
+    type: "geo";
+    country?: string;
+    state?: string;
+    city?: string;
+}
+
+export interface UserGeo {
+    country?: string;
+    state?: string;
+    city?: string;
+}
+
 export interface Targeting {
     pageType?: "all" | "specific";
     pageRules?: PageRule[];
+    userType?: "all" | "specific";
+    userRules?: UserGeoRule[];
 }
 
 export interface AnswerOption {

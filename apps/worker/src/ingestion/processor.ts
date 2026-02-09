@@ -1,4 +1,5 @@
 import { Job } from "bullmq";
+import { sql } from "kysely";
 import { db } from "../db/connection";
 import { logActivity } from "./logActivity";
 
@@ -21,7 +22,6 @@ const IP_API_BASE = "https://pro.ip-api.com/json";
  * 4. Update last_seen_at and lookup_count on cache hit
  */
 async function fetchGeoForIp(ip: string, apiKey: string): Promise<GeoResult | null> {
-    // Step 1: Check database cache
     const cached = await db
         .selectFrom("ip_geolocation_cache")
         .selectAll()
@@ -29,7 +29,6 @@ async function fetchGeoForIp(ip: string, apiKey: string): Promise<GeoResult | nu
         .executeTakeFirst();
 
     if (cached) {
-        // Cache hit! Update last_seen_at and increment lookup_count
         await db
             .updateTable("ip_geolocation_cache")
             .set({
@@ -47,13 +46,12 @@ async function fetchGeoForIp(ip: string, apiKey: string): Promise<GeoResult | nu
         };
     }
 
-    // Step 2: Cache miss - fetch from IP API
     const url = `${IP_API_BASE}/${encodeURIComponent(
         ip
     )}?fields=status,countryCode,region,regionName,city&key=${encodeURIComponent(apiKey)}`;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), GEO_TIMEOUT_MS);
-    
+
     try {
         const res = await fetch(url, { signal: controller.signal, headers: { "Cache-Control": "no-cache" } });
         clearTimeout(timeout);
@@ -64,17 +62,16 @@ async function fetchGeoForIp(ip: string, apiKey: string): Promise<GeoResult | nu
             regionName?: string;
             city?: string;
         };
-        
+
         if (body?.status !== "success") return null;
-        
+
         const country = body.countryCode != null ? String(body.countryCode).toUpperCase() : undefined;
         const state = body.region != null ? String(body.region).toUpperCase() : undefined;
         const state_name = body.regionName != null ? String(body.regionName) : undefined;
         const city = body.city != null ? String(body.city) : undefined;
-        
+
         const result: GeoResult = { country, state, state_name, city };
 
-        // Step 3: Save to database cache for future use
         try {
             await db
                 .insertInto("ip_geolocation_cache")
@@ -90,9 +87,8 @@ async function fetchGeoForIp(ip: string, apiKey: string): Promise<GeoResult | nu
                     created_at: new Date(),
                 })
                 .execute();
-        } catch (err) {
-            // Ignore duplicate key errors (race condition between workers)
-            // The cache entry already exists, which is fine
+        } catch {
+            // Ignore duplicate key (race between workers)
         }
 
         return result;
@@ -110,7 +106,10 @@ export interface IngestEventPayload {
     anonymous_user_id?: string | null;
     session_id?: string | null;
     page_url?: string | null;
-    event_data?: { answers?: Array<{ question_id: string; answer_option_id?: string; answer_text?: string }> };
+    event_data?: {
+        answers?: Array<{ question_id: string; answer_option_id?: string; answer_text?: string }>;
+        reason?: string; // for dismiss: "close" | "minimize" | "auto_close"
+    };
     browser?: string | null;
     os?: string | null;
     device?: string | null;
@@ -128,6 +127,15 @@ function toTimestamp(ts: string | number): Date {
     return isNaN(d.getTime()) ? new Date() : d;
 }
 
+const COUNTER_MAP: Record<string, string> = {
+    impression: "total_impressions",
+    answer: "total_responses",
+    dismiss: "total_dismissals",
+    close: "total_closes",
+    minimize: "total_minimizes",
+    interact: "total_interacts",
+};
+
 export async function processIngestionJob(job: Job<IngestJobData>): Promise<void> {
     const { site_id: siteId, events } = job.data;
     const jobId = job.id ?? "unknown";
@@ -142,10 +150,10 @@ export async function processIngestionJob(job: Job<IngestJobData>): Promise<void
         attempt: job.attemptsMade + 1,
     });
 
-    let eventsInserted = 0;
     let eventsSkippedDuplicate = 0;
-    let answersInserted = 0;
+    let responsesInserted = 0;
     let validationRejects = 0;
+    let countersIncremented = 0;
 
     const apiKey = process.env.IP_API_KEY?.trim() || null;
     const geoCache = new Map<string, GeoResult | null>();
@@ -163,100 +171,60 @@ export async function processIngestionJob(job: Job<IngestJobData>): Promise<void
 
     try {
         for (const ev of events) {
-            if (!ev || typeof ev.event_type !== "string" || typeof ev.client_event_id !== "string") {
+            if (!ev || typeof ev.event_type !== "string") {
                 validationRejects += 1;
+                continue;
+            }
+
+            // Require client_event_id — reject missing IDs (otherwise duplicates slip in)
+            if (!ev.client_event_id || typeof ev.client_event_id !== "string") {
+                console.warn("Event missing client_event_id — REJECTED (validation failure)");
+                validationRejects += 1;
+                continue;
+            }
+
+            // Require survey_id for dedup and counters (event_dedup.survey_id NOT NULL)
+            if (!ev.survey_id) {
+                validationRejects += 1;
+                continue;
+            }
+
+            // 1. Race-safe deduplication: only one worker wins the INSERT
+            const dedupResult = await db
+                .insertInto("event_dedup")
+                .values({
+                    event_uid: ev.client_event_id,
+                    event_type: ev.event_type,
+                    survey_id: ev.survey_id,
+                    processed_at: new Date(),
+                })
+                .onConflict((oc) => oc.column("event_uid").doNothing())
+                .returning(["event_uid"])
+                .executeTakeFirst();
+
+            if (!dedupResult) {
+                eventsSkippedDuplicate += 1;
                 continue;
             }
 
             const timestamp = toTimestamp(ev.timestamp ?? Date.now());
             const geo = ev.ip ? geoCache.get(ev.ip) ?? null : null;
 
-            let inserted: { id: number } | undefined;
-            try {
-                inserted = await db
-                    .insertInto("events")
-                    .values({
-                        site_id: siteId,
-                        survey_id: ev.survey_id ?? null,
-                        event_type: ev.event_type,
-                        client_event_id: ev.client_event_id,
-                        anonymous_user_id: ev.anonymous_user_id ?? null,
-                        session_id: ev.session_id ?? null,
-                        page_url: ev.page_url ?? null,
-                        event_data: (() => {
-                            const data = ev.event_data
-                                ? { ...(typeof ev.event_data === "object" ? ev.event_data : {}) }
-                                : {};
-                            if (ev.browser != null) (data as any).browser = ev.browser;
-                            if (ev.os != null) (data as any).os = ev.os;
-                            if (ev.device != null) (data as any).device = ev.device;
-                            if (ev.ip != null) (data as any).ip = ev.ip;
-                            if (geo) {
-                                if (geo.country != null) (data as any).country = geo.country;
-                                if (geo.state != null) (data as any).state = geo.state;
-                                if (geo.state_name != null) (data as any).state_name = geo.state_name;
-                                if (geo.city != null) (data as any).city = geo.city;
-                            }
-                            return Object.keys(data).length > 0 ? JSON.stringify(data) : null;
-                        })(),
-                        timestamp,
-                    } as any)
-                    .onConflict((oc) => oc.column("client_event_id").doNothing())
-                    .returning(["id"])
-                    .executeTakeFirst();
-            } catch (insertErr) {
-                // Handle foreign key constraint violations gracefully
-                // This happens when a survey/site is deleted while events are still in the queue
-                const errMsg = insertErr instanceof Error ? insertErr.message : String(insertErr);
-                if (errMsg.includes("foreign key constraint") || errMsg.includes("violates")) {
-                    console.warn(
-                        `[Worker] Skipping event for deleted/missing survey_id=${ev.survey_id} site_id=${siteId}: ${errMsg}`
-                    );
-                    validationRejects += 1;
-                    continue; // Skip this event, don't fail the entire job
-                }
-                // If it's some other error, re-throw to fail the job and retry
-                throw insertErr;
-            }
-
-            let eventId: number | null = null;
-            if (inserted) {
-                eventsInserted += 1;
-                eventId = inserted.id;
-            } else {
-                eventsSkippedDuplicate += 1;
-                // On retry the event may already exist; fetch id so we still insert answers (no data loss)
-                const existing = await db
-                    .selectFrom("events")
-                    .select("id")
-                    .where("client_event_id", "=", ev.client_event_id)
-                    .where("site_id", "=", siteId)
-                    .executeTakeFirst();
-                eventId = existing?.id ?? null;
-            }
-
+            // 2. If answer event, insert into responses with metadata
             if (
-                eventId != null &&
                 ev.event_type === "answer" &&
-                ev.survey_id &&
                 ev.event_data &&
                 Array.isArray(ev.event_data.answers)
             ) {
-                const surveyId = ev.survey_id;
-                const answers = ev.event_data.answers as Array<{
-                    question_id: string;
-                    answer_option_id?: string;
-                    answer_text?: string;
-                }>;
+                const answers = ev.event_data.answers;
                 for (let answerIndex = 0; answerIndex < answers.length; answerIndex += 1) {
                     const a = answers[answerIndex];
                     if (!a || !a.question_id) continue;
                     try {
                         await db
-                            .insertInto("answers")
+                            .insertInto("responses")
                             .values({
-                                event_id: eventId,
-                                survey_id: surveyId,
+                                survey_id: ev.survey_id,
                                 question_id: a.question_id,
                                 answer_option_id: a.answer_option_id ?? null,
                                 answer_text: a.answer_text ?? null,
@@ -264,14 +232,89 @@ export async function processIngestionJob(job: Job<IngestJobData>): Promise<void
                                 anonymous_user_id: ev.anonymous_user_id ?? null,
                                 page_url: ev.page_url ?? null,
                                 timestamp,
-                            } as any)
-                            .onConflict((oc) => oc.columns(["event_id", "answer_index"]).doNothing())
+                                browser: ev.browser ?? null,
+                                os: ev.os ?? null,
+                                device: ev.device ?? null,
+                                ip: ev.ip ?? null,
+                                country: geo?.country ?? null,
+                                state: geo?.state ?? null,
+                                state_name: geo?.state_name ?? null,
+                                city: geo?.city ?? null,
+                                session_id: ev.session_id ?? null,
+                            })
                             .execute();
-                        answersInserted += 1;
-                    } catch {
-                        // ignore duplicate or constraint errors
+                        responsesInserted += 1;
+                    } catch (insertErr) {
+                        const errMsg = insertErr instanceof Error ? insertErr.message : String(insertErr);
+                        if (errMsg.includes("foreign key constraint") || errMsg.includes("violates")) {
+                            validationRejects += 1;
+                            break;
+                        }
+                        throw insertErr;
                     }
                 }
+            }
+
+            // 3. Increment counter in survey_stats (explicit mapping, no dynamic columns)
+            const counterColumn = COUNTER_MAP[ev.event_type];
+            if (!counterColumn) {
+                console.warn(`Unknown event_type: ${ev.event_type}, skipping counter update`);
+                continue;
+            }
+
+            try {
+                const now = new Date();
+                await db
+                    .insertInto("survey_stats")
+                    .values({
+                        survey_id: ev.survey_id,
+                        [counterColumn]: 1,
+                        first_impression_at: ev.event_type === "impression" ? now : null,
+                        last_activity_at: now,
+                        updated_at: now,
+                    } as any)
+                    .onConflict((oc) =>
+                        oc.column("survey_id").doUpdateSet({
+                            [counterColumn]: sql`survey_stats.${sql.raw(counterColumn)} + 1`,
+                            last_activity_at: now,
+                            updated_at: now,
+                        } as any)
+                    )
+                    .execute();
+                countersIncremented += 1;
+
+                // For "dismiss" events, also increment close vs minimize from event_data.reason (embed sends reason in event_data)
+                if (ev.event_type === "dismiss" && ev.survey_id) {
+                    const eventData = ev.event_data && typeof ev.event_data === "object" ? ev.event_data : {};
+                    const reason = typeof (eventData as { reason?: string }).reason === "string"
+                        ? (eventData as { reason: string }).reason
+                        : "close";
+                    const subColumn = reason === "minimize" ? "total_minimizes" : "total_closes";
+                    await db
+                        .insertInto("survey_stats")
+                        .values({
+                            survey_id: ev.survey_id,
+                            [subColumn]: 1,
+                            last_activity_at: now,
+                            updated_at: now,
+                        } as any)
+                        .onConflict((oc) =>
+                            oc.column("survey_id").doUpdateSet({
+                                [subColumn]: sql`survey_stats.${sql.raw(subColumn)} + 1`,
+                                last_activity_at: now,
+                                updated_at: now,
+                            } as any)
+                        )
+                        .execute();
+                    countersIncremented += 1;
+                }
+            } catch (counterErr) {
+                const errMsg = counterErr instanceof Error ? counterErr.message : String(counterErr);
+                if (errMsg.includes("foreign key constraint") || errMsg.includes("violates")) {
+                    validationRejects += 1;
+                    continue;
+                }
+                throw counterErr;
             }
         }
 
@@ -281,14 +324,14 @@ export async function processIngestionJob(job: Job<IngestJobData>): Promise<void
             siteId,
             status: "success",
             itemsIn,
-            itemsOut: eventsInserted,
+            itemsOut: responsesInserted + countersIncremented,
             durationMs,
             attempt: job.attemptsMade + 1,
             meta: {
-                events_inserted: eventsInserted,
+                responses_inserted: responsesInserted,
                 events_skipped_duplicate: eventsSkippedDuplicate,
-                answers_inserted: answersInserted,
                 validation_rejects: validationRejects,
+                counters_incremented: countersIncremented,
             },
         });
     } catch (err) {
@@ -299,14 +342,13 @@ export async function processIngestionJob(job: Job<IngestJobData>): Promise<void
             siteId,
             status: "failed",
             itemsIn,
-            itemsOut: eventsInserted,
+            itemsOut: responsesInserted,
             durationMs,
             attempt: job.attemptsMade + 1,
             errorMessage,
             meta: {
-                events_inserted: eventsInserted,
+                responses_inserted: responsesInserted,
                 events_skipped_duplicate: eventsSkippedDuplicate,
-                answers_inserted: answersInserted,
                 validation_rejects: validationRejects,
             },
         });

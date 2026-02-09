@@ -52,6 +52,16 @@ fastify.register(rateLimit, {
   nameSpace: 'rl:global:',
 });
 
+// Root: simple info so GET / is not 404
+fastify.get('/', async (_request, reply) => {
+  return reply.send({
+    service: 'PFM Surveys API',
+    health: '/health',
+    embed: '/embed/script.js',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Health check route
 fastify.get('/health', async () => {
   const dbHealthy = await testConnection();
@@ -70,6 +80,24 @@ fastify.register(teamRoutes);
 fastify.register(userRoutes);
 fastify.register(embedRoutes); // Public embed script and event tracking
 fastify.register(operationsRoutes, { prefix: '/api/operations' });
+
+// When DB/Redis are unreachable, return 503 with a clear message instead of 500
+fastify.setErrorHandler((err, request, reply) => {
+  const code = err && typeof err === 'object' && 'code' in err ? (err as NodeJS.ErrnoException).code : null;
+  const isUnreachable = code === 'ECONNREFUSED' || code === 'ENOTFOUND' || code === 'ETIMEDOUT';
+  if (isUnreachable) {
+    reply.code(503).send({
+      error: 'Service temporarily unavailable',
+      message: 'Database or Redis is unreachable. Start them with: docker compose up -d postgres redis',
+    });
+  } else {
+    fastify.log.error(err);
+    reply.code(err.statusCode ?? 500).send({
+      error: err.message ?? 'Internal server error',
+      statusCode: err.statusCode ?? 500,
+    });
+  }
+});
 
 // Start server
 const start = async () => {

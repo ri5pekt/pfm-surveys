@@ -1,5 +1,5 @@
 import type { Ref } from "vue";
-import type { SurveyData, Question, QuestionOption } from "../types/survey-editor";
+import type { SurveyData, UserGeoRule } from "../types/survey-editor";
 
 /**
  * Composable for managing survey questions
@@ -42,6 +42,21 @@ export function useQuestionManager(surveyData: Ref<SurveyData>) {
         surveyData.value.targeting.pageRules.splice(index, 1);
     }
 
+    function addUserRule() {
+        const rule: UserGeoRule = { type: "geo", country: "", state: "", city: "" };
+        surveyData.value.targeting.userRules.push(rule);
+        if (surveyData.value.targeting.userType !== "specific") {
+            surveyData.value.targeting.userType = "specific";
+        }
+    }
+
+    function removeUserRule(index: number) {
+        surveyData.value.targeting.userRules.splice(index, 1);
+        if (surveyData.value.targeting.userRules.length === 0) {
+            surveyData.value.targeting.userType = "all";
+        }
+    }
+
     return {
         addQuestion,
         removeQuestion,
@@ -50,5 +65,7 @@ export function useQuestionManager(surveyData: Ref<SurveyData>) {
         removeOption,
         addPageRule,
         removePageRule,
+        addUserRule,
+        removeUserRule,
     };
 }

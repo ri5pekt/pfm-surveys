@@ -142,9 +142,9 @@ const deleting = ref(false);
 
 // View-specific helpers (not in composables because they're unique to this view)
 async function openViewResponseWithSession(row: ResponseRow) {
-    // Fetch all answers for this submission (event) so the dialog can show every question's answer
+    // Fetch all answers for this submission (session) so the dialog can show every question's answer
     const { responses: sessionResponses } = await surveysApi.getResponses(surveyId.value, {
-        event_id: row.event_id,
+        session_id: row.session_id ?? undefined,
     });
     viewingResponse.value = {
         ...row,

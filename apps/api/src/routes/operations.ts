@@ -110,57 +110,14 @@ export default async function operationsRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // GET /api/operations/events — events stream (read-only), scoped to tenant's sites
+  // GET /api/operations/events — no longer available (events table dropped); return empty for backward compatibility
   fastify.get('/events', {
     onRequest: [fastify.authenticate],
-  }, async (request, reply) => {
-    try {
-      const { tenant_id } = request.user as { tenant_id: string };
-      const { site_id, survey_id, event_type, from_date, to_date, limit } = request.query as {
-        site_id?: string;
-        survey_id?: string;
-        event_type?: string;
-        from_date?: string;
-        to_date?: string;
-        limit?: string;
-      };
-
-      const tenantSiteIds = await db
-        .selectFrom('sites')
-        .select('id')
-        .where('tenant_id', '=', tenant_id)
-        .execute();
-
-      const siteIds = tenantSiteIds.map((r) => r.id);
-      if (siteIds.length === 0) {
-        return reply.send({ events: [], total: 0 });
-      }
-
-      let query = db
-        .selectFrom('events')
-        .select(['id', 'site_id', 'survey_id', 'event_type', 'client_event_id', 'anonymous_user_id', 'session_id', 'page_url', 'timestamp'])
-        .where('site_id', 'in', siteIds);
-
-      if (site_id) query = query.where('site_id', '=', site_id);
-      if (survey_id) query = query.where('survey_id', '=', survey_id);
-      if (event_type) query = query.where('event_type', '=', event_type);
-      if (from_date) query = query.where('timestamp', '>=', new Date(from_date));
-      if (to_date) query = query.where('timestamp', '<=', new Date(to_date + 'T23:59:59.999Z'));
-
-      const cap = Math.min(parseInt(limit || '100', 10), 500);
-      const events = await query
-        .orderBy('id', 'desc')
-        .limit(cap)
-        .execute();
-
-      return reply.send({ events, total: events.length });
-    } catch (error) {
-      fastify.log.error(error);
-      return reply.status(500).send({ error: 'Internal server error' });
-    }
+  }, async (_request, reply) => {
+    return reply.send({ events: [], total: 0 });
   });
 
-  // GET /api/operations/responses — answers/responses (read-only), scoped to tenant's sites
+  // GET /api/operations/responses — responses table (read-only), scoped to tenant's sites via survey->site
   fastify.get('/responses', {
     onRequest: [fastify.authenticate],
   }, async (request, reply) => {
@@ -184,29 +141,37 @@ export default async function operationsRoutes(fastify: FastifyInstance) {
       }
 
       let query = db
-        .selectFrom('answers')
-        .innerJoin('events', 'events.id', 'answers.event_id')
+        .selectFrom('responses')
+        .innerJoin('surveys', 'surveys.id', 'responses.survey_id')
         .select([
-          'answers.id',
-          'answers.event_id',
-          'answers.survey_id',
-          'answers.question_id',
-          'answers.answer_option_id',
-          'answers.answer_text',
-          'answers.answer_index',
-          'answers.anonymous_user_id',
-          'answers.page_url',
-          'answers.timestamp',
-          'events.site_id',
+          'responses.id',
+          'responses.survey_id',
+          'responses.question_id',
+          'responses.answer_option_id',
+          'responses.answer_text',
+          'responses.answer_index',
+          'responses.anonymous_user_id',
+          'responses.page_url',
+          'responses.timestamp',
+          'responses.browser',
+          'responses.os',
+          'responses.device',
+          'responses.ip',
+          'responses.country',
+          'responses.state',
+          'responses.state_name',
+          'responses.city',
+          'responses.session_id',
+          'surveys.site_id',
         ])
-        .where('events.site_id', 'in', siteIds);
+        .where('surveys.site_id', 'in', siteIds);
 
-      if (site_id) query = query.where('events.site_id', '=', site_id);
-      if (survey_id) query = query.where('answers.survey_id', '=', survey_id);
+      if (site_id) query = query.where('surveys.site_id', '=', site_id);
+      if (survey_id) query = query.where('responses.survey_id', '=', survey_id);
 
       const cap = Math.min(parseInt(limit || '100', 10), 500);
       const responses = await query
-        .orderBy('answers.id', 'desc')
+        .orderBy('responses.id', 'desc')
         .limit(cap)
         .execute();
 

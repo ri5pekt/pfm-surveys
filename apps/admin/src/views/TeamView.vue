@@ -84,6 +84,7 @@
                         <div class="warning-box" style="margin-bottom: 15px">
                             <strong>⚠️ Email Failed:</strong> The invitation email could not be sent. Please share the
                             password manually.
+                            <p v-if="inviteSuccess.error" class="email-error-detail">{{ inviteSuccess.error }}</p>
                         </div>
 
                         <div class="temp-password-box">
@@ -184,6 +185,7 @@ const inviteSuccess = ref<{
     email: string;
     emailSent: boolean;
     tempPassword?: string;
+    error?: string; // API error message when email failed
 } | null>(null);
 
 function getMemberName(member: TeamMember): string {
@@ -235,6 +237,7 @@ async function handleInvite() {
             email: data.user.email,
             emailSent: data.emailSent,
             tempPassword: data.tempPassword, // Only present if email failed
+            error: data.error ?? undefined,
         };
 
         // Refresh team members list
@@ -273,6 +276,7 @@ async function handleResendInvite(member: TeamMember) {
             email: data.user.email,
             emailSent: data.emailSent,
             tempPassword: data.tempPassword,
+            error: data.error ?? undefined,
         };
     } catch (err: any) {
         alert(err.message || "Failed to resend invitation");
@@ -652,6 +656,12 @@ onMounted(fetchTeamMembers);
     color: #856404;
     font-size: 14px;
     line-height: 1.5;
+}
+
+.warning-box .email-error-detail {
+    margin: 8px 0 0 0;
+    font-size: 13px;
+    opacity: 0.95;
 }
 
 .success-box {

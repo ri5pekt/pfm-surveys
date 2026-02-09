@@ -17,6 +17,14 @@ export interface PageRule {
     value: string;
 }
 
+/** User targeting rule: Geo location (country, state, city — each optional = any). */
+export interface UserGeoRule {
+    type: "geo";
+    country?: string;
+    state?: string;
+    city?: string;
+}
+
 export interface SurveyData {
     name: string;
     description: string;
@@ -40,6 +48,8 @@ export interface SurveyData {
         pageType: "all" | "specific";
         pageRules: PageRule[];
         users: "all";
+        userType: "all" | "specific";
+        userRules: UserGeoRule[];
     };
     behavior: {
         timing: "immediate" | "delay" | "scroll";
@@ -73,6 +83,8 @@ export function createDefaultSurveyData(): SurveyData {
             pageType: "all",
             pageRules: [{ type: "exact", value: "" }],
             users: "all",
+            userType: "all",
+            userRules: [],
         },
         behavior: {
             timing: "immediate",

@@ -9,6 +9,22 @@ const createSiteSchema = z.object({
     allow_any_domain: z.boolean().optional(),
 });
 
+function isConnectionError(err: unknown): boolean {
+    const code = err && typeof err === "object" && "code" in err ? (err as NodeJS.ErrnoException).code : null;
+    return code === "ECONNREFUSED" || code === "ENOTFOUND" || code === "ETIMEDOUT";
+}
+
+function sendErrorReply(reply: any, error: unknown): void {
+    if (isConnectionError(error)) {
+        reply.status(503).send({
+            error: "Service temporarily unavailable",
+            message: "Database or Redis is unreachable. Start them with: docker compose up -d postgres redis",
+        });
+    } else {
+        reply.status(500).send({ error: "Internal server error" });
+    }
+}
+
 export default async function sitesRoutes(fastify: FastifyInstance) {
     // Get all sites for current user's tenant
     fastify.get(
@@ -30,7 +46,7 @@ export default async function sitesRoutes(fastify: FastifyInstance) {
                 return { sites };
             } catch (error) {
                 fastify.log.error(error);
-                return reply.status(500).send({ error: "Internal server error" });
+                return sendErrorReply(reply, error);
             }
         }
     );
@@ -69,7 +85,7 @@ export default async function sitesRoutes(fastify: FastifyInstance) {
                     return reply.status(400).send({ error: "Invalid request data", details: error.errors });
                 }
                 fastify.log.error(error);
-                return reply.status(500).send({ error: "Internal server error" });
+                return sendErrorReply(reply, error);
             }
         }
     );
@@ -99,7 +115,7 @@ export default async function sitesRoutes(fastify: FastifyInstance) {
                 return { site };
             } catch (error) {
                 fastify.log.error(error);
-                return reply.status(500).send({ error: "Internal server error" });
+                return sendErrorReply(reply, error);
             }
         }
     );
@@ -155,7 +171,7 @@ export default async function sitesRoutes(fastify: FastifyInstance) {
                     return reply.status(400).send({ error: "Invalid request data", details: error.errors });
                 }
                 fastify.log.error(error);
-                return reply.status(500).send({ error: "Internal server error" });
+                return sendErrorReply(reply, error);
             }
         }
     );
@@ -184,7 +200,7 @@ export default async function sitesRoutes(fastify: FastifyInstance) {
                 return { success: true };
             } catch (error) {
                 fastify.log.error(error);
-                return reply.status(500).send({ error: "Internal server error" });
+                return sendErrorReply(reply, error);
             }
         }
     );

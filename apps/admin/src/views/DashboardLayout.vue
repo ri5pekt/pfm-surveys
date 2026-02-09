@@ -7,7 +7,7 @@
                         <img src="../assets/pfm-surveys.svg" alt="PFM Surveys" class="logo" />
                         <div class="title-column">
                             <h1>PFM Surveys</h1>
-                            <span class="version-badge">v0.1.0</span>
+                            <span class="version-badge">v1.0.0</span>
                         </div>
                     </div>
                 </div>
@@ -85,9 +85,15 @@
         <main v-if="sitesStore.error" class="main-content api-blocked">
             <div class="api-unavailable">
                 <h2>API is not available</h2>
-                <p>The app cannot work without the API. Start the API server, then click Retry.</p>
+                <p v-if="isUnreachableHint">
+                    The API cannot reach the database or Redis. Start them, then start the API and click Retry.
+                </p>
+                <p v-else>The app cannot work without the API. Start the API server, then click Retry.</p>
                 <p class="api-unavailable-url">
                     API URL: <code>{{ apiBaseUrl }}</code>
+                </p>
+                <p v-if="isUnreachableHint" class="api-unavailable-hint">
+                    In the project folder, run: <code>docker compose up -d postgres redis</code>, then in a terminal run <code>pnpm dev</code> (or <code>pnpm run dev:api</code>). Use your own terminal so the API can reach Docker on your machine.
                 </p>
                 <button type="button" class="btn-retry" @click="retrySites" :disabled="sitesStore.loading">
                     {{ sitesStore.loading ? "Checking…" : "Retry" }}
@@ -111,6 +117,15 @@ const authStore = useAuthStore();
 const sitesStore = useSitesStore();
 
 const apiBaseUrl = computed(() => import.meta.env.VITE_API_BASE_URL || "http://localhost:3000");
+
+const isUnreachableHint = computed(() => {
+    const e = sitesStore.error?.toLowerCase() ?? "";
+    return (
+        e.includes("temporarily unavailable") ||
+        e.includes("unreachable") ||
+        e.includes("internal server error")
+    );
+});
 
 const selectedSiteId = ref<string>("");
 const showProfileMenu = ref(false);
@@ -527,12 +542,19 @@ function handleLogout() {
     margin-bottom: 20px;
 }
 
+.api-unavailable-hint {
+    font-size: 13px;
+    color: #555;
+    margin-top: 8px;
+}
+
 .api-unavailable-url {
     font-size: 13px;
     color: #666;
 }
 
-.api-unavailable-url code {
+.api-unavailable-url code,
+.api-unavailable-hint code {
     background: #f0f0f0;
     padding: 2px 8px;
     border-radius: 4px;

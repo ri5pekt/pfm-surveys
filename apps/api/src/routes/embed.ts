@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "../db/connection";
 import { setNonceOnce, getRedis } from "../redis";
 import { addEventIngestionJobs } from "../queues/eventIngestion";
+import { getGeoForIp } from "../services/geo";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -179,15 +180,196 @@ const embedRoutes: FastifyPluginAsync = async (fastify) => {
             .send(script);
     });
 
-    // Get active surveys for a site
+    // Get active surveys for a site (no geo resolution here; embed fetches geo lazily when needed)
     fastify.get("/api/public/surveys", async (request, reply) => {
+        try {
+            const { site_id } = request.query as { site_id?: string };
+
+            if (!site_id) {
+                return reply.code(400).send({ error: "site_id is required" });
+            }
+
+            // Get site
+            const site = await db
+                .selectFrom("sites")
+                .select(["id"])
+                .where("site_id", "=", site_id)
+                .where("active", "=", true)
+                .executeTakeFirst();
+
+            if (!site) {
+                return reply.code(404).send({ error: "Site not found" });
+            }
+
+            // Get active surveys with questions
+            const surveys = await db
+                .selectFrom("surveys")
+                .select(["id", "name", "type", "thank_you_message"])
+                .where("site_id", "=", site.id)
+                .where("active", "=", true)
+                .execute();
+
+            function parseRuleConfig(ruleConfig: unknown): Record<string, unknown> {
+                if (ruleConfig == null) return {};
+                if (typeof ruleConfig === "object" && !Array.isArray(ruleConfig)) return ruleConfig as Record<string, unknown>;
+                if (typeof ruleConfig === "string") {
+                    try {
+                        return (JSON.parse(ruleConfig) as Record<string, unknown>) || {};
+                    } catch {
+                        return {};
+                    }
+                }
+                return {};
+            }
+
+            // Get questions and options for each survey
+            const surveysWithQuestions = await Promise.all(
+                surveys.map(async (survey) => {
+                    const questions = await db
+                        .selectFrom("questions")
+                        .select([
+                            "id",
+                            "question_text",
+                            "question_type",
+                            "image_url",
+                            "required",
+                            "randomize_options",
+                            "order_index",
+                        ])
+                        .where("survey_id", "=", survey.id)
+                        .orderBy("order_index", "asc")
+                        .execute();
+
+                    const questionsWithOptions = await Promise.all(
+                        questions.map(async (question) => {
+                            const options = await db
+                                .selectFrom("answer_options")
+                                .select(["id", "option_text", "requires_comment", "pin_to_bottom", "order_index"])
+                                .where("question_id", "=", question.id)
+                                .orderBy("order_index", "asc")
+                                .execute();
+
+                            return {
+                                ...question,
+                                options: options.length > 0 ? options : undefined,
+                            };
+                        })
+                    );
+
+                    // Get display settings (base schema columns only so we don't 500 if migrations not run)
+                    const displaySettingsRow = await db
+                        .selectFrom("display_settings")
+                        .select([
+                            "position",
+                            "show_delay_ms",
+                            "auto_close_ms",
+                            "display_frequency",
+                            "sample_rate",
+                            "show_close_button",
+                            "show_minimize_button",
+                        ])
+                        .where("survey_id", "=", survey.id)
+                        .executeTakeFirst();
+                    const displaySettings = displaySettingsRow
+                        ? {
+                              ...displaySettingsRow,
+                              timing_mode: (displaySettingsRow as any).timing_mode ?? "immediate",
+                              scroll_percentage: (displaySettingsRow as any).scroll_percentage ?? 50,
+                              widget_background_color: (displaySettingsRow as any).widget_background_color ?? "#141a2c",
+                              widget_background_opacity: (displaySettingsRow as any).widget_background_opacity ?? 1,
+                              widget_border_radius: (displaySettingsRow as any).widget_border_radius ?? "8px",
+                              text_color: (displaySettingsRow as any).text_color ?? "#ffffff",
+                              question_text_size: (displaySettingsRow as any).question_text_size ?? "1em",
+                              answer_font_size: (displaySettingsRow as any).answer_font_size ?? "0.875em",
+                              button_background_color: (displaySettingsRow as any).button_background_color ?? "#2a44b7",
+                          }
+                        : null;
+
+                    // Get targeting rules (page: exact/contains; user: geo); rule_config may be JSON string from DB
+                    const targetingRules = await db
+                        .selectFrom("targeting_rules")
+                        .select(["rule_type", "rule_config"])
+                        .where("survey_id", "=", survey.id)
+                        .execute();
+
+                    const pageRules = targetingRules
+                        .filter((r) => r.rule_type === "exact" || r.rule_type === "contains")
+                        .map((rule) => {
+                            const c = parseRuleConfig(rule.rule_config);
+                            return { type: rule.rule_type, value: (c.value as string) ?? "" };
+                        });
+                    const userRules = targetingRules
+                        .filter((r) => r.rule_type === "geo")
+                        .map((rule) => {
+                            const c = parseRuleConfig(rule.rule_config);
+                            return {
+                                type: "geo" as const,
+                                country: (c.country as string) ?? "",
+                                state: (c.state as string) ?? "",
+                                city: (c.city as string) ?? "",
+                            };
+                        });
+
+                    const targeting = {
+                        pageType: pageRules.length > 0 ? "specific" : "all",
+                        pageRules,
+                        userType: userRules.length > 0 ? "specific" : "all",
+                        userRules,
+                    };
+
+                    return {
+                        ...survey,
+                        questions: questionsWithOptions,
+                        displaySettings: displaySettings ?? null,
+                        targeting,
+                    };
+                })
+            );
+
+            const withGeoRules = surveysWithQuestions.filter(
+                (s) => (s as any).targeting?.userType === "specific" && ((s as any).targeting?.userRules?.length ?? 0) > 0
+            );
+            if (withGeoRules.length > 0) {
+                fastify.log.info(
+                    {
+                        path: "/api/public/surveys",
+                        site_id,
+                        surveysWithUserRules: withGeoRules.map((s) => ({
+                            id: s.id,
+                            name: s.name,
+                            userRules: (s as any).targeting?.userRules,
+                        })),
+                    },
+                    "[PFM Surveys] Returning surveys; some have user (geo) rules"
+                );
+            }
+            return reply.send({ surveys: surveysWithQuestions });
+        } catch (err: unknown) {
+            fastify.log.error(err, "[PFM Surveys] GET /api/public/surveys error");
+            const code = err && typeof err === "object" && "code" in err ? (err as NodeJS.ErrnoException).code : null;
+            const isDbDown = code === "ECONNREFUSED" || code === "ENOTFOUND" || code === "ETIMEDOUT";
+            return reply
+                .code(isDbDown ? 503 : 500)
+                .send({
+                    error: isDbDown ? "Service temporarily unavailable" : "Internal server error",
+                    message:
+                        isDbDown
+                            ? "Database is unreachable. Start PostgreSQL and Redis (e.g. docker compose up -d postgres redis)."
+                            : err instanceof Error
+                              ? err.message
+                              : "Failed to load surveys",
+                });
+        }
+    });
+
+    // Resolve client geo (lazy: called by embed only when a survey with user geo rules is a candidate)
+    fastify.get("/api/public/geo", async (request, reply) => {
         const { site_id } = request.query as { site_id?: string };
 
         if (!site_id) {
             return reply.code(400).send({ error: "site_id is required" });
         }
 
-        // Get site
         const site = await db
             .selectFrom("sites")
             .select(["id"])
@@ -199,97 +381,17 @@ const embedRoutes: FastifyPluginAsync = async (fastify) => {
             return reply.code(404).send({ error: "Site not found" });
         }
 
-        // Get active surveys with questions
-        const surveys = await db
-            .selectFrom("surveys")
-            .select(["id", "name", "type", "thank_you_message"])
-            .where("site_id", "=", site.id)
-            .where("active", "=", true)
-            .execute();
+        const forwarded = (request.headers["x-forwarded-for"] as string) ?? "";
+        const firstForwarded = forwarded.split(",")[0]?.trim();
+        const clientIp =
+            firstForwarded || (request.headers["x-real-ip"] as string) || request.ip || "unknown";
 
-        // Get questions and options for each survey
-        const surveysWithQuestions = await Promise.all(
-            surveys.map(async (survey) => {
-                const questions = await db
-                    .selectFrom("questions")
-                    .select([
-                        "id",
-                        "question_text",
-                        "question_type",
-                        "image_url",
-                        "required",
-                        "randomize_options",
-                        "order_index",
-                    ])
-                    .where("survey_id", "=", survey.id)
-                    .orderBy("order_index", "asc")
-                    .execute();
-
-                const questionsWithOptions = await Promise.all(
-                    questions.map(async (question) => {
-                        const options = await db
-                            .selectFrom("answer_options")
-                            .select(["id", "option_text", "requires_comment", "pin_to_bottom", "order_index"])
-                            .where("question_id", "=", question.id)
-                            .orderBy("order_index", "asc")
-                            .execute();
-
-                        return {
-                            ...question,
-                            options: options.length > 0 ? options : undefined,
-                        };
-                    })
-                );
-
-                // Get display settings
-                const displaySettings = await db
-                    .selectFrom("display_settings")
-                    .select([
-                        "position",
-                        "show_delay_ms",
-                        "auto_close_ms",
-                        "display_frequency",
-                        "sample_rate",
-                        "show_close_button",
-                        "show_minimize_button",
-                        "timing_mode",
-                        "scroll_percentage",
-                        "widget_background_color",
-                        "widget_background_opacity",
-                        "widget_border_radius",
-                        "text_color",
-                        "question_text_size",
-                        "answer_font_size",
-                        "button_background_color",
-                    ])
-                    .where("survey_id", "=", survey.id)
-                    .executeTakeFirst();
-
-                // Get targeting rules
-                const targetingRules = await db
-                    .selectFrom("targeting_rules")
-                    .select(["rule_type", "rule_config"])
-                    .where("survey_id", "=", survey.id)
-                    .execute();
-
-                const targeting = {
-                    pageType: targetingRules.length > 0 ? "specific" : "all",
-                    pageRules: targetingRules.map((rule) => ({
-                        type: rule.rule_type,
-                        value: (rule.rule_config as any).value,
-                    })),
-                };
-
-                return {
-                    ...survey,
-                    questions: questionsWithOptions,
-                    displaySettings,
-                    targeting,
-                };
-            })
+        const userGeo = await getGeoForIp(clientIp);
+        fastify.log.info(
+            { path: "/api/public/geo", clientIp, userGeo: userGeo ?? null },
+            "[PFM Surveys] GET /api/public/geo: resolved userGeo for targeting"
         );
-
-        reply.send({ surveys: surveysWithQuestions });
+        reply.send({ userGeo: userGeo ?? null });
     });
 
     // Record events (impression, answer, dismiss) — enqueue to BullMQ, no direct DB write

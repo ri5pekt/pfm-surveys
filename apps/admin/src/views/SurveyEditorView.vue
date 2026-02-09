@@ -86,6 +86,8 @@
                         :targeting="surveyData.targeting"
                         @add-rule="addPageRule"
                         @remove-rule="removePageRule"
+                        @add-user-rule="addUserRule"
+                        @remove-user-rule="removeUserRule"
                     />
                 </AccordionSection>
 
@@ -159,8 +161,17 @@ const surveyData = ref(createDefaultSurveyData());
 
 // Use composables
 const { activeSection, toggleSection } = useAccordion("details");
-const { addQuestion, removeQuestion, handleQuestionTypeChange, addOption, removeOption, addPageRule, removePageRule } =
-    useQuestionManager(surveyData);
+const {
+    addQuestion,
+    removeQuestion,
+    handleQuestionTypeChange,
+    addOption,
+    removeOption,
+    addPageRule,
+    removePageRule,
+    addUserRule,
+    removeUserRule,
+} = useQuestionManager(surveyData);
 const { isSectionComplete, validateSurvey } = useSurveyValidation(surveyData);
 const {
     showSuccessDialog,

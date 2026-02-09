@@ -9,12 +9,9 @@ export interface Database {
     answer_options: AnswerOptionsTable;
     targeting_rules: TargetingRulesTable;
     display_settings: DisplaySettingsTable;
-    events: EventsTable;
-    answers: AnswersTable;
-    rollups_daily: RollupsDailyTable;
-    rollup_state: RollupStateTable;
-    processed_events: ProcessedEventsTable;
-    daily_unique_users: DailyUniqueUsersTable;
+    responses: ResponsesTable;
+    survey_stats: SurveyStatsTable;
+    event_dedup: EventDedupTable;
     worker_activity_logs: WorkerActivityLogsTable;
     ip_geolocation_cache: IpGeolocationCacheTable;
 }
@@ -109,22 +106,8 @@ export interface DisplaySettingsTable {
     created_at: Date;
 }
 
-export interface EventsTable {
+export interface ResponsesTable {
     id: number;
-    site_id: string;
-    survey_id: string | null;
-    event_type: string;
-    client_event_id: string;
-    anonymous_user_id: string | null;
-    session_id: string | null;
-    page_url: string | null;
-    event_data: unknown; // JSONB
-    timestamp: Date;
-}
-
-export interface AnswersTable {
-    id: number;
-    event_id: number;
     survey_id: string;
     question_id: string;
     answer_option_id: string | null;
@@ -133,39 +116,35 @@ export interface AnswersTable {
     anonymous_user_id: string | null;
     page_url: string | null;
     timestamp: Date;
+    browser: string | null;
+    os: string | null;
+    device: string | null;
+    ip: string | null;
+    country: string | null;
+    state: string | null;
+    state_name: string | null;
+    city: string | null;
+    session_id: string | null;
 }
 
-export interface RollupsDailyTable {
-    id: number;
-    site_id: string;
+export interface SurveyStatsTable {
     survey_id: string;
-    date: Date;
-    impressions: number;
-    responses: number;
-    dismissals: number;
-    unique_users: number;
-    created_at: Date;
+    total_impressions: number;
+    total_responses: number;
+    total_dismissals: number;
+    total_closes: number;
+    total_minimizes: number;
+    total_interacts: number;
+    first_impression_at: Date | null;
+    last_activity_at: Date | null;
     updated_at: Date;
 }
 
-export interface RollupStateTable {
-    id: number;
-    site_id: string;
-    last_processed_event_id: number;
-    last_processed_at: Date | null;
-    created_at: Date;
-    updated_at: Date;
-}
-
-export interface ProcessedEventsTable {
-    event_id: number;
-}
-
-export interface DailyUniqueUsersTable {
-    site_id: string;
+export interface EventDedupTable {
+    event_uid: string;
+    event_type: string;
     survey_id: string;
-    date: Date;
-    anonymous_user_id: string;
+    processed_at: Date;
 }
 
 export interface WorkerActivityLogsTable {
