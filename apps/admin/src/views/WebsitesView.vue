@@ -251,12 +251,15 @@ const formData = ref({
 
 const domainInput = ref("");
 
-// Use the configured API URL from environment
+// Use the configured API URL from environment for admin API calls
 const apiUrl = computed(() => import.meta.env.VITE_API_BASE_URL || "http://localhost:3000");
+
+// Use separate embed API URL for embed script (ngrok or production)
+const embedApiUrl = computed(() => import.meta.env.VITE_EMBED_API_URL || import.meta.env.VITE_API_BASE_URL || "http://localhost:3000");
 
 function getEmbedScript(siteId: string): string {
     return `<script
-  src="${apiUrl.value}/embed/script.js?site_id=${siteId}"
+  src="${embedApiUrl.value}/embed/script.js?site_id=${siteId}"
   defer
 ><\/script>`;
 }

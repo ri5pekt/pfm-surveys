@@ -10,7 +10,17 @@ import type {
     ResponseRow,
 } from "../types";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+// Use relative URLs - works in both dev and production
+// Dev: Vite proxy forwards /api/* to localhost:3000
+// Prod: Caddy routes /api/* to API container (same domain)
+const API_BASE_URL = "";
+
+// Debug logging
+console.log("🔧 API Configuration:", {
+    mode: import.meta.env.MODE,
+    API_BASE_URL: API_BASE_URL || "(relative URLs)",
+    VITE_EMBED_API_URL: import.meta.env.VITE_EMBED_API_URL,
+});
 
 const api = axios.create({
     baseURL: API_BASE_URL,

@@ -16,6 +16,7 @@ export interface Database {
     processed_events: ProcessedEventsTable;
     daily_unique_users: DailyUniqueUsersTable;
     worker_activity_logs: WorkerActivityLogsTable;
+    ip_geolocation_cache: IpGeolocationCacheTable;
 }
 
 export interface TenantsTable {
@@ -188,4 +189,16 @@ export interface WorkerActivityLogsTable {
     error_code: string | null;
     error_message: string | null;
     meta: unknown;
+}
+
+export interface IpGeolocationCacheTable {
+    ip: string;
+    country: string | null;
+    state: string | null;
+    state_name: string | null;
+    city: string | null;
+    lookup_count: number;
+    first_seen_at: Date;
+    last_seen_at: Date;
+    created_at: Date;
 }

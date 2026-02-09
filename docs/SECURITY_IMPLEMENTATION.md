@@ -273,14 +273,14 @@ Incoming Request
 **File**: `apps/api/src/db/migrations/001_add_allow_any_domain_flag.sql`
 
 ```sql
-ALTER TABLE sites 
+ALTER TABLE sites
 ADD COLUMN IF NOT EXISTS allow_any_domain BOOLEAN DEFAULT false;
 
-COMMENT ON COLUMN sites.allow_any_domain IS 
+COMMENT ON COLUMN sites.allow_any_domain IS
   'Explicit opt-in to skip domain validation. Use only for dev/testing. INSECURE if enabled.';
 
-CREATE INDEX IF NOT EXISTS idx_sites_active_domain_check 
-  ON sites(active, allow_any_domain) 
+CREATE INDEX IF NOT EXISTS idx_sites_active_domain_check
+  ON sites(active, allow_any_domain)
   WHERE active = true;
 ```
 
@@ -425,7 +425,7 @@ const eventCount = await redis.incrby(`rl:events:${site.id}:${minute}`, events.l
    cp .env .env.production
    vim .env.production
    ```
-   
+
    Update these values:
    - `DOMAIN`: Your production domain
    - `DATABASE_PASSWORD`: Strong password
@@ -441,10 +441,10 @@ const eventCount = await redis.incrby(`rl:events:${site.id}:${minute}`, events.l
    ```bash
    # Check service status
    docker-compose -f docker-compose.prod.yml ps
-   
+
    # View logs
    docker-compose -f docker-compose.prod.yml logs -f api
-   
+
    # Test health endpoint
    curl https://your-domain.com/health
    ```

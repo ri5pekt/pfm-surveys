@@ -13,12 +13,47 @@ export interface GeoResult {
 const GEO_TIMEOUT_MS = 4000;
 const IP_API_BASE = "https://pro.ip-api.com/json";
 
+/**
+ * Fetch geolocation from database cache or API
+ * 1. Check database cache first
+ * 2. If not found, call IP API
+ * 3. Save result to database cache
+ * 4. Update last_seen_at and lookup_count on cache hit
+ */
 async function fetchGeoForIp(ip: string, apiKey: string): Promise<GeoResult | null> {
+    // Step 1: Check database cache
+    const cached = await db
+        .selectFrom("ip_geolocation_cache")
+        .selectAll()
+        .where("ip", "=", ip)
+        .executeTakeFirst();
+
+    if (cached) {
+        // Cache hit! Update last_seen_at and increment lookup_count
+        await db
+            .updateTable("ip_geolocation_cache")
+            .set({
+                last_seen_at: new Date(),
+                lookup_count: cached.lookup_count + 1,
+            })
+            .where("ip", "=", ip)
+            .execute();
+
+        return {
+            country: cached.country ?? undefined,
+            state: cached.state ?? undefined,
+            state_name: cached.state_name ?? undefined,
+            city: cached.city ?? undefined,
+        };
+    }
+
+    // Step 2: Cache miss - fetch from IP API
     const url = `${IP_API_BASE}/${encodeURIComponent(
         ip
     )}?fields=status,countryCode,region,regionName,city&key=${encodeURIComponent(apiKey)}`;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), GEO_TIMEOUT_MS);
+    
     try {
         const res = await fetch(url, { signal: controller.signal, headers: { "Cache-Control": "no-cache" } });
         clearTimeout(timeout);
@@ -29,12 +64,38 @@ async function fetchGeoForIp(ip: string, apiKey: string): Promise<GeoResult | nu
             regionName?: string;
             city?: string;
         };
+        
         if (body?.status !== "success") return null;
+        
         const country = body.countryCode != null ? String(body.countryCode).toUpperCase() : undefined;
         const state = body.region != null ? String(body.region).toUpperCase() : undefined;
         const state_name = body.regionName != null ? String(body.regionName) : undefined;
         const city = body.city != null ? String(body.city) : undefined;
-        return { country, state, state_name, city };
+        
+        const result: GeoResult = { country, state, state_name, city };
+
+        // Step 3: Save to database cache for future use
+        try {
+            await db
+                .insertInto("ip_geolocation_cache")
+                .values({
+                    ip,
+                    country: country ?? null,
+                    state: state ?? null,
+                    state_name: state_name ?? null,
+                    city: city ?? null,
+                    lookup_count: 1,
+                    first_seen_at: new Date(),
+                    last_seen_at: new Date(),
+                    created_at: new Date(),
+                })
+                .execute();
+        } catch (err) {
+            // Ignore duplicate key errors (race condition between workers)
+            // The cache entry already exists, which is fine
+        }
+
+        return result;
     } catch {
         clearTimeout(timeout);
         return null;
@@ -110,37 +171,53 @@ export async function processIngestionJob(job: Job<IngestJobData>): Promise<void
             const timestamp = toTimestamp(ev.timestamp ?? Date.now());
             const geo = ev.ip ? geoCache.get(ev.ip) ?? null : null;
 
-            const inserted = await db
-                .insertInto("events")
-                .values({
-                    site_id: siteId,
-                    survey_id: ev.survey_id ?? null,
-                    event_type: ev.event_type,
-                    client_event_id: ev.client_event_id,
-                    anonymous_user_id: ev.anonymous_user_id ?? null,
-                    session_id: ev.session_id ?? null,
-                    page_url: ev.page_url ?? null,
-                    event_data: (() => {
-                        const data = ev.event_data
-                            ? { ...(typeof ev.event_data === "object" ? ev.event_data : {}) }
-                            : {};
-                        if (ev.browser != null) (data as any).browser = ev.browser;
-                        if (ev.os != null) (data as any).os = ev.os;
-                        if (ev.device != null) (data as any).device = ev.device;
-                        if (ev.ip != null) (data as any).ip = ev.ip;
-                        if (geo) {
-                            if (geo.country != null) (data as any).country = geo.country;
-                            if (geo.state != null) (data as any).state = geo.state;
-                            if (geo.state_name != null) (data as any).state_name = geo.state_name;
-                            if (geo.city != null) (data as any).city = geo.city;
-                        }
-                        return Object.keys(data).length > 0 ? JSON.stringify(data) : null;
-                    })(),
-                    timestamp,
-                } as any)
-                .onConflict((oc) => oc.column("client_event_id").doNothing())
-                .returning(["id"])
-                .executeTakeFirst();
+            let inserted: { id: number } | undefined;
+            try {
+                inserted = await db
+                    .insertInto("events")
+                    .values({
+                        site_id: siteId,
+                        survey_id: ev.survey_id ?? null,
+                        event_type: ev.event_type,
+                        client_event_id: ev.client_event_id,
+                        anonymous_user_id: ev.anonymous_user_id ?? null,
+                        session_id: ev.session_id ?? null,
+                        page_url: ev.page_url ?? null,
+                        event_data: (() => {
+                            const data = ev.event_data
+                                ? { ...(typeof ev.event_data === "object" ? ev.event_data : {}) }
+                                : {};
+                            if (ev.browser != null) (data as any).browser = ev.browser;
+                            if (ev.os != null) (data as any).os = ev.os;
+                            if (ev.device != null) (data as any).device = ev.device;
+                            if (ev.ip != null) (data as any).ip = ev.ip;
+                            if (geo) {
+                                if (geo.country != null) (data as any).country = geo.country;
+                                if (geo.state != null) (data as any).state = geo.state;
+                                if (geo.state_name != null) (data as any).state_name = geo.state_name;
+                                if (geo.city != null) (data as any).city = geo.city;
+                            }
+                            return Object.keys(data).length > 0 ? JSON.stringify(data) : null;
+                        })(),
+                        timestamp,
+                    } as any)
+                    .onConflict((oc) => oc.column("client_event_id").doNothing())
+                    .returning(["id"])
+                    .executeTakeFirst();
+            } catch (insertErr) {
+                // Handle foreign key constraint violations gracefully
+                // This happens when a survey/site is deleted while events are still in the queue
+                const errMsg = insertErr instanceof Error ? insertErr.message : String(insertErr);
+                if (errMsg.includes("foreign key constraint") || errMsg.includes("violates")) {
+                    console.warn(
+                        `[Worker] Skipping event for deleted/missing survey_id=${ev.survey_id} site_id=${siteId}: ${errMsg}`
+                    );
+                    validationRejects += 1;
+                    continue; // Skip this event, don't fail the entire job
+                }
+                // If it's some other error, re-throw to fail the job and retry
+                throw insertErr;
+            }
 
             let eventId: number | null = null;
             if (inserted) {

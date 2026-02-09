@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { sql } from "kysely";
 import { db } from "../db/connection";
 import { z } from "zod";
+import { cleanupSurveyEvents } from "../queues/eventIngestion";
 
 /** Stopwords for 2-word phrase extraction (open-text answers) */
 const STOPWORDS = new Set(
@@ -1303,7 +1304,19 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                     return reply.status(404).send({ error: "Survey not found" });
                 }
 
-                // Delete related data first to avoid foreign key constraint violations
+                // Clean up pending events from Redis queue FIRST
+                // This prevents the worker from trying to process events for a deleted survey
+                try {
+                    const removedJobs = await cleanupSurveyEvents(id);
+                    if (removedJobs > 0) {
+                        fastify.log.info(`Removed ${removedJobs} pending queue jobs for survey ${id}`);
+                    }
+                } catch (queueErr) {
+                    // Log but don't fail - the worker will handle orphaned events gracefully
+                    fastify.log.warn(`Failed to clean queue for survey ${id}:`, queueErr);
+                }
+
+                // Delete related data from database to avoid foreign key constraint violations
                 // Order matters! answers references events via event_id
 
                 // 1. Delete answers FIRST (they reference events via event_id FK)

@@ -66,3 +66,42 @@ export async function addEventIngestionJobs(
     }
     return count;
 }
+
+/**
+ * Clean up pending events for a deleted survey from the queue.
+ * This prevents foreign key constraint violations when the worker processes orphaned events.
+ * Note: This only affects jobs in "waiting" and "delayed" states. Active/completed jobs are not affected.
+ */
+export async function cleanupSurveyEvents(surveyId: string): Promise<number> {
+    const q = getQueue();
+    let removedCount = 0;
+
+    try {
+        // Get all waiting and delayed jobs
+        const [waitingJobs, delayedJobs] = await Promise.all([
+            q.getJobs(["waiting"]),
+            q.getJobs(["delayed"]),
+        ]);
+
+        const allJobs = [...waitingJobs, ...delayedJobs];
+
+        // Check each job and remove if it contains events for the deleted survey
+        for (const job of allJobs) {
+            if (!job || !job.data?.events) continue;
+
+            const hasDeletedSurvey = job.data.events.some(
+                (event: any) => event.survey_id === surveyId
+            );
+
+            if (hasDeletedSurvey) {
+                await job.remove();
+                removedCount++;
+            }
+        }
+
+        return removedCount;
+    } catch (error) {
+        console.error(`[Queue] Error cleaning up events for survey ${surveyId}:`, error);
+        return removedCount;
+    }
+}

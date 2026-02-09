@@ -126,6 +126,9 @@ const createdSite = ref<Site | null>(null);
 
 const embedCode = ref("");
 
+// Use separate embed API URL for embed script (ngrok or production)
+const embedApiUrl = import.meta.env.VITE_EMBED_API_URL || import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
 function addDomain() {
     const domain = domainInput.value.trim();
     if (domain && !formData.value.domains.includes(domain)) {
@@ -163,7 +166,7 @@ function generateEmbedCode(siteId: string): string {
     return `<script>
   (function() {
     var script = document.createElement('script');
-    script.src = 'https://your-domain.com/embed/script.js?site_id=${siteId}';
+    script.src = '${embedApiUrl}/embed/script.js?site_id=${siteId}';
     script.async = true;
     document.head.appendChild(script);
   })();
