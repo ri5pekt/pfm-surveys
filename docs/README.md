@@ -6,20 +6,20 @@ Welcome to the Survey Platform documentation. This directory contains all techni
 
 ### Getting Started
 
--   **[Quick Start Cheat Sheet](./QUICK_START.md)** ⚡ - Commands, troubleshooting, and daily workflow
--   **[Getting Started Guide](./GETTING_STARTED.md)** - Complete setup guide for developers
--   **[Project README](../README.md)** - Project overview and quick start
--   **[About](./about.txt)** - High-level project description and architecture philosophy
+- **[Quick Start Cheat Sheet](./QUICK_START.md)** ⚡ - Commands, troubleshooting, and daily workflow
+- **[Getting Started Guide](./GETTING_STARTED.md)** - Complete setup guide for developers
+- **[Project README](../README.md)** - Project overview and quick start
+- **[About](./about.txt)** - High-level project description and architecture philosophy
 
 ### User Interface
 
--   **[Admin Dashboard Screens](./admin-screens.md)** - Complete UI/UX specifications for all admin screens
--   **[Screenshots Reference](./SCREENSHOTS.md)** - Visual guide mapping screenshots to screen specifications
+- **[Admin Dashboard Screens](./admin-screens.md)** - Complete UI/UX specifications for all admin screens
+- **[Screenshots Reference](./SCREENSHOTS.md)** - Visual guide mapping screenshots to screen specifications
 
 ### Architecture & Design
 
--   **[Architecture Overview](./architecture.md)** _(to be created)_ - System design, data flow, and component interactions
--   **[Decision Records](./decisions.md)** _(to be created)_ - Architectural decisions and their rationale
+- **[Architecture Overview](./architecture.md)** _(to be created)_ - System design, data flow, and component interactions
+- **[Decision Records](./decisions.md)** _(to be created)_ - Architectural decisions and their rationale
 
 ## 🎯 Quick Links by Role
 
@@ -46,27 +46,27 @@ Welcome to the Survey Platform documentation. This directory contains all techni
 
 All admin dashboard screens are documented with:
 
--   Purpose and user goals
--   Feature requirements
--   Layout and component details
--   Validation rules
--   Navigation flows
--   Empty states and error handling
+- Purpose and user goals
+- Feature requirements
+- Layout and component details
+- Validation rules
+- Navigation flows
+- Empty states and error handling
 
 ### MVP Screens (Phase 1)
 
--   ✅ Login screen
--   ✅ Sites list and management
--   ✅ Surveys list (with active/inactive tabs)
--   ✅ Survey builder (with live preview)
--   ✅ Survey results (charts + responses)
+- ✅ Login screen
+- ✅ Sites list and management
+- ✅ Surveys list (with active/inactive tabs)
+- ✅ Survey builder (with live preview)
+- ✅ Survey results (charts + responses)
 
 ### Future Screens (Phase 2+)
 
--   Dashboard/home with metrics
--   Site users/team management
--   Advanced settings
--   Custom reports and exports
+- Dashboard/home with metrics
+- Site users/team management
+- Advanced settings
+- Custom reports and exports
 
 ## 🏗️ Architecture Documents
 
@@ -74,87 +74,86 @@ All admin dashboard screens are documented with:
 
 The following documents will be added as the architecture is implemented:
 
--   **architecture.md** - Detailed system architecture including:
+- **architecture.md** - Detailed system architecture including:
+    - Component diagram
+    - Data flow diagrams
+    - Database schema
+    - API endpoint specifications
+    - Queue architecture
+    - Security model
 
-    -   Component diagram
-    -   Data flow diagrams
-    -   Database schema
-    -   API endpoint specifications
-    -   Queue architecture
-    -   Security model
-
--   **decisions.md** - Architectural Decision Records (ADRs) documenting:
-    -   Why Node.js + Fastify
-    -   Why Kysely over an ORM
-    -   Why BullMQ for job processing
-    -   Why client-side identity in Phase 1
-    -   Why rollups over real-time aggregation
-    -   And other key technical decisions
+- **decisions.md** - Architectural Decision Records (ADRs) documenting:
+    - Why Node.js + Fastify
+    - Why Kysely over an ORM
+    - Why BullMQ for job processing
+    - Why client-side identity in Phase 1
+    - Why rollups over real-time aggregation
+    - And other key technical decisions
 
 ## 🔧 Technical Stack Reference
 
 ### Backend
 
--   **Runtime:** Node.js 20+
--   **Framework:** Fastify
--   **Language:** TypeScript
--   **Database:** PostgreSQL
--   **Query Builder:** Kysely
--   **Jobs:** Redis + BullMQ
--   **Auth:** JWT (access + refresh tokens)
+- **Runtime:** Node.js 20+
+- **Framework:** Fastify
+- **Language:** TypeScript
+- **Database:** PostgreSQL
+- **Query Builder:** Kysely
+- **Jobs:** Redis + BullMQ
+- **Auth:** JWT (access + refresh tokens)
 
 ### Frontend (Admin Dashboard)
 
--   **Framework:** Vue 3
--   **Build Tool:** Vite
--   **State Management:** Pinia
--   **UI Library:** PrimeVue (Aura theme)
--   **Language:** TypeScript
--   **Routing:** Vue Router
+- **Framework:** Vue 3
+- **Build Tool:** Vite
+- **State Management:** Pinia
+- **UI Library:** PrimeVue (Aura theme)
+- **Language:** TypeScript
+- **Routing:** Vue Router
 
 ### Embed Widget
 
--   **Language:** Vanilla JavaScript
--   **Build Tool:** Vite (library mode)
--   **Delivery:** Async loader + versioned bundle
+- **Language:** Vanilla JavaScript
+- **Build Tool:** Vite (library mode)
+- **Delivery:** Async loader + versioned bundle
 
 ### Infrastructure
 
--   **Containers:** Docker + Docker Compose
--   **Reverse Proxy:** Caddy
--   **Deployment:** Single VPS
+- **Containers:** Docker + Docker Compose
+- **Reverse Proxy:** Caddy
+- **Deployment:** Single VPS
 
 ## 📊 Data Model Overview
 
 ### Core Entities
 
--   **Tenants** - Top-level organization
--   **Sites** - Websites where surveys are embedded
--   **Surveys** - Survey configurations and questions
--   **Events** - Raw impression and interaction events (append-only)
--   **Answers** - User responses to survey questions
--   **Rollups** - Pre-aggregated daily statistics (disposable)
+- **Tenants** - Top-level organization
+- **Sites** - Websites where surveys are embedded
+- **Surveys** - Survey configurations and questions
+- **Events** - Raw impression and interaction events (append-only)
+- **Answers** - User responses to survey questions
+- **Rollups** - Pre-aggregated daily statistics (disposable)
 
 ### Design Principles
 
--   Raw events are immutable (append-only)
--   Rollups are derived and disposable
--   Watermark-based incremental aggregation
--   No synchronous analytics during ingestion
+- Raw events are immutable (append-only)
+- Rollups are derived and disposable
+- Watermark-based incremental aggregation
+- No synchronous analytics during ingestion
 
 ## 🔐 Security Model
 
--   **Embed Security:** HMAC-signed requests with timestamp validation and nonce replay prevention
--   **Admin Auth:** JWT access tokens (15min) + refresh tokens (7 days)
--   **Multi-tenancy:** Complete data isolation per tenant
--   **Input Validation:** All external input treated as hostile
+- **Embed Security:** HMAC-signed requests with timestamp validation and nonce replay prevention
+- **Admin Auth:** JWT access tokens (15min) + refresh tokens (7 days)
+- **Multi-tenancy:** Complete data isolation per tenant
+- **Input Validation:** All external input treated as hostile
 
 ## 🚀 Development Workflow
 
 **Hybrid Development Setup:**
 
--   Infrastructure (PostgreSQL, Redis) in Docker containers
--   Application code (API, Worker, Admin) runs locally for fast iteration
+- Infrastructure (PostgreSQL, Redis) in Docker containers
+- Application code (API, Worker, Admin) runs locally for fast iteration
 
 ```bash
 # Environment setup
@@ -175,11 +174,11 @@ pnpm dev
 
 **Services:**
 
--   🐳 PostgreSQL: `localhost:5432` (Docker)
--   🐳 Redis: `localhost:6379` (Docker)
--   💻 API: `http://localhost:3000` (local Node.js)
--   💻 Worker: background process (local Node.js)
--   💻 Admin: `http://localhost:5173` (local Vite with HMR)
+- 🐳 PostgreSQL: `localhost:5432` (Docker)
+- 🐳 Redis: `localhost:6379` (Docker)
+- 💻 API: `http://localhost:3000` (local Node.js)
+- 💻 Worker: background process (local Node.js)
+- 💻 Admin: `http://localhost:5173` (local Vite with HMR)
 
 See [Quick Start Cheat Sheet](./QUICK_START.md) for all commands.
 
@@ -187,27 +186,27 @@ See [Quick Start Cheat Sheet](./QUICK_START.md) for all commands.
 
 ### Phase 1 (MVP)
 
--   Core survey functionality
--   Single-question surveys
--   Basic targeting and triggers
--   Results analytics
--   Admin dashboard
+- Core survey functionality
+- Single-question surveys
+- Basic targeting and triggers
+- Results analytics
+- Admin dashboard
 
 ### Phase 2 (Enhanced)
 
--   Multi-question surveys
--   Advanced targeting
--   Team collaboration
--   Export functionality
--   Enhanced analytics
+- Multi-question surveys
+- Advanced targeting
+- Team collaboration
+- Export functionality
+- Enhanced analytics
 
 ### Phase 3 (Advanced)
 
--   Question branching logic
--   A/B testing
--   Session replay
--   Text analysis
--   Custom integrations
+- Question branching logic
+- A/B testing
+- Session replay
+- Text analysis
+- Custom integrations
 
 ## 🧪 Testing geo targeting (logs)
 
@@ -243,10 +242,10 @@ When adding documentation:
 
 For questions about:
 
--   **Setup:** See [Getting Started Guide](./GETTING_STARTED.md)
--   **UI Requirements:** See [Admin Screens](./admin-screens.md)
--   **Visual Design:** See [Screenshots](./SCREENSHOTS.md)
--   **Project Scope:** See [About](./about.txt)
+- **Setup:** See [Getting Started Guide](./GETTING_STARTED.md)
+- **UI Requirements:** See [Admin Screens](./admin-screens.md)
+- **Visual Design:** See [Screenshots](./SCREENSHOTS.md)
+- **Project Scope:** See [About](./about.txt)
 
 ---
 

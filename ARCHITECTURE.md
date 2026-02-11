@@ -95,11 +95,11 @@ const api = axios.create({
     handle /api/* {
         reverse_proxy api:3000
     }
-    
+
     handle /embed/* {
         reverse_proxy api:3000
     }
-    
+
     handle /* {
         reverse_proxy admin:80
     }

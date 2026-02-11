@@ -49,7 +49,7 @@ services:
             DATABASE_PASSWORD: ${DATABASE_PASSWORD}
             REDIS_HOST: redis
             REDIS_PORT: 6379
-            JWT_ACCESS_SECRET: ${JWT_SECRET}
+            JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
             JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-30d}
             API_PORT: 3000
             SMTP_HOST: ${SMTP_HOST}
@@ -62,6 +62,7 @@ services:
             RATE_LIMIT_IP_MAX: ${RATE_LIMIT_IP_MAX:-60}
             RATE_LIMIT_SITE_MAX: ${RATE_LIMIT_SITE_MAX:-200}
             CORS_ORIGINS: ${CORS_ORIGINS}
+            IP_API_KEY: ${IP_API_KEY}
         depends_on:
             postgres:
                 condition: service_healthy
@@ -114,24 +115,24 @@ services:
         networks:
             - frontend
 
-    caddy:
-        image: caddy:2-alpine
-        restart: unless-stopped
-        ports:
-            - "80:80"
-            - "443:443"
-            - "443:443/udp" # HTTP/3
-        environment:
-            DOMAIN: ${DOMAIN}
-        volumes:
-            - ./Caddyfile:/etc/caddy/Caddyfile
-            - caddy_data:/data
-            - caddy_config:/config
-        depends_on:
-            - api
-            - admin
-        networks:
-            - frontend
+    # caddy:  # COMMENTED OUT - Main Caddy on VPS handles all routing
+    #     image: caddy:2-alpine
+    #     restart: unless-stopped
+    #     ports:
+    #         - "80:80"
+    #         - "443:443"
+    #         - "443:443/udp" # HTTP/3
+    #     environment:
+    #         DOMAIN: ${DOMAIN}
+    #     volumes:
+    #         - ./Caddyfile:/etc/caddy/Caddyfile
+    #         - caddy_data:/data
+    #         - caddy_config:/config
+    #     depends_on:
+    #         - api
+    #         - admin
+    #     networks:
+    #         - frontend
 
 volumes:
     postgres_data:

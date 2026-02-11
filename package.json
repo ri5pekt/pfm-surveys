@@ -1,6 +1,6 @@
 {
     "name": "pfm-surveys",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "private": true,
     "description": "Self-hosted multi-tenant survey platform",
     "engines": {

@@ -62,7 +62,7 @@ Add "Specific users" in the survey builder Targeting tab (like "Specific pages")
 - Response: `{ surveys, userGeo }`. Return both; caller stores `userGeo` and passes to targeting match.
 
 ### targeting.ts
-- `matchesTargetingRules(targeting, userGeo)`: 
+- `matchesTargetingRules(targeting, userGeo)`:
   - Page rules: unchanged.
   - User rules: if `targeting.userType === "specific"` and `targeting.userRules?.length`:
     - If no `userGeo`, treat as no match (or match nothing for geo rules).

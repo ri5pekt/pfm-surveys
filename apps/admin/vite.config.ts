@@ -5,7 +5,7 @@ import { resolve } from "path";
 export default defineConfig(({ mode }) => {
     // Load env file from monorepo root
     const env = loadEnv(mode, resolve(__dirname, "../../"), "");
-    
+
     return {
         plugins: [vue()],
         // Explicitly define env vars so Vite exposes them

@@ -21,7 +21,12 @@
                     <option value="exact">Exact URL match</option>
                     <option value="contains">URL contains</option>
                 </select>
-                <input v-model="rule.value" type="text" placeholder="Enter URL or path" class="rule-value" />
+                <PageUrlAutocomplete
+                    v-model="rule.value"
+                    placeholder="Enter URL or path"
+                    title="Page URL from your site traffic"
+                    input-class="rule-value"
+                />
                 <button
                     v-if="targeting.pageRules.length > 1"
                     @click="$emit('remove-rule', index)"
@@ -60,26 +65,29 @@
                     <option value="geo">Geo location</option>
                 </select>
                 <template v-if="rule.type === 'geo'">
-                    <input
+                    <GeoAutocomplete
                         v-model="rule.country"
-                        type="text"
+                        type="country"
                         placeholder="Country (any if empty)"
-                        class="rule-geo-input"
-                        title="Country code, e.g. IL"
+                        title="Country code, e.g. US, IL"
+                        input-class="rule-geo-input"
                     />
-                    <input
+                    <GeoAutocomplete
                         v-model="rule.state"
-                        type="text"
+                        type="state"
                         placeholder="District/region (e.g. TA)"
-                        class="rule-geo-input"
-                        title="District or region code from IP (e.g. TA = Tel Aviv district). Not the city name. Leave empty for any."
+                        title="District or region code from IP (e.g. TA = Tel Aviv district). Leave empty for any."
+                        input-class="rule-geo-input"
+                        :country="rule.country"
                     />
-                    <input
+                    <GeoAutocomplete
                         v-model="rule.city"
-                        type="text"
+                        type="city"
                         placeholder="City (e.g. Tel Aviv, Giv'at Shmuel)"
-                        class="rule-geo-input"
                         title="City name from visitor's IP. This is the actual city (e.g. Giv'at Shmuel), not the district."
+                        input-class="rule-geo-input"
+                        :country="rule.country"
+                        :state="rule.state"
                     />
                 </template>
                 <button
@@ -103,6 +111,8 @@
 
 <script setup lang="ts">
 import type { SurveyData } from "../../types/survey-editor";
+import GeoAutocomplete from "../GeoAutocomplete.vue";
+import PageUrlAutocomplete from "../PageUrlAutocomplete.vue";
 
 defineProps<{
     targeting: SurveyData["targeting"];
@@ -211,11 +221,17 @@ defineEmits<{
 }
 
 .rule-geo-input {
+    /* Styling is now handled by GeoAutocomplete component */
+}
+
+/* Make sure autocomplete components in the user rule row fit properly */
+.user-rule-row :deep(.geo-autocomplete) {
     flex: 1;
     min-width: 120px;
-    padding: 10px 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-size: 14px;
+}
+
+/* Make sure page autocomplete fits properly in rule row */
+.rule-row :deep(.page-autocomplete) {
+    flex: 1;
 }
 </style>

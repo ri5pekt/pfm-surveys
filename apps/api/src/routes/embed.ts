@@ -267,6 +267,15 @@ const embedRoutes: FastifyPluginAsync = async (fastify) => {
                             "sample_rate",
                             "show_close_button",
                             "show_minimize_button",
+                            "timing_mode",
+                            "scroll_percentage",
+                            "widget_background_color",
+                            "widget_background_opacity",
+                            "widget_border_radius",
+                            "text_color",
+                            "question_text_size",
+                            "answer_font_size",
+                            "button_background_color",
                         ])
                         .where("survey_id", "=", survey.id)
                         .executeTakeFirst();

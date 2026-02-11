@@ -4,7 +4,33 @@ Quick reference guide for deploying updates to production at `https://surveys.pf
 
 ---
 
-## 🚀 Quick Deploy (Most Common)
+## 🚀 Full Deploy (After Git Pull)
+
+After you pull changes on the server, **rebuild backend and frontend containers, apply migrations, then bring services up.**
+
+```bash
+# 1. SSH to VPS and go to project
+ssh root@31.220.56.146
+cd /var/www/surveys.pfm-qa.com
+
+# 2. Pull latest changes
+git pull
+
+# 3. Rebuild all app containers (backend: api, worker; frontend: admin)
+docker compose -f docker-compose.yml -f docker-compose.prod.yml build api worker admin
+
+# 4. Apply database migrations (run inside API container)
+docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm api pnpm migrate:latest
+
+# 5. Start/restart all services
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+
+**Order matters:** Rebuild first (so the API image includes latest code and migrations), then run migrations, then `up -d`.
+
+---
+
+## 🚀 Quick Deploy (Single Service)
 
 ### Deploy Frontend Changes (Admin Dashboard)
 
@@ -114,25 +140,22 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d api
 
 ### Running Database Migrations
 
+**Preferred (after full deploy):** Migrations are in git and run via the API container:
+
+```bash
+cd /var/www/surveys.pfm-qa.com
+docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm api pnpm migrate:latest
+```
+
 **When you add new database changes:**
 
-1. **Create migration SQL file** in `apps/api/src/db/migrations/`:
+1. **Create migration SQL file** in `apps/api/src/db/migrations/` (e.g. `YYYYMMDD_description.sql`). Migration files are tracked in git (see `.gitignore` exception).
 
+2. **Deploy:** After `git pull`, run the full deploy steps above; step 4 runs all pending migrations.
+
+3. **Verify (optional):**
     ```bash
-    # Name it with timestamp: YYYYMMDD_description.sql
-    # Example: 20260205_add_user_preferences.sql
-    ```
-
-2. **Run migration on production**:
-
-    ```bash
-    # From local machine (Windows PowerShell):
-    type apps\api\src\db\migrations\20260205_add_user_preferences.sql | ssh root@31.220.56.146 "docker exec -i pfm-surveys-prod-postgres-1 psql -U surveys_user -d surveys_prod"
-    ```
-
-3. **Verify migration**:
-    ```bash
-    ssh root@31.220.56.146 "docker exec -i pfm-surveys-prod-postgres-1 psql -U surveys_user -d surveys_prod -c '\dt'"
+    ssh root@31.220.56.146 "docker exec -i surveys-postgres psql -U surveys_user -d surveys_prod -c '\\dt'"
     ```
 
 ---

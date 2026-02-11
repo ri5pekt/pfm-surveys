@@ -19,6 +19,7 @@ import teamRoutes from './routes/team';
 import userRoutes from './routes/user';
 import embedRoutes from './routes/embed';
 import operationsRoutes from './routes/operations';
+import autocompleteRoutes from './routes/autocomplete';
 
 const PORT = parseInt(process.env.API_PORT || '3000', 10);
 const HOST = process.env.API_HOST || '0.0.0.0';
@@ -80,6 +81,7 @@ fastify.register(teamRoutes);
 fastify.register(userRoutes);
 fastify.register(embedRoutes); // Public embed script and event tracking
 fastify.register(operationsRoutes, { prefix: '/api/operations' });
+fastify.register(autocompleteRoutes);
 
 // When DB/Redis are unreachable, return 503 with a clear message instead of 500
 fastify.setErrorHandler((err, request, reply) => {

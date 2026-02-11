@@ -42,7 +42,7 @@ try {
 - No data loss for valid events
 
 ### 2. Queue Cleanup on Deletion (Preventive Defense)
-**Files**: 
+**Files**:
 - `apps/api/src/queues/eventIngestion.ts` (new function: `cleanupSurveyEvents`)
 - `apps/api/src/routes/surveys.ts` (DELETE endpoint)
 
@@ -103,7 +103,7 @@ This could be implemented later if needed, but the current solution handles the 
 ### Alternative: Cascade Delete on Foreign Keys
 We could add `ON DELETE CASCADE` to foreign key constraints:
 - **Pros**: Database automatically handles cleanup
-- **Cons**: 
+- **Cons**:
   - Doesn't help with Redis queue events (not in DB yet)
   - Loss of flexibility (can't recover deleted surveys)
   - Can accidentally delete more data than intended
