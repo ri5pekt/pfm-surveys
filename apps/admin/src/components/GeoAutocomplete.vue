@@ -80,7 +80,8 @@ const emit = defineEmits<{
 }>();
 
 const authStore = useAuthStore();
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+// Use relative URLs - works in both dev and production
+const API_BASE = "";
 
 const inputValue = ref(props.modelValue || "");
 const suggestions = ref<Suggestion[]>([]);
