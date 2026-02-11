@@ -19,10 +19,25 @@ export const useSitesStore = defineStore("sites", () => {
             const response = await sitesApi.getAll();
             sites.value = response.sites;
 
-            // Auto-select first site if none selected
+            // Restore previously selected site from localStorage
             if (!currentSite.value && sites.value.length > 0) {
-                currentSite.value = sites.value[0];
-                localStorage.setItem("current_site_id", sites.value[0].id);
+                const savedSiteId = localStorage.getItem("current_site_id");
+                
+                if (savedSiteId) {
+                    // Try to find the saved site
+                    const savedSite = sites.value.find((s) => s.id === savedSiteId);
+                    if (savedSite) {
+                        currentSite.value = savedSite;
+                    } else {
+                        // Saved site not found (might have been deleted), select first
+                        currentSite.value = sites.value[0];
+                        localStorage.setItem("current_site_id", sites.value[0].id);
+                    }
+                } else {
+                    // No saved site, select first
+                    currentSite.value = sites.value[0];
+                    localStorage.setItem("current_site_id", sites.value[0].id);
+                }
             }
 
             return true;

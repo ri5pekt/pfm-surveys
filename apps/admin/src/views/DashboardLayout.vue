@@ -7,7 +7,7 @@
                         <img src="../assets/pfm-surveys.svg" alt="PFM Surveys" class="logo" />
                         <div class="title-column">
                             <h1>PFM Surveys</h1>
-                            <span class="version-badge">v1.0.0</span>
+                            <span class="version-badge">v1.1.0</span>
                         </div>
                     </div>
                 </div>
