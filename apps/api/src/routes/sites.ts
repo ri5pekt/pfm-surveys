@@ -187,15 +187,66 @@ export default async function sitesRoutes(fastify: FastifyInstance) {
                 const { tenant_id } = request.user as any;
                 const { id } = request.params as { id: string };
 
-                const result = await db
-                    .deleteFrom("sites")
+                // Verify site exists and belongs to tenant
+                const site = await db
+                    .selectFrom("sites")
+                    .select(["id"])
                     .where("id", "=", id)
                     .where("tenant_id", "=", tenant_id)
                     .executeTakeFirst();
 
-                if (result.numDeletedRows === 0n) {
+                if (!site) {
                     return reply.status(404).send({ error: "Site not found" });
                 }
+
+                // Get all surveys for this site
+                const surveys = await db
+                    .selectFrom("surveys")
+                    .select(["id"])
+                    .where("site_id", "=", id)
+                    .execute();
+
+                const surveyIds = surveys.map((s) => s.id);
+
+                // Cascade delete in order:
+                if (surveyIds.length > 0) {
+                    // 1. Delete responses for these surveys
+                    await db.deleteFrom("responses").where("survey_id", "in", surveyIds).execute();
+
+                    // 2. Delete display settings for these surveys
+                    await db
+                        .deleteFrom("display_settings")
+                        .where("survey_id", "in", surveyIds)
+                        .execute();
+
+                    // 3. Delete survey stats for these surveys
+                    await db.deleteFrom("survey_stats").where("survey_id", "in", surveyIds).execute();
+
+                    // 4. Delete answer options for questions in these surveys
+                    const questions = await db
+                        .selectFrom("questions")
+                        .select(["id"])
+                        .where("survey_id", "in", surveyIds)
+                        .execute();
+
+                    const questionIds = questions.map((q) => q.id);
+
+                    if (questionIds.length > 0) {
+                        await db
+                            .deleteFrom("answer_options")
+                            .where("question_id", "in", questionIds)
+                            .execute();
+                    }
+
+                    // 5. Delete questions
+                    await db.deleteFrom("questions").where("survey_id", "in", surveyIds).execute();
+
+                    // 6. Delete surveys
+                    await db.deleteFrom("surveys").where("id", "in", surveyIds).execute();
+                }
+
+                // 7. Finally, delete the site
+                await db.deleteFrom("sites").where("id", "=", id).execute();
 
                 return { success: true };
             } catch (error) {
