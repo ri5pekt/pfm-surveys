@@ -6,6 +6,7 @@ import { markSurveyShown, SESSION_SHOWN_KEY } from "./utils";
 import { createSurveyHTML, renderQuestionHTML, getCurrentAnswer, setCurrentAnswer, POSITION_STYLES } from "./render";
 import type { Survey } from "./types";
 import type { QueueEventFn } from "./events";
+import { logger } from "./logger";
 
 interface DisplayDeps {
     queueEvent: QueueEventFn;
@@ -190,8 +191,8 @@ export function createDisplaySurvey(deps: DisplayDeps) {
                 }
             }
 
-            console.log(`[PFM Surveys] ✓ Survey "${survey.name}" submitted with ${answerList.length} answer(s)`);
-            console.log(
+            logger.log(`[PFM Surveys] ✓ Survey "${survey.name}" submitted with ${answerList.length} answer(s)`);
+            logger.log(
                 "[PFM Surveys] 📤 Answers being sent:",
                 answerList.map((a) => {
                     const q = survey.questions.find((qu) => qu.id === a.question_id);
@@ -312,7 +313,7 @@ export function createDisplaySurvey(deps: DisplayDeps) {
 
         showQuestion(0);
 
-        console.log(`[PFM Surveys] ✓ Survey "${survey.name}" displayed (impression tracked)`);
+        logger.log(`[PFM Surveys] ✓ Survey "${survey.name}" displayed (impression tracked)`);
         queueEvent("impression", { survey_id: survey.id });
         markSurveyShown(survey.id, siteId);
         sessionStorage.setItem(SESSION_SHOWN_KEY(siteId, survey.id), "true");
@@ -320,7 +321,7 @@ export function createDisplaySurvey(deps: DisplayDeps) {
         const closeBtn = surveyEl.querySelector(".pfm-close-btn");
         if (closeBtn) {
             closeBtn.addEventListener("click", () => {
-                console.log(`[PFM Surveys] Survey "${survey.name}" closed by user`);
+                logger.log(`[PFM Surveys] Survey "${survey.name}" closed by user`);
                 removeWidget("close");
             });
         }
@@ -330,10 +331,10 @@ export function createDisplaySurvey(deps: DisplayDeps) {
             minimizeBtn.addEventListener("click", () => {
                 const isMinimized = surveyEl.classList.contains("pfm-survey-minimized-bar");
                 if (isMinimized) {
-                    console.log(`[PFM Surveys] Survey "${survey.name}" expanded by user`);
+                    logger.log(`[PFM Surveys] Survey "${survey.name}" expanded by user`);
                     setMinimized(false);
                 } else {
-                    console.log(`[PFM Surveys] Survey "${survey.name}" minimized by user`);
+                    logger.log(`[PFM Surveys] Survey "${survey.name}" minimized by user`);
                     queueEvent("dismiss", { survey_id: survey.id, event_data: { reason: "minimize" } });
                     setMinimized(true);
                 }

@@ -4,6 +4,7 @@
 
 import { getShownSurveys, SESSION_SHOWN_KEY } from './utils';
 import type { Targeting as TargetingType, UserGeo } from './types';
+import { logger } from './logger';
 
 export function shouldShowSurvey(
   surveyId: string,
@@ -29,7 +30,7 @@ function matchGeoRule(
   userGeo: UserGeo | null
 ): boolean {
   if (!userGeo) {
-    console.log('[PFM Surveys] user rule (geo): no userGeo — rule not met');
+    logger.log('[PFM Surveys] user rule (geo): no userGeo — rule not met');
     return false;
   }
   const rCountry = String(rule.country ?? '').trim().toUpperCase();
@@ -48,7 +49,7 @@ function matchGeoRule(
     uCity.includes(rCity) ||
     rCity.includes(uCity);
   const matched = countryOk && stateOk && cityOk;
-  console.log('[PFM Surveys] user rule (geo):', {
+  logger.log('[PFM Surveys] user rule (geo):', {
     'Survey rule (what you set in Admin)': { country: rule.country || '(any)', state: rule.state || '(any)', city: rule.city || '(any)' },
     'Visitor location (resolved from their IP)': userGeo,
     matched,
@@ -89,10 +90,10 @@ export function matchesTargetingRules(
       return false;
     });
     if (!userMatch) {
-      console.log('[PFM Surveys] user targeting: no user rule matched. Visitor location (from IP):', userGeo, '| Survey rules:', targeting.userRules);
+      logger.log('[PFM Surveys] user targeting: no user rule matched. Visitor location (from IP):', userGeo, '| Survey rules:', targeting.userRules);
       return false;
     }
-    console.log('[PFM Surveys] user targeting: at least one geo rule matched');
+    logger.log('[PFM Surveys] user targeting: at least one geo rule matched');
   }
 
   return true;

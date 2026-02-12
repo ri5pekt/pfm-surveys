@@ -4,6 +4,7 @@
 
 import { generateId, getOrCreateUserId, getOrCreateSessionId, getBrowser, getOS, getDevice } from "./utils";
 import type { EmbedConfig } from "./types";
+import { logger } from "./logger";
 
 export type QueueEventFn = (eventType: string, data?: Record<string, unknown>) => void;
 
@@ -31,7 +32,7 @@ export function createEventQueue(config: EmbedConfig) {
         if (eventsToSend.length === 0) return;
 
         const eventTypes = eventsToSend.map((e) => e.event_type).join(", ");
-        console.log(
+        logger.log(
             `%c[PFM Surveys] 📤 Sending ${eventsToSend.length} event(s) to server: ${eventTypes}${
                 attempt > 0 ? ` (retry ${attempt}/${MAX_SEND_RETRIES})` : ""
             }`,
@@ -64,7 +65,7 @@ export function createEventQueue(config: EmbedConfig) {
             })
             .then((data) => {
                 if (data === undefined) return;
-                console.log(
+                logger.log(
                     `%c[PFM Surveys] ✓ Events sent successfully: ${eventTypes}`,
                     "color: #27ae60; font-weight: bold",
                     data
@@ -76,12 +77,12 @@ export function createEventQueue(config: EmbedConfig) {
                     setTimeout(() => sendBatch(eventsToSend, attempt + 1), delay);
                     return;
                 }
-                console.error(
+                logger.error(
                     "%c[PFM Surveys] ❌ Failed to send events after retries:",
                     "color: #e74c3c; font-weight: bold",
                     err
                 );
-                console.error("[PFM Surveys] Events that failed:", eventsToSend);
+                logger.error("[PFM Surveys] Events that failed:", eventsToSend);
                 eventQueue.push(...eventsToSend);
             });
     }
@@ -140,7 +141,7 @@ export function createEventQueue(config: EmbedConfig) {
                     } as RequestInit);
                 }
             } catch (err) {
-                console.error("[PFM Surveys] Failed to flush events on unload:", err);
+                logger.error("[PFM Surveys] Failed to flush events on unload:", err);
             }
         }
     });

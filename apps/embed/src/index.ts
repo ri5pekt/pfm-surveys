@@ -11,11 +11,12 @@ import { createEventQueue } from "./events";
 import { fetchSurveys, fetchUserGeo } from "./fetch";
 import { createDisplaySurvey } from "./display";
 import type { Survey, UserGeo } from "./types";
+import { logger } from "./logger";
 
 function init(): void {
     const config = getConfigFromScript();
     if (!config?.apiUrl || !config?.siteId) {
-        console.error(
+        logger.error(
             '[PFM Surveys] Configuration missing. Use: <script src=".../embed/script.js?site_id=YOUR_SITE_ID"></script> or data-site-id and data-api-url.'
         );
         return;
@@ -23,16 +24,16 @@ function init(): void {
 
     const { queueEvent } = createEventQueue(config);
 
-    console.log("%c[PFM Surveys] 🚀 Initializing...", "color: #667eea; font-weight: bold");
-    console.log("[PFM Surveys] API URL:", config.apiUrl);
-    console.log("[PFM Surveys] Site ID:", config.siteId);
-    console.log("[PFM Surveys] Current URL:", window.location.href);
-    console.log("[PFM Surveys] Current Path:", window.location.pathname);
+    logger.log("%c[PFM Surveys] 🚀 Initializing...", "color: #667eea; font-weight: bold");
+    logger.log("[PFM Surveys] API URL:", config.apiUrl);
+    logger.log("[PFM Surveys] Site ID:", config.siteId);
+    logger.log("[PFM Surveys] Current URL:", window.location.href);
+    logger.log("[PFM Surveys] Current Path:", window.location.pathname);
 
     const userId = getOrCreateUserId(config.siteId);
     const sessionId = getOrCreateSessionId(config.siteId);
-    console.log("[PFM Surveys] User ID:", userId.substring(0, 8) + "...");
-    console.log("[PFM Surveys] Session ID:", sessionId.substring(0, 8) + "...");
+    logger.log("[PFM Surveys] User ID:", userId.substring(0, 8) + "...");
+    logger.log("[PFM Surveys] Session ID:", sessionId.substring(0, 8) + "...");
 
     let allSurveys: Survey[] = [];
     let userGeo: UserGeo | null = null;
@@ -53,7 +54,7 @@ function init(): void {
             });
 
             if (timingMode === "scroll") {
-                console.log(
+                logger.log(
                     `%c[PFM Surveys] 📜 Waiting for user to scroll ${scrollPercentage}% down the page for survey "${nextSurvey.name}"`,
                     "color: #667eea; font-weight: bold"
                 );
@@ -69,7 +70,7 @@ function init(): void {
                     if (scrolledPercent >= scrollPercentage) {
                         scrollTriggered = true;
                         window.removeEventListener("scroll", handleScroll);
-                        console.log(
+                        logger.log(
                             `%c[PFM Surveys] 🎉 Scroll threshold reached (${scrolledPercent.toFixed(
                                 1
                             )}%), showing survey "${nextSurvey.name}"`,
@@ -84,7 +85,7 @@ function init(): void {
                 // Also check immediately in case already scrolled
                 handleScroll();
             } else {
-                console.log(
+                logger.log(
                     `%c[PFM Surveys] 🎉 Showing next survey "${nextSurvey.name}" after ${delay}ms delay`,
                     "color: #667eea; font-weight: bold"
                 );
@@ -94,7 +95,7 @@ function init(): void {
                 }, delay);
             }
         } else {
-            console.log("%c[PFM Surveys] ✓ No more surveys to show", "color: #999");
+            logger.log("%c[PFM Surveys] ✓ No more surveys to show", "color: #999");
         }
     }
 
@@ -102,7 +103,7 @@ function init(): void {
         for (const survey of allSurveys) {
             const { displaySettings, targeting } = survey;
 
-            console.log(`\n[PFM Surveys] 🔍 Evaluating survey: "${survey.name}"`, {
+            logger.log(`\n[PFM Surveys] 🔍 Evaluating survey: "${survey.name}"`, {
                 userType: targeting?.userType,
                 userRulesCount: targeting?.userRules?.length ?? 0,
                 userRules: targeting?.userRules,
@@ -111,40 +112,40 @@ function init(): void {
 
             // Skip if already shown in this display cycle
             if (shownInThisCycle.has(survey.id)) {
-                console.log(`%c[PFM Surveys] ❌ Survey "${survey.name}" already shown in this cycle`, "color: #e74c3c");
+                logger.log(`%c[PFM Surveys] ❌ Survey "${survey.name}" already shown in this cycle`, "color: #e74c3c");
                 continue;
             }
 
             // Fetch geo only when this survey has user rules and we don't have geo yet (avoid calls for all users)
             const hasUserRules = targeting?.userType === "specific" && (targeting?.userRules?.length ?? 0) > 0;
             if (hasUserRules && userGeo === null) {
-                console.log("[PFM Surveys]   - Survey has user (geo) rules; fetching userGeo (lazy)...");
+                logger.log("[PFM Surveys]   - Survey has user (geo) rules; fetching userGeo (lazy)...");
                 const resolved = await fetchUserGeo(config);
                 userGeo = resolved;
             }
 
-            console.log("[PFM Surveys]   - Targeting:", targeting?.pageType ?? "all", targeting?.pageRules ?? []);
-            console.log(
+            logger.log("[PFM Surveys]   - Targeting:", targeting?.pageType ?? "all", targeting?.pageRules ?? []);
+            logger.log(
                 "[PFM Surveys]   - Display frequency:",
                 displaySettings?.display_frequency ?? "once_per_session"
             );
-            console.log("[PFM Surveys]   - Sample rate:", displaySettings?.sample_rate ?? 100, "%");
+            logger.log("[PFM Surveys]   - Sample rate:", displaySettings?.sample_rate ?? 100, "%");
 
             if (!matchesTargetingRules(targeting, userGeo)) {
-                console.log(
+                logger.log(
                     `%c[PFM Surveys] ❌ Survey "${survey.name}" not shown (page or user targeting rules not met)`,
                     "color: #e74c3c"
                 );
                 continue;
             }
-            console.log(`%c[PFM Surveys] ✓ Targeting rules matched`, "color: #27ae60");
+            logger.log(`%c[PFM Surveys] ✓ Targeting rules matched`, "color: #27ae60");
 
             const canShow = shouldShowSurvey(
                 survey.id,
                 config.siteId,
                 displaySettings?.display_frequency ?? "once_per_session"
             );
-            console.log(
+            logger.log(
                 `[PFM Surveys]   - shouldShowSurvey() returned: ${canShow} for survey ID: ${survey.id.substring(
                     0,
                     8
@@ -154,23 +155,23 @@ function init(): void {
             if (!canShow) {
                 const sessionKey = `pfm_sess_shown:${config.siteId}:${survey.id}`;
                 const isInSession = sessionStorage.getItem(sessionKey);
-                console.log(`[PFM Surveys]   - Session storage "${sessionKey}": ${isInSession}`);
-                console.log(
+                logger.log(`[PFM Surveys]   - Session storage "${sessionKey}": ${isInSession}`);
+                logger.log(
                     `%c[PFM Surveys] ❌ Survey "${survey.name}" already shown (frequency control)`,
                     "color: #e74c3c"
                 );
                 continue;
             }
-            console.log(`%c[PFM Surveys] ✓ Frequency check passed`, "color: #27ae60");
+            logger.log(`%c[PFM Surveys] ✓ Frequency check passed`, "color: #27ae60");
 
             if (displaySettings?.sample_rate && Math.random() * 100 > displaySettings.sample_rate) {
-                console.log(
+                logger.log(
                     `%c[PFM Surveys] ❌ Survey "${survey.name}" not shown (sample rate: ${displaySettings.sample_rate}%)`,
                     "color: #e74c3c"
                 );
                 continue;
             }
-            console.log(`%c[PFM Surveys] ✓ Sample rate check passed`, "color: #27ae60");
+            logger.log(`%c[PFM Surveys] ✓ Sample rate check passed`, "color: #27ae60");
 
             return survey;
         }
@@ -179,28 +180,28 @@ function init(): void {
     }
 
     (async () => {
-        console.log("[PFM Surveys] 🔄 Fetching active surveys...");
+        logger.log("[PFM Surveys] 🔄 Fetching active surveys...");
         const { surveys: fetchedSurveys } = await fetchSurveys(config);
 
         if (fetchedSurveys.length === 0) {
-            console.log("%c[PFM Surveys] ℹ️ No active surveys available for this site", "color: #999");
+            logger.log("%c[PFM Surveys] ℹ️ No active surveys available for this site", "color: #999");
             return;
         }
 
-        console.log(`%c[PFM Surveys] ✓ Found ${fetchedSurveys.length} survey(s)`, "color: #27ae60; font-weight: bold");
+        logger.log(`%c[PFM Surveys] ✓ Found ${fetchedSurveys.length} survey(s)`, "color: #27ae60; font-weight: bold");
 
         const anyHasUserRules = fetchedSurveys.some(
             (s) => s.targeting?.userType === "specific" && (s.targeting?.userRules?.length ?? 0) > 0
         );
             if (anyHasUserRules) {
-                console.log("[PFM Surveys] At least one survey has user (geo) rules; fetching userGeo now...");
+                logger.log("[PFM Surveys] At least one survey has user (geo) rules; fetching userGeo now...");
                 userGeo = await fetchUserGeo(config);
-                console.log("[PFM Surveys] userGeo for targeting:", userGeo);
+                logger.log("[PFM Surveys] userGeo for targeting:", userGeo);
                 if (!userGeo) {
-                    console.warn("[PFM Surveys] ⚠️ userGeo is null (API /api/public/geo failed or returned null). Surveys with geo rules will be skipped.");
+                    logger.warn("[PFM Surveys] ⚠️ userGeo is null (API /api/public/geo failed or returned null). Surveys with geo rules will be skipped.");
                 }
             } else {
-                console.log("[PFM Surveys] No surveys with user rules; skipping geo fetch.");
+                logger.log("[PFM Surveys] No surveys with user rules; skipping geo fetch.");
             }
 
         allSurveys = fetchedSurveys;

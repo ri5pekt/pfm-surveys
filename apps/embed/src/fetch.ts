@@ -3,6 +3,7 @@
  */
 
 import type { EmbedConfig } from './types';
+import { logger } from './logger';
 import type { Survey, UserGeo } from './types';
 
 export interface FetchSurveysResult {
@@ -27,16 +28,16 @@ export async function fetchSurveys(config: EmbedConfig): Promise<FetchSurveysRes
 
     const data = (await response.json()) as { surveys?: Survey[] };
     const surveys = data.surveys ?? [];
-    console.log(`[PFM Surveys] ✓ Surveys fetched successfully: ${surveys.length} survey(s) found`);
+    logger.log(`[PFM Surveys] ✓ Surveys fetched successfully: ${surveys.length} survey(s) found`);
     return { surveys, userGeo: null };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (message.includes('Unexpected token') && config.apiUrl.includes('ngrok')) {
-      console.error('[PFM Surveys] ⚠️ Ngrok setup required!');
-      console.error('[PFM Surveys] Visit this URL in your browser first:', `${config.apiUrl}/health`);
-      console.error('[PFM Surveys] Click "Visit Site" on the ngrok warning, then refresh your page.');
+      logger.error('[PFM Surveys] ⚠️ Ngrok setup required!');
+      logger.error('[PFM Surveys] Visit this URL in your browser first:', `${config.apiUrl}/health`);
+      logger.error('[PFM Surveys] Click "Visit Site" on the ngrok warning, then refresh your page.');
     } else {
-      console.error('[PFM Surveys] Failed to fetch surveys:', err);
+      logger.error('[PFM Surveys] Failed to fetch surveys:', err);
     }
     return { surveys: [], userGeo: null };
   }
@@ -52,10 +53,10 @@ export async function fetchUserGeo(config: EmbedConfig): Promise<UserGeo | null>
     if (!response.ok) return null;
     const data = (await response.json()) as { userGeo?: UserGeo | null };
     const userGeo = data.userGeo ?? null;
-    console.log('[PFM Surveys] userGeo fetched (lazy):', userGeo);
+    logger.log('[PFM Surveys] userGeo fetched (lazy):', userGeo);
     return userGeo;
   } catch (err) {
-    console.warn('[PFM Surveys] Failed to fetch userGeo:', err);
+    logger.warn('[PFM Surveys] Failed to fetch userGeo:', err);
     return null;
   }
 }
