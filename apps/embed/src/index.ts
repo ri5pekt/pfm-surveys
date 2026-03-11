@@ -43,9 +43,9 @@ function init(): void {
     async function showNextSurvey(): Promise<void> {
         const nextSurvey = await findNextSurvey();
         if (nextSurvey) {
-            const timingMode = (nextSurvey.displaySettings as any)?.timing_mode || "immediate";
+            const timingMode = nextSurvey.displaySettings?.timing_mode || "immediate";
             const delay = nextSurvey.displaySettings?.show_delay_ms ?? 0;
-            const scrollPercentage = (nextSurvey.displaySettings as any)?.scroll_percentage ?? 50;
+            const scrollPercentage = nextSurvey.displaySettings?.scroll_percentage ?? 50;
 
             const displaySurvey = createDisplaySurvey({
                 queueEvent,

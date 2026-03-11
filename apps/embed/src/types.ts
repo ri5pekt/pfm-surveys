@@ -16,6 +16,8 @@ export interface DisplaySettings {
     sample_rate?: number;
     show_close_button?: boolean;
     show_minimize_button?: boolean;
+    timing_mode?: "immediate" | "delay" | "scroll";
+    scroll_percentage?: number;
     widget_background_color?: string;
     widget_background_opacity?: number;
     widget_border_radius?: string;
