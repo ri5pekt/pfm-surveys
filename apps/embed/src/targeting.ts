@@ -66,16 +66,18 @@ export function matchesTargetingRules(
     return true;
   }
 
-  const currentUrl = window.location.href;
-  const currentPath = window.location.pathname;
+  const normalize = (s: string) => s.replace(/\/+$/, '').toLowerCase();
+  const currentUrl = normalize(window.location.href);
+  const currentPath = normalize(window.location.pathname);
 
   if (targeting.pageType === 'specific' && targeting.pageRules?.length) {
     const pageMatch = targeting.pageRules.some((rule) => {
+      const ruleValue = normalize(rule.value);
       if (rule.type === 'exact') {
-        return currentPath === rule.value;
+        return currentUrl === ruleValue || currentPath === ruleValue;
       }
       if (rule.type === 'contains') {
-        return currentUrl.includes(rule.value) || currentPath.includes(rule.value);
+        return currentUrl.includes(ruleValue) || currentPath.includes(ruleValue);
       }
       return false;
     });
