@@ -649,6 +649,17 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                     .executeTakeFirst();
 
                 const deletedCount = Number((deleted as any)?.numDeletedRows ?? 0);
+
+                if (deletedCount > 0) {
+                    await db
+                        .updateTable("survey_stats")
+                        .set((eb) => ({
+                            total_responses: eb("total_responses", "-", deletedCount),
+                        }))
+                        .where("survey_id", "=", surveyId)
+                        .execute();
+                }
+
                 return reply.send({ deleted: deletedCount });
             } catch (error) {
                 fastify.log.error(error);
