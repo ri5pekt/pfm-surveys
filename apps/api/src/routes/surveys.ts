@@ -136,6 +136,7 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                         "sites.name as site_name",
                         "users.first_name as creator_first_name",
                         "users.last_name as creator_last_name",
+                        "users.email as creator_email",
                     ])
                     .where("sites.tenant_id", "=", tenant_id);
 

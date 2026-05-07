@@ -32,6 +32,7 @@ export interface Survey {
     site_name?: string;
     creator_first_name?: string | null;
     creator_last_name?: string | null;
+    creator_email?: string | null;
     responses?: number;
     interactions?: number;
     impressions?: number;

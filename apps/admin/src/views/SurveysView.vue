@@ -434,6 +434,9 @@ function getCreatorName(survey: Survey): string {
     if (survey.creator_first_name || survey.creator_last_name) {
         return `${survey.creator_first_name || ""} ${survey.creator_last_name || ""}`.trim();
     }
+    if (survey.creator_email) {
+        return survey.creator_email.split("@")[0];
+    }
     return "Unknown";
 }
 
