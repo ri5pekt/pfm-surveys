@@ -14,6 +14,13 @@
             <!-- Interaction Metrics -->
             <ResponseMetricsCards :metrics="overallMetrics" />
 
+            <!-- Survey action bar -->
+            <div class="survey-actions">
+                <button type="button" class="action-btn" @click="showExportModal = true">
+                    <span class="action-btn-icon">↓</span> Export Responses
+                </button>
+            </div>
+
             <!-- Questions - Loop through all questions -->
             <QuestionSummaryCard
                 v-for="(question, qIndex) in questions"
@@ -53,6 +60,15 @@
         <!-- View response modal -->
         <ViewResponseDialog v-model:visible="viewResponseVisible" :response="viewingResponse" :questions="questions" />
 
+        <!-- Export responses modal -->
+        <ExportResponsesModal
+            :visible="showExportModal"
+            :survey-id="surveyId"
+            :survey-name="surveyDetail?.survey?.name ?? 'survey'"
+            :questions="questions"
+            @close="showExportModal = false"
+        />
+
         <!-- Delete confirmation -->
         <Dialog v-model:visible="showDeleteDialog" modal :closable="true" :style="{ width: '28rem' }">
             <template #header>
@@ -80,6 +96,7 @@ import ResponseMetricsCards from "../components/ResponseMetricsCards.vue";
 import QuestionSummaryCard from "../components/QuestionSummaryCard.vue";
 import ViewResponseDialog from "../components/ViewResponseDialog.vue";
 import ResponsesTable from "../components/ResponsesTable.vue";
+import ExportResponsesModal from "../components/ExportResponsesModal.vue";
 import { useSurveyResponses } from "../composables/useSurveyResponses";
 import { useResponseSelection } from "../composables/useResponseSelection";
 import { useResponseDialog } from "../composables/useResponseDialog";
@@ -133,6 +150,9 @@ const { getPieChartData: getPieChartDataFn, toggleShowAllBars } = useChartData()
 
 // Formatters
 const { copyToClipboard } = useResponseFormatters();
+
+// Export modal
+const showExportModal = ref(false);
 
 // Delete state and logic
 const showDeleteDialog = ref(false);
@@ -284,6 +304,41 @@ watch([currentPage, pageSize], async () => {
     font-weight: 500;
     color: #718096;
 }
+/* Survey Action Bar */
+.survey-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 20px 0;
+    padding: 12px 16px;
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+.action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 16px;
+    background: white;
+    color: #667eea;
+    border: 1px solid #667eea;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.action-btn:hover {
+    background: #667eea;
+    color: white;
+}
+.action-btn-icon {
+    font-size: 15px;
+    line-height: 1;
+}
+
 /* Loading State */
 .loading {
     padding: 48px;

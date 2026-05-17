@@ -254,6 +254,7 @@ const {
     background: #c53030;
 }
 
+
 .responses-table {
     width: 100%;
     border-collapse: collapse;

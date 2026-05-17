@@ -508,7 +508,7 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
     // GET /api/surveys/:id/responses — paginated list with display_label (metadata from responses table)
     fastify.get<{
         Params: { id: string };
-        Querystring: { question_id?: string; page?: string; limit?: string; session_id?: string };
+        Querystring: { question_id?: string; page?: string; limit?: string; session_id?: string; from_date?: string; to_date?: string };
     }>(
         "/:id/responses",
         {
@@ -518,7 +518,7 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
             try {
                 const { tenant_id } = request.user as { tenant_id: string };
                 const { id: surveyId } = request.params;
-                const { question_id: questionId, page: pageStr, limit: limitStr, session_id: sessionId } = request.query;
+                const { question_id: questionId, page: pageStr, limit: limitStr, session_id: sessionId, from_date: fromDate, to_date: toDate } = request.query;
 
                 const ownership = await ensureSurveyOwnership(surveyId, tenant_id);
                 if (!ownership) {
@@ -526,14 +526,16 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                 }
 
                 const page = Math.max(1, parseInt(pageStr || "1", 10));
-                const limit = Math.min(100, Math.max(1, parseInt(limitStr || "25", 10)));
+                const limit = Math.min(500, Math.max(1, parseInt(limitStr || "25", 10)));
                 const offset = (page - 1) * limit;
 
                 let baseQuery = db
                     .selectFrom("responses")
                     .where("responses.survey_id", "=", surveyId)
                     .$if(!!questionId, (q) => q.where("responses.question_id", "=", questionId!))
-                    .$if(!!sessionId, (q) => q.where("responses.session_id", "=", sessionId));
+                    .$if(!!sessionId, (q) => q.where("responses.session_id", "=", sessionId))
+                    .$if(!!fromDate, (q) => q.where("responses.timestamp", ">=", fromDate! + "T00:00:00.000Z"))
+                    .$if(!!toDate, (q) => q.where("responses.timestamp", "<=", toDate! + "T23:59:59.999Z"));
 
                 const totalCount = await baseQuery.select(db.fn.countAll().as("count")).executeTakeFirst();
                 const totalNum = Number((totalCount as any)?.count ?? 0);

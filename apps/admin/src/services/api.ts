@@ -146,7 +146,7 @@ export const surveysApi = {
 
     async getResponses(
         surveyId: string,
-        params?: { question_id?: string; page?: number; limit?: number; session_id?: string }
+        params?: { question_id?: string; page?: number; limit?: number; session_id?: string; from_date?: string; to_date?: string }
     ): Promise<{ responses: ResponseRow[]; total: number }> {
         const { data } = await api.get(`/api/surveys/${surveyId}/responses`, {
             params,
