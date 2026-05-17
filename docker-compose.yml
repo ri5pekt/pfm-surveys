@@ -132,13 +132,9 @@ services:
 
 volumes:
     postgres_data:
-        name: surveys_postgres_data
     redis_data:
-        name: surveys_redis_data
     caddy_data:
-        name: surveys_caddy_data
     caddy_config:
-        name: surveys_caddy_config
 
 networks:
     default:
