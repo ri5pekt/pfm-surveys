@@ -7,7 +7,7 @@
                         <img src="../assets/pfm-surveys.svg" alt="PFM Surveys" class="logo" />
                         <div class="title-column">
                             <h1>PFM Surveys</h1>
-                            <span class="version-badge">v1.1.1</span>
+                            <span class="version-badge">v{{ appVersion }}</span>
                         </div>
                     </div>
                 </div>
@@ -110,6 +110,8 @@
 import { ref, onMounted, watch, onUnmounted, computed } from "vue";
 import { useRouter, RouterLink } from "vue-router";
 import { useAuthStore } from "../stores/auth";
+
+const appVersion = import.meta.env.VITE_APP_VERSION;
 import { useSitesStore } from "../stores/sites";
 
 const router = useRouter();
