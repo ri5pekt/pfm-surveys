@@ -198,18 +198,49 @@ async function runExport() {
         const selectedQSet = new Set(selectedQuestionIds.value);
         const exportQuestions = props.questions.filter((q) => selectedQSet.has(q.id));
 
-        // Group by session_id, preserving order of first appearance (API returns newest first)
-        const sessionOrder: string[] = [];
-        const sessionMap = new Map<string, { meta: (typeof allRows)[0]; answers: Map<string, string> }>();
+        // Group rows by session_id, then by question_id within each session.
+        // A session may have answered multiple times — each "round" becomes its own CSV row.
+        // Round N = the Nth answer (sorted by timestamp ASC) to any question in this session.
+        type AnswerRow = (typeof allRows)[0];
+        const bySession = new Map<string, Map<string, AnswerRow[]>>();
 
         for (const row of allRows) {
             const sid = row.session_id ?? `__no_session_${row.id}`;
-            if (!sessionMap.has(sid)) {
-                sessionOrder.push(sid);
-                sessionMap.set(sid, { meta: row, answers: new Map() });
-            }
-            sessionMap.get(sid)!.answers.set(row.question_id, row.display_label);
+            if (!bySession.has(sid)) bySession.set(sid, new Map());
+            const byQ = bySession.get(sid)!;
+            if (!byQ.has(row.question_id)) byQ.set(row.question_id, []);
+            byQ.get(row.question_id)!.push(row);
         }
+
+        // Sort each question's answers within a session by timestamp ASC
+        for (const byQ of bySession.values()) {
+            for (const rows of byQ.values()) {
+                rows.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+            }
+        }
+
+        // Build one submission row per round. Round count = max answers to any question in the session.
+        type Submission = { sid: string; meta: AnswerRow; answers: Map<string, string> };
+        const submissions: Submission[] = [];
+
+        for (const [sid, byQ] of bySession.entries()) {
+            const maxRounds = Math.max(...[...byQ.values()].map((r) => r.length));
+            for (let round = 0; round < maxRounds; round++) {
+                const answers = new Map<string, string>();
+                let meta: AnswerRow | null = null;
+                for (const [qId, rows] of byQ.entries()) {
+                    const r = rows[round];
+                    if (r) {
+                        answers.set(qId, r.display_label);
+                        if (!meta || new Date(r.timestamp) < new Date(meta.timestamp)) meta = r;
+                    }
+                }
+                if (meta) submissions.push({ sid, meta, answers });
+            }
+        }
+
+        // Sort newest-first (mirrors the UI table order)
+        submissions.sort((a, b) => new Date(b.meta.timestamp).getTime() - new Date(a.meta.timestamp).getTime());
 
         // Build header row using only selected questions (with original Q-numbers for clarity)
         const questionHeaders = exportQuestions.map((q) => {
@@ -232,8 +263,7 @@ async function runExport() {
 
         const csvLines: string[] = [headers.map(escapeCell).join(",")];
 
-        for (const sid of sessionOrder) {
-            const { meta, answers } = sessionMap.get(sid)!;
+        for (const { sid, meta, answers } of submissions) {
             const questionAnswers = exportQuestions.map((q) => answers.get(q.id) ?? "");
             const cells = [
                 sid.startsWith("__no_session_") ? "" : sid,
@@ -267,7 +297,7 @@ async function runExport() {
         URL.revokeObjectURL(url);
 
         progress.value = 100;
-        progressLabel.value = `Done! Exported ${sessionOrder.length} responses.`;
+        progressLabel.value = `Done! Exported ${submissions.length} responses.`;
 
         setTimeout(() => {
             emit("close");
