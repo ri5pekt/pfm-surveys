@@ -33,12 +33,13 @@ const teamRoutes: FastifyPluginAsync = async (fastify) => {
   }, async (request, reply) => {
     const user = request.user as { id: string; tenant_id: string; email: string };
     const data = InviteUserSchema.parse(request.body);
+    const normalizedEmail = data.email.toLowerCase();
 
     // Check if user already exists
     const existingUser = await db
       .selectFrom('users')
       .selectAll()
-      .where('email', '=', data.email)
+      .where('email', '=', normalizedEmail)
       .executeTakeFirst();
 
     if (existingUser) {
@@ -51,7 +52,7 @@ const teamRoutes: FastifyPluginAsync = async (fastify) => {
     // Create the new user in the same tenant
     const newUser = await AuthService.createUser({
       tenant_id: user.tenant_id,
-      email: data.email,
+      email: normalizedEmail,
       password: tempPassword,
     });
 
@@ -61,7 +62,7 @@ const teamRoutes: FastifyPluginAsync = async (fastify) => {
     
     try {
       await EmailService.sendInvitationEmail({
-        to: data.email,
+        to: normalizedEmail,
         tempPassword,
         invitedBy: user.email,
       });

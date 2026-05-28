@@ -19,7 +19,7 @@ export class AuthService {
       .leftJoin('tenants', 'users.tenant_id', 'tenants.id')
       .selectAll('users')
       .select(['tenants.name as tenant_name'])
-      .where('users.email', '=', email)
+      .where('users.email', '=', email.toLowerCase())
       .where('users.active', '=', true)
       .executeTakeFirst();
   }
@@ -37,7 +37,7 @@ export class AuthService {
       .insertInto('users')
       .values({
         tenant_id: data.tenant_id,
-        email: data.email,
+        email: data.email.toLowerCase(),
         password_hash: passwordHash,
         first_name: data.first_name || null,
         last_name: data.last_name || null,
