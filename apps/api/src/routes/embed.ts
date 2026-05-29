@@ -4,7 +4,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { z } from "zod";
 import { db } from "../db/connection";
-import { setNonceOnce, getRedis } from "../redis";
+import { setNonceOnce, getRedis, cacheSurveys, getCachedSurveys } from "../redis";
 import { addEventIngestionJobs } from "../queues/eventIngestion";
 import { getGeoForIp } from "../services/geo";
 
@@ -174,9 +174,7 @@ const embedRoutes: FastifyPluginAsync = async (fastify) => {
 
         reply
             .header("Content-Type", "application/javascript")
-            .header("Cache-Control", "no-cache, no-store, must-revalidate") // During dev: no caching
-            .header("Pragma", "no-cache")
-            .header("Expires", "0")
+            .header("Cache-Control", "public, max-age=300, stale-while-revalidate=60") // 5-min cache in production
             .send(script);
     });
 
@@ -199,6 +197,12 @@ const embedRoutes: FastifyPluginAsync = async (fastify) => {
 
             if (!site) {
                 return reply.code(404).send({ error: "Site not found" });
+            }
+
+            // Serve from Redis cache if available — avoids 20+ DB queries per page load
+            const cached = await getCachedSurveys(site.id);
+            if (cached) {
+                return reply.header("X-Cache", "HIT").send(cached);
             }
 
             // Get active surveys with questions
@@ -352,7 +356,10 @@ const embedRoutes: FastifyPluginAsync = async (fastify) => {
                     "[PFM Surveys] Returning surveys; some have user (geo) rules"
                 );
             }
-            return reply.send({ surveys: surveysWithQuestions });
+            const responsePayload = { surveys: surveysWithQuestions };
+            // Cache the result to avoid repeated DB queries on every page load
+            await cacheSurveys(site.id, responsePayload).catch(() => { /* non-fatal */ });
+            return reply.header("X-Cache", "MISS").send(responsePayload);
         } catch (err: unknown) {
             fastify.log.error(err, "[PFM Surveys] GET /api/public/surveys error");
             const code = err && typeof err === "object" && "code" in err ? (err as NodeJS.ErrnoException).code : null;

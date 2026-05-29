@@ -3,6 +3,7 @@ import { sql } from "kysely";
 import { db } from "../db/connection";
 import { z } from "zod";
 import { cleanupSurveyEvents } from "../queues/eventIngestion";
+import { invalidateSurveyCache } from "../redis";
 
 /** Stopwords for 2-word phrase extraction (open-text answers) */
 const STOPWORDS = new Set(
@@ -340,6 +341,7 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                     } as any)
                     .execute();
 
+                await invalidateSurveyCache(survey.site_id).catch(() => { /* non-fatal */ });
                 return { survey };
             } catch (error) {
                 if (error instanceof z.ZodError) {
@@ -911,7 +913,7 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                 const existing = await db
                     .selectFrom("surveys")
                     .leftJoin("sites", "surveys.site_id", "sites.id")
-                    .select("surveys.id")
+                    .select(["surveys.id", "surveys.site_id"])
                     .where("surveys.id", "=", id)
                     .where("sites.tenant_id", "=", tenant_id)
                     .executeTakeFirst();
@@ -1202,6 +1204,7 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                     .selectAll()
                     .where("id", "=", id)
                     .executeTakeFirstOrThrow();
+                await invalidateSurveyCache(existing.site_id).catch(() => { /* non-fatal */ });
                 return { survey: updated };
             } catch (error) {
                 fastify.log.error(error);
@@ -1229,7 +1232,7 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                 const existing = await db
                     .selectFrom("surveys")
                     .leftJoin("sites", "surveys.site_id", "sites.id")
-                    .select("surveys.id")
+                    .select(["surveys.id", "surveys.site_id"])
                     .where("surveys.id", "=", id)
                     .where("sites.tenant_id", "=", tenant_id)
                     .executeTakeFirst();
@@ -1268,7 +1271,7 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                 await db.deleteFrom("display_settings").where("survey_id", "=", id).execute();
                 await db.deleteFrom("targeting_rules").where("survey_id", "=", id).execute();
                 await db.deleteFrom("surveys").where("id", "=", id).execute();
-
+                await invalidateSurveyCache(existing.site_id).catch(() => { /* non-fatal */ });
                 return { success: true };
             } catch (error) {
                 fastify.log.error(error);

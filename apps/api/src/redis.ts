@@ -39,3 +39,41 @@ export async function setNonceOnce(
   const result = await redis.set(key, '1', 'EX', ttlSeconds, 'NX');
   return result === 'OK';
 }
+
+const SURVEY_CACHE_PREFIX = 'surveys:v1:';
+const SURVEY_CACHE_TTL_SECONDS = 60; // 60 seconds — survey config changes are rare
+
+/**
+ * Cache the public survey payload for a site. Uses the internal site UUID as the key.
+ */
+export async function cacheSurveys(siteUuid: string, payload: unknown): Promise<void> {
+  const redis = getRedis();
+  await redis.set(
+    `${SURVEY_CACHE_PREFIX}${siteUuid}`,
+    JSON.stringify(payload),
+    'EX',
+    SURVEY_CACHE_TTL_SECONDS
+  );
+}
+
+/**
+ * Retrieve cached survey payload. Returns null on miss.
+ */
+export async function getCachedSurveys(siteUuid: string): Promise<unknown | null> {
+  const redis = getRedis();
+  const raw = await redis.get(`${SURVEY_CACHE_PREFIX}${siteUuid}`);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Invalidate cached surveys for a site. Call on any survey mutation.
+ */
+export async function invalidateSurveyCache(siteUuid: string): Promise<void> {
+  const redis = getRedis();
+  await redis.del(`${SURVEY_CACHE_PREFIX}${siteUuid}`);
+}
