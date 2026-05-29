@@ -41,7 +41,7 @@ export async function setNonceOnce(
 }
 
 const SURVEY_CACHE_PREFIX = 'surveys:v1:';
-const SURVEY_CACHE_TTL_SECONDS = 60; // 60 seconds — survey config changes are rare
+const SURVEY_CACHE_TTL_SECONDS = 300; // 5 minutes — invalidated immediately on any survey mutation
 
 /**
  * Cache the public survey payload for a site. Uses the internal site UUID as the key.
