@@ -77,6 +77,11 @@ services:
             interval: 30s
             timeout: 10s
             retries: 3
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
 
     worker:
         build:
@@ -103,6 +108,11 @@ services:
                 condition: service_healthy
         networks:
             - backend
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
 
     admin:
         build:
@@ -115,6 +125,11 @@ services:
             - "127.0.0.1:3001:80"
         networks:
             - frontend
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "5m"
+                max-file: "2"
 
     # caddy:  # COMMENTED OUT - Main Caddy on VPS handles all routing
     #     image: caddy:2-alpine
