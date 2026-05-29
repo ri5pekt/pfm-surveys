@@ -160,17 +160,29 @@ function getEmbedScriptPath(): string | null {
     return null;
 }
 
+/** Lazily loaded embed script — read once from disk, held in memory for the lifetime of the process. */
+let embedScriptCache: string | null | undefined;
+function getEmbedScript(): string | null {
+    if (embedScriptCache !== undefined) return embedScriptCache;
+    const scriptPath = getEmbedScriptPath();
+    if (!scriptPath) {
+        embedScriptCache = null;
+        return null;
+    }
+    embedScriptCache = readFileSync(scriptPath, "utf-8");
+    return embedScriptCache;
+}
+
 const embedRoutes: FastifyPluginAsync = async (fastify) => {
     // Serve the built embed script only (stable, no injection). Config from script tag.
     fastify.get("/embed/script.js", async (_request, reply) => {
-        const scriptPath = getEmbedScriptPath();
-        if (!scriptPath) {
+        const script = getEmbedScript();
+        if (!script) {
             return reply.code(503).send({
                 error: "Embed script not available",
                 message: EMBED_NOT_FOUND_MESSAGE,
             });
         }
-        const script = readFileSync(scriptPath, "utf-8");
 
         reply
             .header("Content-Type", "application/javascript")
