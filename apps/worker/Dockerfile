@@ -13,9 +13,9 @@ COPY apps/worker ./apps/worker
 RUN pnpm install --frozen-lockfile
 
 # Compile Worker TypeScript → single ESM bundle (eliminates tsx + esbuild daemon at runtime)
+# Run from workspace root (/app) so tsup can find typescript in /app/node_modules
 RUN npm install -g tsup
-WORKDIR /app/apps/worker
-RUN tsup src/index.ts --format esm --no-dts --target node20
+RUN tsup apps/worker/src/index.ts --format esm --no-dts --target node20 --out-dir apps/worker/dist
 
 # Production stage
 FROM node:20-alpine
