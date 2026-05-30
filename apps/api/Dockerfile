@@ -10,15 +10,17 @@ COPY tsconfig.json ./
 COPY apps/api ./apps/api
 COPY apps/embed ./apps/embed
 
-# Install all deps (including devDeps — provides esbuild via tsx)
+# Install all deps
 RUN pnpm install --frozen-lockfile
 
 # Build embed widget
 RUN pnpm --filter embed build
 
-# Compile API TypeScript → single ESM bundle using esbuild (already in node_modules via tsx)
-# --packages=external: keeps node_modules as runtime imports (handles native modules like bcrypt)
-RUN node_modules/.bin/esbuild apps/api/src/index.ts \
+# Compile API TypeScript → single ESM bundle
+# esbuild handles TypeScript natively (no separate typescript install needed)
+# --packages=external keeps node_modules as runtime imports (handles native modules like bcrypt)
+RUN npm install -g esbuild
+RUN esbuild apps/api/src/index.ts \
     --bundle \
     --platform=node \
     --target=node20 \

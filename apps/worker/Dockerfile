@@ -9,12 +9,14 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY tsconfig.json ./
 COPY apps/worker ./apps/worker
 
-# Install all deps (including devDeps — provides esbuild via tsx)
+# Install all deps
 RUN pnpm install --frozen-lockfile
 
-# Compile Worker TypeScript → single ESM bundle using esbuild (already in node_modules via tsx)
-# --packages=external: keeps node_modules as runtime imports
-RUN node_modules/.bin/esbuild apps/worker/src/index.ts \
+# Compile Worker TypeScript → single ESM bundle
+# esbuild handles TypeScript natively (no separate typescript install needed)
+# --packages=external keeps node_modules as runtime imports
+RUN npm install -g esbuild
+RUN esbuild apps/worker/src/index.ts \
     --bundle \
     --platform=node \
     --target=node20 \
