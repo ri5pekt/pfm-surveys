@@ -9,13 +9,18 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY tsconfig.json ./
 COPY apps/worker ./apps/worker
 
-# Install all deps (including devDeps for tsup)
+# Install all deps (including devDeps — provides esbuild via tsx)
 RUN pnpm install --frozen-lockfile
 
-# Compile Worker TypeScript → single ESM bundle (eliminates tsx + esbuild daemon at runtime)
-# Run from workspace root (/app) so tsup can find typescript in /app/node_modules
-RUN npm install -g tsup
-RUN tsup apps/worker/src/index.ts --format esm --no-dts --target node20 --out-dir apps/worker/dist
+# Compile Worker TypeScript → single ESM bundle using esbuild (already in node_modules via tsx)
+# --packages=external: keeps node_modules as runtime imports
+RUN node_modules/.bin/esbuild apps/worker/src/index.ts \
+    --bundle \
+    --platform=node \
+    --target=node20 \
+    --format=esm \
+    --packages=external \
+    --outfile=apps/worker/dist/index.js
 
 # Production stage
 FROM node:20-alpine

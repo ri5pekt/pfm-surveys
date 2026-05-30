@@ -10,16 +10,21 @@ COPY tsconfig.json ./
 COPY apps/api ./apps/api
 COPY apps/embed ./apps/embed
 
-# Install all deps (including devDeps for tsup)
+# Install all deps (including devDeps — provides esbuild via tsx)
 RUN pnpm install --frozen-lockfile
 
 # Build embed widget
 RUN pnpm --filter embed build
 
-# Compile API TypeScript → single ESM bundle (eliminates tsx + esbuild daemon at runtime)
-# Run from workspace root (/app) so tsup can find typescript in /app/node_modules
-RUN npm install -g tsup
-RUN tsup apps/api/src/index.ts --format esm --no-dts --target node20 --out-dir apps/api/dist
+# Compile API TypeScript → single ESM bundle using esbuild (already in node_modules via tsx)
+# --packages=external: keeps node_modules as runtime imports (handles native modules like bcrypt)
+RUN node_modules/.bin/esbuild apps/api/src/index.ts \
+    --bundle \
+    --platform=node \
+    --target=node20 \
+    --format=esm \
+    --packages=external \
+    --outfile=apps/api/dist/index.js
 
 # Production stage
 FROM node:20-alpine
