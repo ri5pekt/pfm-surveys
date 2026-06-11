@@ -6,7 +6,7 @@
                     <div class="logo-row">
                         <img src="../assets/pfm-surveys.svg" alt="Blurr" class="logo" />
                         <div class="title-column">
-                            <h1>Blurr</h1>
+                            <h1>Blurr Surveys</h1>
                             <span class="version-badge">v{{ appVersion }}</span>
                         </div>
                     </div>

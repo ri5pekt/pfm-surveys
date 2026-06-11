@@ -3,7 +3,7 @@
         <div class="login-box">
             <div class="logo-container">
                 <img src="../assets/pfm-surveys.svg" alt="Blurr" class="logo" />
-                <h1>Blurr</h1>
+                <h1>Blurr Surveys</h1>
             </div>
             <p class="subtitle">Sign in to your account</p>
 
