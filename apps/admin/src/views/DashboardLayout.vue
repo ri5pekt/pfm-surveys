@@ -4,9 +4,9 @@
             <div class="header-left">
                 <div class="logo-container">
                     <div class="logo-row">
-                        <img src="../assets/pfm-surveys.svg" alt="PFM Surveys" class="logo" />
+                        <img src="../assets/pfm-surveys.svg" alt="Blurr" class="logo" />
                         <div class="title-column">
-                            <h1>PFM Surveys</h1>
+                            <h1>Blurr</h1>
                             <span class="version-badge">v{{ appVersion }}</span>
                         </div>
                     </div>

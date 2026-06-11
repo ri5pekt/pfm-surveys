@@ -2,8 +2,8 @@
     <div class="login-container">
         <div class="login-box">
             <div class="logo-container">
-                <img src="../assets/pfm-surveys.svg" alt="PFM Surveys" class="logo" />
-                <h1>PFM Surveys</h1>
+                <img src="../assets/pfm-surveys.svg" alt="Blurr" class="logo" />
+                <h1>Blurr</h1>
             </div>
             <p class="subtitle">Sign in to your account</p>
 
