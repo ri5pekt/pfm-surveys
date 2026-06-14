@@ -17,6 +17,7 @@ export default defineConfig(({ mode }) => {
             "import.meta.env.VITE_EMBED_API_URL": JSON.stringify(env.VITE_EMBED_API_URL || env.VITE_API_BASE_URL || "http://localhost:3000"),
             "import.meta.env.VITE_PORT": JSON.stringify(env.VITE_PORT || "5173"),
             "import.meta.env.VITE_APP_VERSION": JSON.stringify(version),
+            "import.meta.env.VITE_APP_NAME": JSON.stringify(env.VITE_APP_NAME || "PFM Surveys"),
         },
         resolve: {
             alias: {

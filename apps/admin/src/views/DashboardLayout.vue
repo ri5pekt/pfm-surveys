@@ -4,9 +4,9 @@
             <div class="header-left">
                 <div class="logo-container">
                     <div class="logo-row">
-                        <img src="../assets/pfm-surveys.svg" alt="Blurr" class="logo" />
+                        <img src="../assets/pfm-surveys.svg" :alt="appName" class="logo" />
                         <div class="title-column">
-                            <h1>Blurr Surveys</h1>
+                            <h1>{{ appName }}</h1>
                             <span class="version-badge">v{{ appVersion }}</span>
                         </div>
                     </div>
@@ -112,6 +112,7 @@ import { useRouter, RouterLink } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 
 const appVersion = import.meta.env.VITE_APP_VERSION;
+const appName = import.meta.env.VITE_APP_NAME;
 import { useSitesStore } from "../stores/sites";
 
 const router = useRouter();

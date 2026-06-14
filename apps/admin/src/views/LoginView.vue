@@ -2,8 +2,8 @@
     <div class="login-container">
         <div class="login-box">
             <div class="logo-container">
-                <img src="../assets/pfm-surveys.svg" alt="Blurr" class="logo" />
-                <h1>Blurr Surveys</h1>
+                <img src="../assets/pfm-surveys.svg" :alt="appName" class="logo" />
+                <h1>{{ appName }}</h1>
             </div>
             <p class="subtitle">Sign in to your account</p>
 
@@ -131,6 +131,8 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
+
+const appName = import.meta.env.VITE_APP_NAME;
 
 const router = useRouter();
 const authStore = useAuthStore();
