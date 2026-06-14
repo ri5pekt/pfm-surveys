@@ -21,7 +21,7 @@ export function useQuestionManager(surveyData: Ref<SurveyData>) {
 
     function handleQuestionTypeChange(index: number) {
         const question = surveyData.value.questions[index];
-        if (question.type === "radio" && question.options.length === 0) {
+        if ((question.type === "radio" || question.type === "checkbox") && question.options.length === 0) {
             question.options = [{ text: "" }, { text: "" }];
         }
     }

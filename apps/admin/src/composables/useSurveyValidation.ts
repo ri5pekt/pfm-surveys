@@ -59,8 +59,8 @@ export function useSurveyValidation(surveyData: Ref<SurveyData>) {
                 };
             }
 
-            // Validate radio options
-            if (q.type === "radio") {
+            // Validate radio/checkbox options
+            if (q.type === "radio" || q.type === "checkbox") {
                 const validOptions = q.options.filter((o) => (typeof o === "string" ? o.trim() : o.text?.trim()));
                 if (validOptions.length < 2) {
                     return {

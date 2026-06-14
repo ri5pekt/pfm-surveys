@@ -121,8 +121,11 @@ const {
 
 function getAnswerForQuestion(viewingResp: ResponseRow | null, questionId: string): string {
     if (!viewingResp?.allAnswers) return "—";
-    const answer = viewingResp.allAnswers.find((a: any) => a.question_id === questionId);
-    return answer?.display_label || "—";
+    const answers = viewingResp.allAnswers.filter((a: any) => a.question_id === questionId);
+    if (answers.length === 0) return "—";
+    if (answers.length === 1) return answers[0].display_label || "—";
+    // Multiple rows = checkbox: join all selected option labels
+    return answers.map((a: any) => a.display_label).filter(Boolean).join(", ") || "—";
 }
 </script>
 

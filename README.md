@@ -4,7 +4,7 @@
 
 A complete multi-tenant survey solution that enables you to collect user feedback through embedded widgets, with real-time analytics, geolocation tracking, secure team management, and a beautiful modern admin dashboard.
 
-**🌐 Live Demo:** [https://surveys.pfm-qa.com](https://surveys.pfm-qa.com) (Invite-only)
+**🌐 Live Demo:** [https://pfm-surveys.cloud](https://pfm-surveys.cloud) (Invite-only)
 
 ---
 
@@ -96,7 +96,7 @@ type apps/api/src/db/schema.sql | docker exec -i <postgres-container> psql -U su
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
-**Live production:** [https://surveys.pfm-qa.com](https://surveys.pfm-qa.com)
+**Live production:** [https://pfm-surveys.cloud](https://pfm-surveys.cloud)
 
 ## 🎯 How to Use
 
@@ -179,13 +179,13 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ┌──────────────────────────────────────────────────────────────┐
 │  Customer Website (particleformen.com)                       │
 │  ┌──────────────┐                                           │
-│  │ Embed Widget │  <script src="...surveys.pfm-qa.com">    │
+│  │ Embed Widget │  <script src="...pfm-surveys.cloud">    │
 │  └──────┬───────┘  Loads async, shows survey to visitors    │
 └─────────┼──────────────────────────────────────────────────┘
           │ POST /api/public/events (HMAC-signed)
           ▼
 ┌──────────────────────────────────────────────────────────────┐
-│  Production Server (surveys.pfm-qa.com)                      │
+│  Production Server (pfm-surveys.cloud)                      │
 │                                                               │
 │  ┌────────────┐  HTTPS    ┌──────────────┐                 │
 │  │   Caddy    │ ────────► │  Nginx:80    │  Admin UI       │
@@ -498,7 +498,7 @@ cat apps/api/src/db/schema.sql | docker exec -i <postgres-container> psql -U sur
 ## 📊 Project Status
 
 **Current Version:** v1.0.0
-**Status:** ✅ **In Production** at [https://surveys.pfm-qa.com](https://surveys.pfm-qa.com)
+**Status:** ✅ **In Production** at [https://pfm-surveys.cloud](https://pfm-surveys.cloud)
 **Last Updated:** February 2026
 
 ### Production Stats

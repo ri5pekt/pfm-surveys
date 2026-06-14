@@ -6,7 +6,7 @@ export interface QuestionOption {
 
 export interface Question {
     text: string;
-    type: "radio" | "text";
+    type: "radio" | "text" | "checkbox";
     options: QuestionOption[];
     required: boolean;
     randomizeOptions?: boolean;

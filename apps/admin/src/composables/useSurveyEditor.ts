@@ -39,7 +39,7 @@ export function useSurveyEditor(
                 console.log("Loading questions:", survey.questions);
                 surveyData.value.questions = survey.questions.map((q: any) => ({
                     text: q.question_text || "",
-                    type: q.question_type === "radio" ? "radio" : "text",
+                    type: q.question_type === "radio" ? "radio" : q.question_type === "checkbox" ? "checkbox" : "text",
                     options: q.options
                         ? q.options.map((opt: any) => ({
                               text: opt.option_text || "",
@@ -143,7 +143,7 @@ export function useSurveyEditor(
                     text: q.text,
                     type: q.type,
                     options:
-                        q.type === "radio"
+                        q.type === "radio" || q.type === "checkbox"
                             ? q.options
                                   .filter((opt) => opt.text?.trim())
                                   .map((opt) => ({

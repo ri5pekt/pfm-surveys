@@ -61,7 +61,7 @@ const createSurveySchema = z.object({
         .array(
             z.object({
                 text: z.string(),
-                type: z.enum(["radio", "text"]),
+                type: z.enum(["radio", "text", "checkbox"]),
                 options: z
                     .array(
                         z.union([
@@ -248,7 +248,7 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                             .executeTakeFirstOrThrow();
 
                         // Save answer options for radio/checkbox questions
-                        if (q.type === "radio" && q.options && q.options.length > 0) {
+                        if ((q.type === "radio" || q.type === "checkbox") && q.options && q.options.length > 0) {
                             for (let j = 0; j < q.options.length; j++) {
                                 const opt = q.options[j];
                                 const optText = typeof opt === "string" ? opt : opt.text;
@@ -967,7 +967,7 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                     for (let i = 0; i < data.questions.length; i++) {
                         const q = data.questions[i];
                         const questionText = q.text != null ? String(q.text) : "";
-                        const questionType = q.type === "radio" || q.type === "text" ? q.type : "text";
+                        const questionType = q.type === "radio" || q.type === "text" || q.type === "checkbox" ? q.type : "text";
 
                         // Check if question already exists (match by order_index or question_text)
                         const existingQuestion = existingQuestions[i];
@@ -1005,7 +1005,7 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                                 // Only block if answer options were actually changed
                                 const existingOpts = existingOptionsByQuestionId.get(questionId) ?? [];
                                 const incomingOpts =
-                                    questionType === "radio" && Array.isArray(q.options)
+                                    (questionType === "radio" || questionType === "checkbox") && Array.isArray(q.options)
                                         ? q.options.map((o: any, j: number) => ({
                                               option_text: optionText(o),
                                               order_index: j,
@@ -1051,7 +1051,7 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                         // Save answer options for radio/checkbox questions (skip when existing question has responses and options unchanged)
                         if (
                             !skipOptionInsert &&
-                            questionType === "radio" &&
+                            (questionType === "radio" || questionType === "checkbox") &&
                             Array.isArray(q.options) &&
                             q.options.length > 0
                         ) {

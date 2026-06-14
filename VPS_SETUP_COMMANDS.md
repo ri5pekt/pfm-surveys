@@ -1,6 +1,6 @@
 # VPS Setup Commands for Hostinger
 
-Run these commands on your Hostinger VPS after SSH'ing in: `ssh root@31.220.56.146`
+Run these commands on your Hostinger VPS after SSH'ing in: `ssh root@2.24.70.59`
 
 ## Step 1: Check Existing Project Structure
 
@@ -56,8 +56,8 @@ git --version
 
 ```bash
 # Create directory in /var/www (matching other projects structure)
-mkdir -p /var/www/surveys.pfm-qa.com
-cd /var/www/surveys.pfm-qa.com
+mkdir -p /var/www/pfm-surveys.cloud
+cd /var/www/pfm-surveys.cloud
 ```
 
 ## Step 4: Clone Repository
@@ -138,7 +138,7 @@ netstat -tlnp | grep -E ':(80|443)'
 ## Step 9: Deploy!
 
 ```bash
-cd /var/www/surveys.pfm-qa.com
+cd /var/www/pfm-surveys.cloud
 
 # Make deploy script executable
 chmod +x scripts/deploy-prod.sh
@@ -174,7 +174,7 @@ docker compose -f docker-compose.prod.yml logs caddy | grep -i certificate
 
 ## Step 11: Access the Application
 
-Visit `https://surveys.pfm-qa.com` in your browser.
+Visit `https://pfm-surveys.cloud` in your browser.
 
 Caddy will automatically request and install an SSL certificate from Let's Encrypt on the first request (takes 30-60 seconds).
 
@@ -194,9 +194,9 @@ netstat -tlnp | grep -E ':(80|443)'
 
 ```bash
 # Check DNS is pointing to this server
-dig +short surveys.pfm-qa.com
+dig +short pfm-surveys.cloud
 
-# Should return: 31.220.56.146
+# Should return: 2.24.70.59
 
 # Check Caddy logs for detailed error
 docker compose -f docker-compose.prod.yml logs caddy

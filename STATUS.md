@@ -38,7 +38,7 @@
 **Infrastructure:**
 - ✅ Complete Docker Compose setup (dev + prod)
 - ✅ Production deployment documented (DEPLOY.md)
-- ✅ Already deployed at https://surveys.pfm-qa.com
+- ✅ Already deployed at https://pfm-surveys.cloud
 - ✅ Caddy reverse proxy with auto-SSL
 - ✅ Multi-service architecture properly configured
 - ✅ Database migrations ready
@@ -180,7 +180,7 @@ docker exec surveys-postgres psql -U surveys_user -d surveys_dev -c "\dt"
 ### Production Deployment:
 - Complete guide: `DEPLOY.md`
 - Environment template: `.env.production`
-- Already deployed at: https://surveys.pfm-qa.com
+- Already deployed at: https://pfm-surveys.cloud
 
 ---
 

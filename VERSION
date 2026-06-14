@@ -1,6 +1,22 @@
-0.1.0
+1.2.0
 
 ## Version History
+
+### v1.2.0 (2026-06-14)
+**Checkboxes (Multiple Choice) Question Type**
+
+New Features:
+- Added Checkboxes (Multiple Choice) question type
+- Multiple answer selection with single submit action
+- Full support across survey editor, embed widget, and response analytics
+- Aggregated display of multi-select answers in response viewer
+
+### v1.1.1 (2026-06-11)
+**Blurr Deployment & Branding**
+
+- Deployed to surveys.blurr-marketing.cloud (new VPS)
+- Blurr Surveys branding on login and dashboard
+- Fixed missing timing_mode and scroll_percentage DB columns
 
 ### v0.1.0 (2026-02-04)
 **Initial Release with Security Hardening**

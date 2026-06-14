@@ -1,6 +1,6 @@
 # PFM Surveys - Production Deployment Guide
 
-Quick reference guide for deploying updates to production at `https://surveys.pfm-qa.com`
+Quick reference guide for deploying updates to production at `https://pfm-surveys.cloud`
 
 ---
 
@@ -10,8 +10,8 @@ After you pull changes on the server, **rebuild backend and frontend containers,
 
 ```bash
 # 1. SSH to VPS and go to project
-ssh root@31.220.56.146
-cd /var/www/surveys.pfm-qa.com
+ssh root@2.24.70.59
+cd /var/www/pfm-surveys.cloud
 
 # 2. Pull latest changes
 git pull
@@ -41,8 +41,8 @@ git commit -m "Update admin feature"
 git push
 
 # 2. SSH to VPS and deploy
-ssh root@31.220.56.146
-cd /var/www/surveys.pfm-qa.com
+ssh root@2.24.70.59
+cd /var/www/pfm-surveys.cloud
 git pull
 docker compose -f docker-compose.yml -f docker-compose.prod.yml build admin
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d admin
@@ -57,8 +57,8 @@ git commit -m "Update API feature"
 git push
 
 # 2. SSH to VPS and deploy
-ssh root@31.220.56.146
-cd /var/www/surveys.pfm-qa.com
+ssh root@2.24.70.59
+cd /var/www/pfm-surveys.cloud
 git pull
 docker compose -f docker-compose.yml -f docker-compose.prod.yml build api
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d api
@@ -73,8 +73,8 @@ git commit -m "Update worker feature"
 git push
 
 # 2. SSH to VPS and deploy
-ssh root@31.220.56.146
-cd /var/www/surveys.pfm-qa.com
+ssh root@2.24.70.59
+cd /var/www/pfm-surveys.cloud
 git pull
 docker compose -f docker-compose.yml -f docker-compose.prod.yml build worker
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d worker
@@ -90,8 +90,8 @@ git push
 
 # 2. SSH to VPS and deploy
 # NOTE: Embed is built with API, so rebuild API
-ssh root@31.220.56.146
-cd /var/www/surveys.pfm-qa.com
+ssh root@2.24.70.59
+cd /var/www/pfm-surveys.cloud
 git pull
 docker compose -f docker-compose.yml -f docker-compose.prod.yml build api
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d api
@@ -124,8 +124,8 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d api
 3. **Update production `.env` on VPS**:
 
     ```bash
-    ssh root@31.220.56.146
-    cd /var/www/surveys.pfm-qa.com
+    ssh root@2.24.70.59
+    cd /var/www/pfm-surveys.cloud
     echo 'NEW_VARIABLE=production_value' >> .env
     ```
 
@@ -143,7 +143,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d api
 **Preferred (after full deploy):** Migrations are in git and run via the API container:
 
 ```bash
-cd /var/www/surveys.pfm-qa.com
+cd /var/www/pfm-surveys.cloud
 docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm api pnpm migrate:latest
 ```
 
@@ -155,7 +155,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm api pnp
 
 3. **Verify (optional):**
     ```bash
-    ssh root@31.220.56.146 "docker exec -i surveys-postgres psql -U surveys_user -d surveys_prod -c '\\dt'"
+    ssh root@2.24.70.59 "docker exec -i surveys-postgres psql -U surveys_user -d surveys_prod -c '\\dt'"
     ```
 
 ---
@@ -175,14 +175,14 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm api pnp
 
 ```bash
 # Check if JWT_SECRET is set
-ssh root@31.220.56.146 "cat /var/www/surveys.pfm-qa.com/.env | grep JWT_SECRET"
+ssh root@2.24.70.59 "cat /var/www/pfm-surveys.cloud/.env | grep JWT_SECRET"
 
 # If empty, generate and set:
-ssh root@31.220.56.146 "openssl rand -base64 32"
+ssh root@2.24.70.59 "openssl rand -base64 32"
 # Copy the output, then:
-ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && echo 'JWT_SECRET=<paste-secret-here>' >> .env && echo 'JWT_ACCESS_EXPIRES_IN=30d' >> .env"
+ssh root@2.24.70.59 "cd /var/www/pfm-surveys.cloud && echo 'JWT_SECRET=<paste-secret-here>' >> .env && echo 'JWT_ACCESS_EXPIRES_IN=30d' >> .env"
 # Recreate API:
-ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate api"
+ssh root@2.24.70.59 "cd /var/www/pfm-surveys.cloud && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate api"
 ```
 
 ### Issue: Geolocation not working
@@ -192,12 +192,12 @@ ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && docker compose -f dock
 
 ```bash
 # Check if set
-ssh root@31.220.56.146 "cat /var/www/surveys.pfm-qa.com/.env | grep IP_API_KEY"
+ssh root@2.24.70.59 "cat /var/www/pfm-surveys.cloud/.env | grep IP_API_KEY"
 
 # If empty, add it (get key from local .env):
-ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && echo 'IP_API_KEY=<your-key>' >> .env"
+ssh root@2.24.70.59 "cd /var/www/pfm-surveys.cloud && echo 'IP_API_KEY=<your-key>' >> .env"
 # Recreate worker:
-ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate worker"
+ssh root@2.24.70.59 "cd /var/www/pfm-surveys.cloud && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate worker"
 ```
 
 ### Issue: Emails not sending
@@ -208,7 +208,7 @@ ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && docker compose -f dock
 1. **Check environment variables**:
 
     ```bash
-    ssh root@31.220.56.146 "docker exec pfm-surveys-prod-api-1 printenv | grep SMTP"
+    ssh root@2.24.70.59 "docker exec pfm-surveys-prod-api-1 printenv | grep SMTP"
     ```
 
 2. **Verify Hostinger mailbox (surveys@pfm-qa.com)**
@@ -218,9 +218,9 @@ ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && docker compose -f dock
 
 3. **Update if needed**:
     ```bash
-    ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && cat .env"
+    ssh root@2.24.70.59 "cd /var/www/pfm-surveys.cloud && cat .env"
     # Edit SMTP_USER and SMTP_PASS to match Hostinger mailbox
-    ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate api"
+    ssh root@2.24.70.59 "cd /var/www/pfm-surveys.cloud && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate api"
     ```
 
 ---
@@ -230,49 +230,49 @@ ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && docker compose -f dock
 ### Check Service Status
 
 ```bash
-ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && docker compose ps"
+ssh root@2.24.70.59 "cd /var/www/pfm-surveys.cloud && docker compose ps"
 ```
 
 ### View Logs
 
 ```bash
 # API logs
-ssh root@31.220.56.146 "docker logs pfm-surveys-prod-api-1 --tail=100"
+ssh root@2.24.70.59 "docker logs pfm-surveys-prod-api-1 --tail=100"
 
 # Worker logs
-ssh root@31.220.56.146 "docker logs pfm-surveys-prod-worker-1 --tail=100"
+ssh root@2.24.70.59 "docker logs pfm-surveys-prod-worker-1 --tail=100"
 
 # Admin logs (nginx)
-ssh root@31.220.56.146 "docker logs pfm-surveys-prod-admin-1 --tail=100"
+ssh root@2.24.70.59 "docker logs pfm-surveys-prod-admin-1 --tail=100"
 
 # Follow logs in real-time (Ctrl+C to exit)
-ssh root@31.220.56.146 "docker logs -f pfm-surveys-prod-api-1"
+ssh root@2.24.70.59 "docker logs -f pfm-surveys-prod-api-1"
 ```
 
 ### Check Environment Variables
 
 ```bash
 # API
-ssh root@31.220.56.146 "docker exec pfm-surveys-prod-api-1 printenv"
+ssh root@2.24.70.59 "docker exec pfm-surveys-prod-api-1 printenv"
 
 # Worker
-ssh root@31.220.56.146 "docker exec pfm-surveys-prod-worker-1 printenv"
+ssh root@2.24.70.59 "docker exec pfm-surveys-prod-worker-1 printenv"
 ```
 
 ### Restart Services
 
 ```bash
 # Restart single service
-ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && docker compose restart api"
+ssh root@2.24.70.59 "cd /var/www/pfm-surveys.cloud && docker compose restart api"
 
 # Restart all services
-ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && docker compose restart"
+ssh root@2.24.70.59 "cd /var/www/pfm-surveys.cloud && docker compose restart"
 ```
 
 ### Connect to Database
 
 ```bash
-ssh root@31.220.56.146 "docker exec -it pfm-surveys-prod-postgres-1 psql -U surveys_user -d surveys_prod"
+ssh root@2.24.70.59 "docker exec -it pfm-surveys-prod-postgres-1 psql -U surveys_user -d surveys_prod"
 
 # Common queries:
 # \dt                    -- List tables
@@ -305,7 +305,8 @@ ssh root@31.220.56.146 "docker exec -it pfm-surveys-prod-postgres-1 psql -U surv
 **After deploying:**
 
 - [ ] Check service logs for errors
-- [ ] Test the deployed feature on https://surveys.pfm-qa.com
+- [ ] Test the deployed feature on https://pfm-surveys.cloud
+
 - [ ] Monitor logs for 5 minutes to catch any immediate issues
 
 ---
@@ -315,8 +316,8 @@ ssh root@31.220.56.146 "docker exec -it pfm-surveys-prod-postgres-1 psql -U surv
 ### Quick Rollback
 
 ```bash
-ssh root@31.220.56.146
-cd /var/www/surveys.pfm-qa.com
+ssh root@2.24.70.59
+cd /var/www/pfm-surveys.cloud
 
 # 1. Go back to previous commit
 git log --oneline -10  # Find the commit hash to rollback to
@@ -335,10 +336,10 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 ```bash
 # Quick health check
-curl https://surveys.pfm-qa.com/health
+curl https://pfm-surveys.cloud/health
 
 # Detailed status
-ssh root@31.220.56.146 "cd /var/www/surveys.pfm-qa.com && docker compose ps"
+ssh root@2.24.70.59 "cd /var/www/pfm-surveys.cloud && docker compose ps"
 ```
 
 Expected output:
@@ -363,8 +364,8 @@ Expected output:
 
 ## 📞 Emergency Contacts
 
-- **VPS:** Hostinger VPS at `31.220.56.146`
-- **Domain:** `surveys.pfm-qa.com` (DNS managed by domain provider)
+- **VPS:** Hostinger VPS at `2.24.70.59`
+- **Domain:** `pfm-surveys.cloud` (DNS managed by domain provider)
 - **Email Service:** Hostinger mailbox (surveys@pfm-qa.com, SMTP)
 - **Repository:** GitHub - ri5pekt/pfm-surveys
 
@@ -373,14 +374,13 @@ Expected output:
 ## 🔐 Important Files on VPS
 
 ```
-/var/www/surveys.pfm-qa.com/
+/var/www/pfm-surveys.cloud/
 ├── .env                          # Production environment variables (KEEP SECRET!)
-├── docker-compose.yml            # Base Docker Compose config
-├── docker-compose.prod.yml       # Production overrides
+├── docker-compose.prod.yml       # Production Docker Compose config
 └── backups/                      # Database backups (if configured)
 
-/etc/caddy/
-└── caddy.json                    # Caddy reverse proxy config (standalone)
+/etc/nginx/sites-available/
+└── pfm-surveys.cloud             # Nginx reverse proxy config (Certbot-managed SSL)
 ```
 
 ---
@@ -394,4 +394,4 @@ Expected output:
 
 ---
 
-_Last updated: 2026-02-05_
+_Last updated: 2026-05-07_

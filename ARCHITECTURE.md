@@ -29,7 +29,7 @@ Browser ✅
 ### Production Mode
 
 ```
-Browser (surveys.pfm-qa.com)
+Browser (pfm-surveys.cloud)
   ↓ GET /api/sites
   ↓
 Caddy Reverse Proxy
@@ -45,7 +45,7 @@ Browser ✅
 ```
 
 **Configuration:**
-- Everything served from `surveys.pfm-qa.com`
+- Everything served from `pfm-surveys.cloud`
 - Caddy routes `/api/*` to API container
 - Caddy routes `/*` to Admin container
 - Same relative URLs work automatically
@@ -91,7 +91,7 @@ const api = axios.create({
 ### 3. Caddy Configuration (`Caddyfile`)
 
 ```caddyfile
-{$DOMAIN:surveys.pfm-qa.com} {
+{$DOMAIN:pfm-surveys.cloud} {
     handle /api/* {
         reverse_proxy api:3000
     }
@@ -130,7 +130,7 @@ VITE_PORT=5173
 # VITE_API_BASE_URL is NOT used
 
 # Embed script URL for external websites
-VITE_EMBED_API_URL=https://surveys.pfm-qa.com
+VITE_EMBED_API_URL=https://pfm-surveys.cloud
 
 # Other production settings...
 ```
@@ -164,7 +164,7 @@ pnpm dev
 
 ```bash
 # On VPS
-cd /var/www/surveys.pfm-qa.com
+cd /var/www/pfm-surveys.cloud
 
 # Pull latest code
 git pull
@@ -175,7 +175,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d admin
 ```
 
 **What Happens:**
-1. `VITE_EMBED_API_URL=https://surveys.pfm-qa.com` is baked into build
+1. `VITE_EMBED_API_URL=https://pfm-surveys.cloud` is baked into build
 2. Admin container builds static files
 3. Nginx serves static files
 4. Caddy routes all `/api/*` to API container
@@ -231,7 +231,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d admin
 
 **Production:**
 ```
-1. Browser → GET https://surveys.pfm-qa.com/
+1. Browser → GET https://pfm-surveys.cloud/
 2. Caddy → Nginx (admin:80)
 3. Nginx → Serve index.html + app.js
 4. Browser → GET /api/sites (relative URL)
@@ -255,8 +255,8 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d admin
 
 **Production:**
 ```
-1. Customer Website → <script src="https://surveys.pfm-qa.com/embed/script.js">
-2. Browser → GET https://surveys.pfm-qa.com/embed/script.js
+1. Customer Website → <script src="https://pfm-surveys.cloud/embed/script.js">
+2. Browser → GET https://pfm-surveys.cloud/embed/script.js
 3. Caddy → api:3000
 4. API → Serve embed.js
 5. Browser ✅
@@ -269,7 +269,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d admin
 | Variable | Dev Value | Prod Value | Purpose |
 |----------|-----------|------------|---------|
 | `VITE_API_BASE_URL` | ❌ NOT USED | ❌ NOT USED | Relative URLs instead |
-| `VITE_EMBED_API_URL` | `https://ngrok-url` | `https://surveys.pfm-qa.com` | Embed script URL |
+| `VITE_EMBED_API_URL` | `https://ngrok-url` | `https://pfm-surveys.cloud` | Embed script URL |
 | `VITE_PORT` | `5173` | N/A | Dev server port |
 | `API_PORT` | `3000` | `3000` | API server port |
 | `DATABASE_HOST` | `localhost` | `postgres` | DB connection |

@@ -24,12 +24,13 @@
                 <label>Question Type</label>
                 <select v-model="question.type" @change="$emit('type-change', index)">
                     <option value="radio">Radio Buttons (Single Choice)</option>
+                    <option value="checkbox">Checkboxes (Multiple Choice)</option>
                     <option value="text">Text Answer</option>
                 </select>
             </div>
 
-            <!-- Options for Radio Buttons -->
-            <div v-if="question.type === 'radio'" class="form-group">
+            <!-- Options for Radio Buttons and Checkboxes -->
+            <div v-if="question.type === 'radio' || question.type === 'checkbox'" class="form-group">
                 <label>Answer Options</label>
                 <div v-for="(option, optIndex) in question.options" :key="optIndex" class="option-row-hotjar">
                     <div class="option-number">ANSWER {{ optIndex + 1 }}</div>
