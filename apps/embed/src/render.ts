@@ -83,7 +83,13 @@ export function renderQuestionHTML(
       `;
         }
     } else if (question.question_type === "checkbox" && question.options) {
-        for (const option of question.options) {
+        let orderedOptions = [...question.options];
+        if (question.randomize_options) {
+            const pinned = orderedOptions.filter((o) => o.pin_to_bottom);
+            const nonPinned = orderedOptions.filter((o) => !o.pin_to_bottom);
+            orderedOptions = [...shuffleArray(nonPinned), ...pinned];
+        }
+        for (const option of orderedOptions) {
             html += `
         <div style="margin-bottom: 10px;">
           <label style="display: flex; align-items: center; cursor: pointer; padding: 14px 16px; border: 2px solid ${textColor}4D; border-radius: 30px; transition: all 0.2s; background: transparent;" class="pfm-checkbox-label">
