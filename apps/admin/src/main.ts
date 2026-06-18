@@ -5,6 +5,8 @@ import router from './router';
 import App from './App.vue';
 import './assets/primevue-vars.css';
 
+document.title = `${import.meta.env.VITE_APP_NAME} - Admin`;
+
 const app = createApp(App);
 const pinia = createPinia();
 
