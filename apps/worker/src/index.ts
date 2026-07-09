@@ -63,7 +63,10 @@ ingestionWorker.on("error", (err) => {
     logger.error({ err }, "Ingestion worker error");
 });
 
-logger.info({ redis: connection, queue: EVENT_INGESTION_QUEUE }, "Ingestion worker started");
+logger.info(
+    { redis: { host: REDIS_HOST, port: REDIS_PORT, db: REDIS_DB, authEnabled: !!REDIS_PASSWORD }, queue: EVENT_INGESTION_QUEUE },
+    "Ingestion worker started"
+);
 const hasGeoKey = !!process.env.IP_API_KEY?.trim();
 logger.info(
     { geoLookup: hasGeoKey ? "enabled" : "disabled" },
