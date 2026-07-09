@@ -9,7 +9,9 @@ services:
             POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_this_password}
             POSTGRES_DB: ${POSTGRES_DB:-surveys_dev}
         ports:
-            - "${DATABASE_PORT:-5432}:5432"
+            # Bound to localhost only — never expose Postgres on 0.0.0.0 (see DEPLOY.md Security section).
+            # Still reachable from your host machine (e.g. pgAdmin) via localhost:5432.
+            - "127.0.0.1:${DATABASE_PORT:-5432}:5432"
         volumes:
             - postgres_data:/var/lib/postgresql/data
         healthcheck:
@@ -24,17 +26,32 @@ services:
         image: redis:7-alpine
         container_name: surveys-redis
         restart: unless-stopped
+        # REDIS_PASSWORD defaults to a dev-only placeholder locally; ALWAYS set a strong,
+        # unique REDIS_PASSWORD in production .env (defense-in-depth even though the port
+        # is localhost-only — protects against a compromised container pivoting over the
+        # internal Docker network). See DEPLOY.md Security section.
         command: >
             redis-server
             --appendonly yes
             --maxmemory 256mb
             --maxmemory-policy noeviction
+            --requirepass ${REDIS_PASSWORD:-devpassword_change_in_prod}
         ports:
-            - "${REDIS_PORT:-6379}:6379"
+            # Bound to localhost only — never expose Redis on 0.0.0.0 (see DEPLOY.md Security section).
+            # Unauthenticated public Redis is the #1 cause of XMRig cryptominer RCE on VPS hosts.
+            - "127.0.0.1:${REDIS_PORT:-6379}:6379"
         volumes:
             - redis_data:/data
         healthcheck:
-            test: ["CMD", "redis-cli", "ping"]
+            test:
+                [
+                    "CMD",
+                    "redis-cli",
+                    "-a",
+                    "${REDIS_PASSWORD:-devpassword_change_in_prod}",
+                    "--no-auth-warning",
+                    "ping",
+                ]
             interval: 10s
             timeout: 3s
             retries: 5

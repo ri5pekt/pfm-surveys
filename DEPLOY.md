@@ -311,6 +311,74 @@ ssh root@2.24.70.59 "docker exec -it pfm-surveys-prod-postgres-1 psql -U surveys
 
 ---
 
+## 🔒 Security: Database & Cache Network Isolation
+
+**Postgres and Redis must NEVER be reachable from the public internet.** Unauthenticated public
+Redis is the #1 cause of XMRig cryptominer RCE incidents on VPS hosts (bots scan `0.0.0.0:6379`
+within hours of exposure).
+
+### What's enforced (as of 2026-07-09)
+
+- `docker-compose.yml` and `docker-compose.prod.yml` bind Postgres/Redis to **`127.0.0.1`** only
+  (`127.0.0.1:5432:5432`, `127.0.0.1:6379:6379`) — never `0.0.0.0`.
+- Redis **requires a password** (`--requirepass`) even though the port is localhost-only — this is
+  defense-in-depth in case a container is ever compromised and tries to pivot over the internal
+  Docker network (`redis:6379` is reachable without a host port at all).
+- `REDIS_PASSWORD` must be set in production `.env` (generate with `openssl rand -hex 24`). If
+  unset, Redis falls back to a well-known dev-only placeholder — **do not run production without
+  setting this**.
+
+> **Incident history:** on 2026-07-09, `surveys-postgres` and `surveys-redis` were found bound to
+> `0.0.0.0:5432` / `0.0.0.0:6379` on the production VPS with no `REDIS_PASSWORD` set. Root cause:
+> `docker-compose.prod.yml` didn't explicitly override `ports:`/`command:` for these services, so
+> Compose inherited the dev-oriented public port bindings from the base `docker-compose.yml` when
+> both files were merged (`-f docker-compose.yml -f docker-compose.prod.yml`). Fixed by binding to
+> `127.0.0.1` in **both** files (so neither file alone can leak a public binding) and requiring a
+> Redis password everywhere.
+
+### Applying this fix to an existing deployment
+
+```bash
+ssh root@2.24.70.59
+cd /var/www/pfm-surveys.cloud
+
+# 1. Take a full backup first (DB dump + Redis snapshot + .env) — see "Rollback" section below
+#    for the exact commands, or ask the Cursor agent to do it.
+
+# 2. Set a strong REDIS_PASSWORD in .env
+echo "REDIS_PASSWORD=$(openssl rand -hex 24)" >> .env
+# (remove any pre-existing empty REDIS_PASSWORD= line first if present)
+
+# 3. Pull the fix and recreate postgres/redis (data persists via named volumes — no data loss)
+git pull
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate postgres redis
+
+# 4. Recreate api/worker so they pick up REDIS_PASSWORD
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate api worker
+
+# 5. Verify — should show 127.0.0.1, NOT 0.0.0.0
+ss -tlnp | grep -E ':5432|:6379'
+
+# 6. Verify from your local machine — should time out / refuse, NOT connect
+nc -zv 2.24.70.59 6379
+nc -zv 2.24.70.59 5432
+
+# 7. Confirm the app still works end-to-end
+curl https://pfm-surveys.cloud/health
+docker compose -f docker-compose.yml -f docker-compose.prod.yml logs --tail=50 api worker
+```
+
+### Post-deploy security checklist (run periodically, not just after this fix)
+
+- [ ] `ss -tlnp | grep '0.0.0.0'` — nothing sensitive besides 22/80/443
+- [ ] `ss -tlnp | grep -E ':5432|:6379'` — shows `127.0.0.1`, not `0.0.0.0`
+- [ ] `nc -zv <VPS_IP> 6379` and `5432` from your local machine — both refuse/timeout
+- [ ] `REDIS_PASSWORD` in `.env` is a strong, unique value (not the dev placeholder)
+- [ ] `ufw status` — firewall active, only 22/80/443 open
+- [ ] `crontab -l` and `ps aux | grep -i xmrig` — no miner/malicious cron
+
+---
+
 ## 🚨 Rollback (If Something Goes Wrong)
 
 ### Quick Rollback

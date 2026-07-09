@@ -194,6 +194,38 @@ bash scripts/deploy-prod.sh
 
 ---
 
+### 6. Database & Cache Network Isolation
+
+**Purpose**: Prevent Postgres and Redis from being reachable over the public internet — the #1
+real-world cause of VPS compromise (unauthenticated Redis RCE → XMRig cryptominer).
+
+**Implementation**:
+- **Location**: `docker-compose.yml`, `docker-compose.prod.yml`
+- Postgres and Redis ports are bound to **`127.0.0.1`** only (never `0.0.0.0`), in **both**
+  compose files independently — Compose merges list-type keys like `ports:` across `-f` files
+  rather than replacing them, so a public binding in the base file can silently "leak" into a
+  merged prod deployment even if the override file looks correct in isolation. Both files must be
+  correct on their own.
+- Redis additionally **requires a password** (`--requirepass`) even though it's localhost-only —
+  defense-in-depth against a compromised container pivoting over the internal Docker network
+  (`redis:6379` between containers has no host port at all and would otherwise be wide open).
+- `api` and `worker` containers receive `REDIS_PASSWORD` via environment so `ioredis` authenticates
+  (`apps/api/src/redis.ts`, `apps/worker/src/index.ts` already supported this — only the compose
+  wiring was missing).
+
+**Incident (2026-07-09)**: Found `surveys-postgres`/`surveys-redis` on the production VPS bound to
+`0.0.0.0:5432`/`0.0.0.0:6379` with no `REDIS_PASSWORD` set. See `DEPLOY.md` → "Security: Database &
+Cache Network Isolation" for full root cause and the remediation steps that were applied.
+
+**Verification**:
+```bash
+ss -tlnp | grep -E ':5432|:6379'   # must show 127.0.0.1, never 0.0.0.0
+nc -zv <VPS_IP> 6379               # from outside — must refuse/timeout
+nc -zv <VPS_IP> 5432               # from outside — must refuse/timeout
+```
+
+---
+
 ## Security Layers Summary
 
 ```
@@ -514,6 +546,7 @@ bash scripts/deploy-prod.sh
 - Database length constraints
 - Production HTTPS setup with Caddy
 - Automated deployment script
+- Database & cache network isolation (Postgres/Redis bound to localhost only, Redis password-protected)
 
 ✅ **Secure by default**:
 - Empty domains = blocked (unless explicit opt-in)
