@@ -91,6 +91,14 @@ const createSurveySchema = z.object({
                     })
                 )
                 .optional(),
+            pageExcludeRules: z
+                .array(
+                    z.object({
+                        type: z.enum(["not_contains"]),
+                        value: z.string(),
+                    })
+                )
+                .optional(),
         })
         .optional(),
     behavior: z
@@ -273,6 +281,20 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                 if (data.targeting) {
                     if (data.targeting.pageType === "specific" && data.targeting.pageRules) {
                         for (const rule of data.targeting.pageRules) {
+                            if (rule.value) {
+                                await db
+                                    .insertInto("targeting_rules")
+                                    .values({
+                                        survey_id: survey.id,
+                                        rule_type: rule.type,
+                                        rule_config: JSON.stringify({ value: rule.value }),
+                                    })
+                                    .execute();
+                            }
+                        }
+                    }
+                    if (data.targeting.pageExcludeRules) {
+                        for (const rule of data.targeting.pageExcludeRules) {
                             if (rule.value) {
                                 await db
                                     .insertInto("targeting_rules")
@@ -1091,6 +1113,20 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
 
                     if (data.targeting.pageType === "specific" && data.targeting.pageRules) {
                         for (const rule of data.targeting.pageRules) {
+                            if (rule.value) {
+                                await db
+                                    .insertInto("targeting_rules")
+                                    .values({
+                                        survey_id: id,
+                                        rule_type: rule.type,
+                                        rule_config: JSON.stringify({ value: rule.value }),
+                                    })
+                                    .execute();
+                            }
+                        }
+                    }
+                    if (data.targeting.pageExcludeRules) {
+                        for (const rule of data.targeting.pageExcludeRules) {
                             if (rule.value) {
                                 await db
                                     .insertInto("targeting_rules")

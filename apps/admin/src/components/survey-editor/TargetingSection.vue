@@ -45,6 +45,37 @@
         </div>
 
         <div class="form-group">
+            <label>Exclude Pages <span class="label-hint">(optional)</span></label>
+            <p class="field-hint">
+                Never show the survey when the URL matches any of these. Applies on top of the rules above — if you
+                set multiple exclude rules, the survey is hidden if <strong>any</strong> of them match (i.e. the URL
+                must satisfy <strong>all</strong> "doesn't contain" rules to be shown).
+            </p>
+            <div v-for="(rule, index) in targeting.pageExcludeRules" :key="index" class="rule-row">
+                <span class="rule-type-static">URL doesn't contain</span>
+                <PageUrlAutocomplete
+                    v-model="rule.value"
+                    placeholder="Enter URL or path to exclude"
+                    title="Page URL from your site traffic"
+                    input-class="rule-value"
+                />
+                <button
+                    @click="$emit('remove-exclude-rule', index)"
+                    class="btn-icon-small rule-remove"
+                    title="Remove rule"
+                >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z" />
+                        <path
+                            d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"
+                        />
+                    </svg>
+                </button>
+            </div>
+            <button @click="$emit('add-exclude-rule')" class="btn-text">+ Add Exclude Rule</button>
+        </div>
+
+        <div class="form-group">
             <label>Users</label>
             <div class="radio-group">
                 <label class="radio-label">
@@ -121,6 +152,8 @@ defineProps<{
 defineEmits<{
     "add-rule": [];
     "remove-rule": [index: number];
+    "add-exclude-rule": [];
+    "remove-exclude-rule": [index: number];
     "add-user-rule": [];
     "remove-user-rule": [index: number];
 }>();
@@ -157,6 +190,18 @@ defineEmits<{
     color: #374151;
 }
 
+.label-hint {
+    font-weight: 400;
+    color: #9ca3af;
+}
+
+.field-hint {
+    margin: -4px 0 10px 0;
+    font-size: 12px;
+    color: #6b7280;
+    line-height: 1.5;
+}
+
 .rule-row {
     display: flex;
     gap: 8px;
@@ -170,6 +215,17 @@ defineEmits<{
     border-radius: 6px;
     font-size: 14px;
     min-width: 180px;
+}
+
+.rule-type-static {
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    min-width: 180px;
+    background: #f9fafb;
+    color: #374151;
+    white-space: nowrap;
 }
 
 .rule-value {

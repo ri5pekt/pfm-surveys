@@ -42,6 +42,14 @@ export function useQuestionManager(surveyData: Ref<SurveyData>) {
         surveyData.value.targeting.pageRules.splice(index, 1);
     }
 
+    function addPageExcludeRule() {
+        surveyData.value.targeting.pageExcludeRules.push({ type: "not_contains", value: "" });
+    }
+
+    function removePageExcludeRule(index: number) {
+        surveyData.value.targeting.pageExcludeRules.splice(index, 1);
+    }
+
     function addUserRule() {
         const rule: UserGeoRule = { type: "geo", country: "", state: "", city: "" };
         surveyData.value.targeting.userRules.push(rule);
@@ -65,6 +73,8 @@ export function useQuestionManager(surveyData: Ref<SurveyData>) {
         removeOption,
         addPageRule,
         removePageRule,
+        addPageExcludeRule,
+        removePageExcludeRule,
         addUserRule,
         removeUserRule,
     };

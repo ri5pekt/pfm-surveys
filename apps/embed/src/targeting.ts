@@ -84,6 +84,24 @@ export function matchesTargetingRules(
     if (!pageMatch) return false;
   }
 
+  // Exclude rules ("URL doesn't contain") apply regardless of pageType and use
+  // AND logic: EVERY exclude rule must hold (i.e. the survey is hidden if the
+  // URL matches ANY one of them).
+  if (targeting.pageExcludeRules?.length) {
+    const excludeMatch = targeting.pageExcludeRules.some((rule) => {
+      const ruleValue = normalize(rule.value);
+      if (!ruleValue) return false;
+      return currentUrl.includes(ruleValue) || currentPath.includes(ruleValue);
+    });
+    if (excludeMatch) {
+      logger.log('[PFM Surveys] page targeting: excluded — URL matches a "doesn\'t contain" rule', {
+        currentUrl,
+        excludeRules: targeting.pageExcludeRules,
+      });
+      return false;
+    }
+  }
+
   if (targeting.userType === 'specific' && targeting.userRules?.length) {
     const userMatch = targeting.userRules.some((rule) => {
       if (rule.type === 'geo') {

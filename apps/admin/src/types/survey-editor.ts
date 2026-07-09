@@ -17,6 +17,17 @@ export interface PageRule {
     value: string;
 }
 
+/**
+ * Page exclusion rule: "URL doesn't contain". Unlike PageRule (which is OR'd —
+ * show if ANY inclusion rule matches), exclude rules are AND'd — the survey is
+ * hidden if the URL matches ANY of them, meaning EVERY exclude rule must hold
+ * for the survey to show.
+ */
+export interface PageExcludeRule {
+    type: "not_contains";
+    value: string;
+}
+
 /** User targeting rule: Geo location (country, state, city — each optional = any). */
 export interface UserGeoRule {
     type: "geo";
@@ -47,6 +58,7 @@ export interface SurveyData {
     targeting: {
         pageType: "all" | "specific";
         pageRules: PageRule[];
+        pageExcludeRules: PageExcludeRule[];
         users: "all";
         userType: "all" | "specific";
         userRules: UserGeoRule[];
@@ -82,6 +94,7 @@ export function createDefaultSurveyData(): SurveyData {
         targeting: {
             pageType: "all",
             pageRules: [{ type: "exact", value: "" }],
+            pageExcludeRules: [],
             users: "all",
             userType: "all",
             userRules: [],

@@ -32,6 +32,15 @@ export interface PageRule {
     value: string;
 }
 
+/**
+ * Page exclusion rule: "URL doesn't contain". Applied with AND logic across
+ * all exclude rules — the survey is hidden if the URL matches ANY of them.
+ */
+export interface PageExcludeRule {
+    type: "not_contains";
+    value: string;
+}
+
 /** User targeting rule: Geo location (country, state, city — each optional = any). */
 export interface UserGeoRule {
     type: "geo";
@@ -49,6 +58,7 @@ export interface UserGeo {
 export interface Targeting {
     pageType?: "all" | "specific";
     pageRules?: PageRule[];
+    pageExcludeRules?: PageExcludeRule[];
     userType?: "all" | "specific";
     userRules?: UserGeoRule[];
 }

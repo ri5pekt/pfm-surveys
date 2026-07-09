@@ -310,7 +310,7 @@ const embedRoutes: FastifyPluginAsync = async (fastify) => {
                           }
                         : null;
 
-                    // Get targeting rules (page: exact/contains; user: geo); rule_config may be JSON string from DB
+                    // Get targeting rules (page: exact/contains; page exclude: not_contains; user: geo); rule_config may be JSON string from DB
                     const targetingRules = await db
                         .selectFrom("targeting_rules")
                         .select(["rule_type", "rule_config"])
@@ -322,6 +322,12 @@ const embedRoutes: FastifyPluginAsync = async (fastify) => {
                         .map((rule) => {
                             const c = parseRuleConfig(rule.rule_config);
                             return { type: rule.rule_type, value: (c.value as string) ?? "" };
+                        });
+                    const pageExcludeRules = targetingRules
+                        .filter((r) => r.rule_type === "not_contains")
+                        .map((rule) => {
+                            const c = parseRuleConfig(rule.rule_config);
+                            return { type: rule.rule_type as "not_contains", value: (c.value as string) ?? "" };
                         });
                     const userRules = targetingRules
                         .filter((r) => r.rule_type === "geo")
@@ -338,6 +344,7 @@ const embedRoutes: FastifyPluginAsync = async (fastify) => {
                     const targeting = {
                         pageType: pageRules.length > 0 ? "specific" : "all",
                         pageRules,
+                        pageExcludeRules,
                         userType: userRules.length > 0 ? "specific" : "all",
                         userRules,
                     };

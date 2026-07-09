@@ -86,6 +86,8 @@
                         :targeting="surveyData.targeting"
                         @add-rule="addPageRule"
                         @remove-rule="removePageRule"
+                        @add-exclude-rule="addPageExcludeRule"
+                        @remove-exclude-rule="removePageExcludeRule"
                         @add-user-rule="addUserRule"
                         @remove-user-rule="removeUserRule"
                     />
@@ -169,6 +171,8 @@ const {
     removeOption,
     addPageRule,
     removePageRule,
+    addPageExcludeRule,
+    removePageExcludeRule,
     addUserRule,
     removeUserRule,
 } = useQuestionManager(surveyData);

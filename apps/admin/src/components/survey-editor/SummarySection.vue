@@ -13,6 +13,10 @@
                 <strong>Pages:</strong>
                 {{ targeting.pageType === "all" ? "All pages" : `${targeting.pageRules.length} rule(s)` }}
             </div>
+            <div v-if="targeting.pageExcludeRules?.length" class="summary-item">
+                <strong>Exclude Pages:</strong>
+                {{ targeting.pageExcludeRules.length }} rule(s)
+            </div>
             <div class="summary-item">
                 <strong>Users:</strong>
                 {{ targeting.userType === "all" ? "All users" : `${targeting.userRules.length} user rule(s)` }}

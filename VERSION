@@ -1,6 +1,14 @@
-1.2.0
+1.3.0
 
 ## Version History
+
+### v1.3.0 (2026-07-09)
+**Page Exclude Rules ("URL doesn't contain") Targeting**
+
+New Features:
+- Added "Exclude Pages" section to survey targeting: "URL doesn't contain" rules
+- Exclude rules apply with AND logic (survey hidden if ANY exclude rule matches), independent of the existing OR-matched "Page Rules"
+- Applies regardless of "All pages" / "Specific pages" selection
 
 ### v1.2.0 (2026-06-14)
 **Checkboxes (Multiple Choice) Question Type**

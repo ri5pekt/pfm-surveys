@@ -74,9 +74,10 @@ export function useSurveyEditor(
                     survey.displaySettings.button_background_color || "#2a44b7";
             }
 
-            // Load targeting rules (page rules: exact/contains; user rules: geo)
+            // Load targeting rules (page rules: exact/contains; page exclude rules: not_contains; user rules: geo)
             const rules = survey.targetingRules && Array.isArray(survey.targetingRules) ? survey.targetingRules : [];
             const pageRulesRaw = rules.filter((r: any) => r.rule_type === "exact" || r.rule_type === "contains");
+            const pageExcludeRulesRaw = rules.filter((r: any) => r.rule_type === "not_contains");
             const userRulesRaw = rules.filter((r: any) => r.rule_type === "geo");
 
             const pageRules =
@@ -87,6 +88,10 @@ export function useSurveyEditor(
                           return { type: rule.rule_type, value: config?.value ?? "" };
                       })
                     : [{ type: "exact" as const, value: "" }];
+            const pageExcludeRules = pageExcludeRulesRaw.map((rule: any) => {
+                const config = typeof rule.rule_config === "string" ? JSON.parse(rule.rule_config) : rule.rule_config;
+                return { type: "not_contains" as const, value: config?.value ?? "" };
+            });
             const userRules = userRulesRaw.map((rule: any) => {
                 const config = typeof rule.rule_config === "string" ? JSON.parse(rule.rule_config) : rule.rule_config;
                 return {
@@ -100,6 +105,7 @@ export function useSurveyEditor(
             surveyData.value.targeting = {
                 pageType: pageRulesRaw.length > 0 ? "specific" : "all",
                 pageRules,
+                pageExcludeRules,
                 users: userRules.length > 0 ? "all" : "all",
                 userType: userRules.length > 0 ? "specific" : "all",
                 userRules,
@@ -161,6 +167,7 @@ export function useSurveyEditor(
                         surveyData.value.targeting.pageType === "specific"
                             ? surveyData.value.targeting.pageRules.filter((r) => r.value.trim())
                             : [],
+                    pageExcludeRules: surveyData.value.targeting.pageExcludeRules.filter((r) => r.value.trim()),
                     userType: surveyData.value.targeting.userType,
                     userRules:
                         surveyData.value.targeting.userType === "specific"

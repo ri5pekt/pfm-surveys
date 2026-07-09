@@ -497,7 +497,7 @@ cat apps/api/src/db/schema.sql | docker exec -i <postgres-container> psql -U sur
 
 ## 📊 Project Status
 
-**Current Version:** v1.0.0
+**Current Version:** v1.3.0
 **Status:** ✅ **In Production** at [https://pfm-surveys.cloud](https://pfm-surveys.cloud)
 **Last Updated:** February 2026
 
