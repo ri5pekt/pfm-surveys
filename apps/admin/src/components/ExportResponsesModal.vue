@@ -84,8 +84,8 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { surveysApi } from "../services/api";
 import type { SurveyQuestion } from "../types";
+import { exportSurveyResponsesCsv } from "../utils/exportSurveyResponsesCsv";
 
 const props = defineProps<{
     visible: boolean;
@@ -142,14 +142,6 @@ function close() {
     }
 }
 
-function escapeCell(v: string | null | undefined): string {
-    const s = v ?? "";
-    if (s.includes(",") || s.includes('"') || s.includes("\n")) {
-        return '"' + s.replace(/"/g, '""') + '"';
-    }
-    return s;
-}
-
 async function runExport() {
     if (selectedQuestionIds.value.length === 0) return;
 
@@ -159,146 +151,20 @@ async function runExport() {
     progressLabel.value = "Fetching responses…";
 
     try {
-        const LIMIT = 500;
-        const dateParams =
-            exportMode.value === "range"
-                ? { from_date: fromDate.value || undefined, to_date: toDate.value || undefined }
-                : {};
-
-        // First page — tells us the total
-        const firstPage = await surveysApi.getResponses(props.surveyId, {
-            page: 1,
-            limit: LIMIT,
-            ...dateParams,
+        const submissionCount = await exportSurveyResponsesCsv({
+            surveyId: props.surveyId,
+            surveyName: props.surveyName,
+            questions: props.questions,
+            questionIds: selectedQuestionIds.value,
+            fromDate: exportMode.value === "range" ? fromDate.value || undefined : undefined,
+            toDate: exportMode.value === "range" ? toDate.value || undefined : undefined,
+            onProgress: (label, percent) => {
+                progressLabel.value = label;
+                progress.value = percent;
+            },
         });
 
-        const total = firstPage.total;
-        const totalPages = Math.max(1, Math.ceil(total / LIMIT));
-        let allRows = [...firstPage.responses];
-
-        progress.value = Math.round((1 / totalPages) * 75);
-        progressLabel.value = `Fetching responses… ${allRows.length} / ${total}`;
-
-        // Fetch remaining pages sequentially so the progress bar is accurate
-        for (let page = 2; page <= totalPages; page++) {
-            const pageData = await surveysApi.getResponses(props.surveyId, {
-                page,
-                limit: LIMIT,
-                ...dateParams,
-            });
-            allRows = allRows.concat(pageData.responses);
-            progress.value = Math.round((page / totalPages) * 75);
-            progressLabel.value = `Fetching responses… ${allRows.length} / ${total}`;
-        }
-
-        progress.value = 82;
-        progressLabel.value = "Building CSV…";
-
-        // Only include selected questions, in their original order
-        const selectedQSet = new Set(selectedQuestionIds.value);
-        const exportQuestions = props.questions.filter((q) => selectedQSet.has(q.id));
-
-        // Group rows by session_id, then by question_id within each session.
-        // A session may have answered multiple times — each "round" becomes its own CSV row.
-        // Round N = the Nth answer (sorted by timestamp ASC) to any question in this session.
-        type AnswerRow = (typeof allRows)[0];
-        const bySession = new Map<string, Map<string, AnswerRow[]>>();
-
-        for (const row of allRows) {
-            const sid = row.session_id ?? `__no_session_${row.id}`;
-            if (!bySession.has(sid)) bySession.set(sid, new Map());
-            const byQ = bySession.get(sid)!;
-            if (!byQ.has(row.question_id)) byQ.set(row.question_id, []);
-            byQ.get(row.question_id)!.push(row);
-        }
-
-        // Sort each question's answers within a session by timestamp ASC
-        for (const byQ of bySession.values()) {
-            for (const rows of byQ.values()) {
-                rows.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-            }
-        }
-
-        // Build one submission row per round. Round count = max answers to any question in the session.
-        type Submission = { sid: string; meta: AnswerRow; answers: Map<string, string> };
-        const submissions: Submission[] = [];
-
-        for (const [sid, byQ] of bySession.entries()) {
-            const maxRounds = Math.max(...[...byQ.values()].map((r) => r.length));
-            for (let round = 0; round < maxRounds; round++) {
-                const answers = new Map<string, string>();
-                let meta: AnswerRow | null = null;
-                for (const [qId, rows] of byQ.entries()) {
-                    const r = rows[round];
-                    if (r) {
-                        answers.set(qId, r.display_label);
-                        if (!meta || new Date(r.timestamp) < new Date(meta.timestamp)) meta = r;
-                    }
-                }
-                if (meta) submissions.push({ sid, meta, answers });
-            }
-        }
-
-        // Sort newest-first (mirrors the UI table order)
-        submissions.sort((a, b) => new Date(b.meta.timestamp).getTime() - new Date(a.meta.timestamp).getTime());
-
-        // Build header row using only selected questions (with original Q-numbers for clarity)
-        const questionHeaders = exportQuestions.map((q) => {
-            const originalIndex = props.questions.findIndex((oq) => oq.id === q.id);
-            return `Q${originalIndex + 1}: ${q.question_text}`;
-        });
-        const headers = [
-            "Session ID",
-            "Date",
-            "Page URL",
-            "IP",
-            "Country",
-            "State",
-            "City",
-            "Browser",
-            "OS",
-            "Device",
-            ...questionHeaders,
-        ];
-
-        const csvLines: string[] = [headers.map(escapeCell).join(",")];
-
-        for (const { sid, meta, answers } of submissions) {
-            const questionAnswers = exportQuestions.map((q) => answers.get(q.id) ?? "");
-            const cells = [
-                sid.startsWith("__no_session_") ? "" : sid,
-                meta.timestamp ? new Date(meta.timestamp).toLocaleString() : "",
-                meta.page_url ?? "",
-                meta.ip ?? "",
-                meta.country ?? "",
-                meta.state_name ?? meta.state ?? "",
-                meta.city ?? "",
-                meta.browser ?? "",
-                meta.os ?? "",
-                meta.device ?? "",
-                ...questionAnswers,
-            ];
-            csvLines.push(cells.map(escapeCell).join(","));
-        }
-
-        progress.value = 95;
-        progressLabel.value = "Preparing download…";
-
-        const csvContent = "\uFEFF" + csvLines.join("\n"); // BOM for Excel compatibility
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        const safeName = props.surveyName.replace(/[^a-z0-9]/gi, "_").toLowerCase();
-        a.href = url;
-        a.download = `${safeName}_responses_${new Date().toISOString().split("T")[0]}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        progress.value = 100;
-        progressLabel.value = `Done! Exported ${submissions.length} responses.`;
-
+        progressLabel.value = `Done! Exported ${submissionCount} responses.`;
         setTimeout(() => {
             emit("close");
         }, 1200);

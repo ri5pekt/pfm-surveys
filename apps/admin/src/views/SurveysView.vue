@@ -3,15 +3,31 @@
         <div class="header-section">
             <h2>Surveys</h2>
             <div class="header-controls">
-                <div class="filter-toggle">
-                    <button :class="['filter-btn', { active: showMyOnly }]" @click="showMyOnly = true">
-                        My Surveys
+                <template v-if="exportSelectMode">
+                    <button
+                        type="button"
+                        class="btn-export-selected"
+                        :disabled="selectedSurveyIds.length === 0 || exportingSelected"
+                        @click="exportSelectedSurveys"
+                    >
+                        {{ exportingSelected ? exportProgressLabel : `Export selected (${selectedSurveyIds.length})` }}
                     </button>
-                    <button :class="['filter-btn', { active: !showMyOnly }]" @click="showMyOnly = false">
-                        All Surveys
+                    <button type="button" class="btn-secondary" :disabled="exportingSelected" @click="cancelExportSelect">
+                        Cancel
                     </button>
-                </div>
-                <button @click="createSurvey" class="btn-primary">Create Survey</button>
+                </template>
+                <template v-else>
+                    <div class="filter-toggle">
+                        <button :class="['filter-btn', { active: showMyOnly }]" @click="showMyOnly = true">
+                            My Surveys
+                        </button>
+                        <button :class="['filter-btn', { active: !showMyOnly }]" @click="showMyOnly = false">
+                            All Surveys
+                        </button>
+                    </div>
+                    <button type="button" class="btn-secondary" @click="enterExportSelectMode">Export</button>
+                    <button @click="createSurvey" class="btn-primary">Create Survey</button>
+                </template>
             </div>
         </div>
 
@@ -34,22 +50,57 @@
             <button @click="createSurvey" class="btn-primary">Create Your First Survey</button>
         </div>
 
-        <table v-else class="surveys-table">
+        <template v-else>
+        <p v-if="exportError" class="export-error">{{ exportError }}</p>
+
+        <table class="surveys-table">
             <thead>
                 <tr>
+                    <th v-if="exportSelectMode" class="checkbox-col">
+                        <input
+                            type="checkbox"
+                            :checked="allVisibleSelected"
+                            :indeterminate.prop="someVisibleSelected && !allVisibleSelected"
+                            :disabled="exportingSelected"
+                            title="Select all visible"
+                            @change="toggleSelectAllVisible"
+                        />
+                    </th>
                     <th>Name</th>
                     <th>Impressions</th>
                     <th>Responses</th>
                     <th>Created By</th>
                     <th>Date Created</th>
                     <th>Type</th>
-                    <th>Actions</th>
-                    <th>Status</th>
+                    <th v-if="!exportSelectMode">Actions</th>
+                    <th v-if="!exportSelectMode">Status</th>
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="survey in currentSurveys" :key="survey.id">
-                    <td class="survey-name" @click="viewResults(survey.id)">{{ survey.name }}</td>
+                <tr
+                    v-for="survey in currentSurveys"
+                    :key="survey.id"
+                    :class="{
+                        'row-selected': exportSelectMode && selectedSurveyIds.includes(survey.id),
+                        'row-selectable': exportSelectMode && !exportingSelected,
+                    }"
+                    @click="exportSelectMode && !exportingSelected ? toggleSurveySelected(survey.id) : undefined"
+                >
+                    <td v-if="exportSelectMode" class="checkbox-col" @click.stop>
+                        <input
+                            type="checkbox"
+                            :checked="selectedSurveyIds.includes(survey.id)"
+                            :disabled="exportingSelected"
+                            @change="toggleSurveySelected(survey.id)"
+                        />
+                    </td>
+                    <td
+                        class="survey-name"
+                        :class="{ clickable: !exportSelectMode }"
+                        @click="!exportSelectMode && viewResults(survey.id)"
+                    >
+                        {{ survey.name }}
+                    </td>
                     <td>
                         <span class="metric-value" :title="`Survey was shown ${survey.impressions || 0} time(s)`">
                             {{ survey.impressions || 0 }}
@@ -61,7 +112,7 @@
                     <td>
                         <span class="badge">{{ survey.type }}</span>
                     </td>
-                    <td>
+                    <td v-if="!exportSelectMode">
                         <div class="actions-panel">
                             <button class="action-btn" @click="viewResults(survey.id)" title="View Results">
                                 <svg
@@ -122,7 +173,7 @@
                             </button>
                         </div>
                     </td>
-                    <td>
+                    <td v-if="!exportSelectMode">
                         <label class="toggle-label">
                             <div class="toggle-switch" :class="{ active: survey.active }">
                                 <input
@@ -138,6 +189,7 @@
                 </tr>
             </tbody>
         </table>
+        </template>
 
         <!-- Toggle Confirmation Dialog -->
         <Dialog v-model:visible="showConfirmDialog" modal :closable="true" :style="{ width: '26rem' }">
@@ -270,7 +322,8 @@ import Dialog from "primevue/dialog";
 import { useSitesStore } from "../stores/sites";
 import { useAuthStore } from "../stores/auth";
 import { surveysApi } from "../services/api";
-import type { Survey } from "../types";
+import type { Survey, SurveyQuestion } from "../types";
+import { delay, exportSurveyResponsesCsv } from "../utils/exportSurveyResponsesCsv";
 
 const router = useRouter();
 
@@ -291,6 +344,12 @@ const showDeleteDialog = ref(false);
 const surveyToDelete = ref<Survey | null>(null);
 const deleting = ref(false);
 
+const exportSelectMode = ref(false);
+const selectedSurveyIds = ref<string[]>([]);
+const exportingSelected = ref(false);
+const exportProgressLabel = ref("");
+const exportError = ref("");
+
 // Watch and persist showMyOnly preference
 watch(showMyOnly, (value) => {
     localStorage.setItem("pfm_showMySurveys", value.toString());
@@ -308,6 +367,104 @@ const currentSurveys = computed(() => {
     if (activeTab.value === "active") return activeSurveys.value;
     return inactiveSurveys.value;
 });
+
+const allVisibleSelected = computed(
+    () =>
+        currentSurveys.value.length > 0 &&
+        currentSurveys.value.every((s) => selectedSurveyIds.value.includes(s.id))
+);
+
+const someVisibleSelected = computed(() =>
+    currentSurveys.value.some((s) => selectedSurveyIds.value.includes(s.id))
+);
+
+function enterExportSelectMode() {
+    exportSelectMode.value = true;
+    selectedSurveyIds.value = [];
+    exportError.value = "";
+}
+
+function cancelExportSelect() {
+    if (exportingSelected.value) return;
+    exportSelectMode.value = false;
+    selectedSurveyIds.value = [];
+    exportError.value = "";
+    exportProgressLabel.value = "";
+}
+
+function toggleSurveySelected(surveyId: string) {
+    if (exportingSelected.value) return;
+    const idx = selectedSurveyIds.value.indexOf(surveyId);
+    if (idx >= 0) {
+        selectedSurveyIds.value = selectedSurveyIds.value.filter((id) => id !== surveyId);
+    } else {
+        selectedSurveyIds.value = [...selectedSurveyIds.value, surveyId];
+    }
+}
+
+function toggleSelectAllVisible(event: Event) {
+    if (exportingSelected.value) return;
+    const checked = (event.target as HTMLInputElement).checked;
+    const visibleIds = currentSurveys.value.map((s) => s.id);
+    if (checked) {
+        selectedSurveyIds.value = [...new Set([...selectedSurveyIds.value, ...visibleIds])];
+    } else {
+        const visibleSet = new Set(visibleIds);
+        selectedSurveyIds.value = selectedSurveyIds.value.filter((id) => !visibleSet.has(id));
+    }
+}
+
+async function exportSelectedSurveys() {
+    if (selectedSurveyIds.value.length === 0 || exportingSelected.value) return;
+
+    exportingSelected.value = true;
+    exportError.value = "";
+
+    const ids = [...selectedSurveyIds.value];
+    const failures: string[] = [];
+
+    try {
+        for (let i = 0; i < ids.length; i++) {
+            const surveyId = ids[i];
+            const listSurvey = surveys.value.find((s) => s.id === surveyId);
+            const surveyName = listSurvey?.name ?? surveyId;
+
+            exportProgressLabel.value = `Exporting ${i + 1}/${ids.length}…`;
+
+            try {
+                const { survey } = await surveysApi.get(surveyId);
+                const questions = ((survey as Survey & { questions?: SurveyQuestion[] }).questions ??
+                    []) as SurveyQuestion[];
+
+                await exportSurveyResponsesCsv({
+                    surveyId,
+                    surveyName: survey.name || surveyName,
+                    questions,
+                    onProgress: (label) => {
+                        exportProgressLabel.value = `${i + 1}/${ids.length}: ${label}`;
+                    },
+                });
+
+                if (i < ids.length - 1) {
+                    await delay(400);
+                }
+            } catch (err) {
+                console.error(`Failed to export survey ${surveyId}:`, err);
+                failures.push(surveyName);
+            }
+        }
+
+        if (failures.length > 0) {
+            exportError.value = `Failed to export: ${failures.join(", ")}`;
+        } else {
+            exportSelectMode.value = false;
+            selectedSurveyIds.value = [];
+        }
+    } finally {
+        exportingSelected.value = false;
+        exportProgressLabel.value = "";
+    }
+}
 
 async function fetchSurveys() {
     if (!sitesStore.currentSite) return;
@@ -457,7 +614,13 @@ function formatDate(dateString: string): string {
 }
 
 onMounted(fetchSurveys);
-watch(() => sitesStore.currentSite, fetchSurveys);
+watch(
+    () => sitesStore.currentSite,
+    () => {
+        cancelExportSelect();
+        fetchSurveys();
+    }
+);
 </script>
 
 <style scoped>
@@ -534,6 +697,81 @@ watch(() => sitesStore.currentSite, fetchSurveys);
     background: #5568d3;
 }
 
+.btn-secondary {
+    padding: 10px 20px;
+    background: white;
+    color: #4a5568;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: #f7fafc;
+    border-color: #cbd5e0;
+    color: #2d3748;
+}
+
+.btn-secondary:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.btn-export-selected {
+    padding: 10px 20px;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+    min-width: 160px;
+}
+
+.btn-export-selected:hover:not(:disabled) {
+    background: #5568d3;
+}
+
+.btn-export-selected:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.export-error {
+    margin: 0 0 16px 0;
+    padding: 10px 14px;
+    background: #fff5f5;
+    border: 1px solid #feb2b2;
+    border-radius: 6px;
+    color: #c53030;
+    font-size: 14px;
+}
+
+.checkbox-col {
+    width: 40px;
+    text-align: center;
+}
+
+.checkbox-col input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #667eea;
+}
+
+.row-selectable {
+    cursor: pointer;
+}
+
+.row-selected td {
+    background: #f7faff;
+}
+
 .tabs {
     display: flex;
     gap: 8px;
@@ -604,10 +842,13 @@ watch(() => sitesStore.currentSite, fetchSurveys);
 .survey-name {
     font-weight: 500;
     color: #667eea;
+}
+
+.survey-name.clickable {
     cursor: pointer;
 }
 
-.survey-name:hover {
+.survey-name.clickable:hover {
     text-decoration: underline;
 }
 
