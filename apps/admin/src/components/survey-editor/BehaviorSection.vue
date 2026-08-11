@@ -16,6 +16,10 @@
                     <input type="radio" v-model="behavior.timing" value="scroll" />
                     <span>When user scrolls down the page</span>
                 </label>
+                <label class="radio-label">
+                    <input type="radio" v-model="behavior.timing" value="exit_intent" />
+                    <span>Exit Intent (when user moves to leave the page)</span>
+                </label>
             </div>
 
             <div v-if="behavior.timing === 'delay'" class="delay-input">
@@ -39,6 +43,11 @@
                     <span class="unit">% down the page</span>
                 </div>
             </div>
+
+            <p v-if="behavior.timing === 'exit_intent'" class="help-text exit-intent-note">
+                Shows when the visitor moves their cursor toward the browser chrome (top of the page) to leave.
+                Works on desktop browsers; touch devices typically won't trigger this.
+            </p>
         </div>
 
         <div class="form-group">
@@ -135,5 +144,10 @@ defineProps<{
 .unit {
     font-size: 14px;
     color: #6b7280;
+}
+
+.exit-intent-note {
+    margin-top: 12px;
+    padding-left: 24px;
 }
 </style>

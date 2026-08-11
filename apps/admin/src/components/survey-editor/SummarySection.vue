@@ -32,6 +32,8 @@
                         ? "Immediately"
                         : behavior.timing === "scroll"
                         ? `After ${behavior.scrollPercentage}% scroll`
+                        : behavior.timing === "exit_intent"
+                        ? "Exit Intent"
                         : `After ${behavior.delaySeconds} seconds`
                 }}
             </div>

@@ -103,7 +103,7 @@ const createSurveySchema = z.object({
         .optional(),
     behavior: z
         .object({
-            timing: z.enum(["immediate", "delay", "scroll"]),
+            timing: z.enum(["immediate", "delay", "scroll", "exit_intent"]),
             delaySeconds: z.number().default(0),
             scrollPercentage: z.number().min(0).max(100).default(50),
             frequency: z.enum(["until_submit", "once", "always"]),

@@ -64,7 +64,7 @@ export interface SurveyData {
         userRules: UserGeoRule[];
     };
     behavior: {
-        timing: "immediate" | "delay" | "scroll";
+        timing: "immediate" | "delay" | "scroll" | "exit_intent";
         delaySeconds: number;
         scrollPercentage: number;
         frequency: "until_submit" | "once" | "always";

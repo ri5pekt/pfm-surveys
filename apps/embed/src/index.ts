@@ -84,6 +84,29 @@ function init(): void {
                 window.addEventListener("scroll", handleScroll, { passive: true });
                 // Also check immediately in case already scrolled
                 handleScroll();
+            } else if (timingMode === "exit_intent") {
+                logger.log(
+                    `%c[PFM Surveys] 🚪 Waiting for exit intent for survey "${nextSurvey.name}"`,
+                    "color: #667eea; font-weight: bold"
+                );
+
+                let exitTriggered = false;
+                const handleExitIntent = (e: MouseEvent) => {
+                    if (exitTriggered) return;
+                    // Cursor left the viewport toward the top (browser chrome / close tab)
+                    if (e.clientY > 0) return;
+
+                    exitTriggered = true;
+                    document.documentElement.removeEventListener("mouseleave", handleExitIntent);
+                    logger.log(
+                        `%c[PFM Surveys] 🎉 Exit intent detected, showing survey "${nextSurvey.name}"`,
+                        "color: #667eea; font-weight: bold"
+                    );
+                    displaySurvey(nextSurvey);
+                    shownInThisCycle.add(nextSurvey.id);
+                };
+
+                document.documentElement.addEventListener("mouseleave", handleExitIntent);
             } else {
                 logger.log(
                     `%c[PFM Surveys] 🎉 Showing next survey "${nextSurvey.name}" after ${delay}ms delay`,
