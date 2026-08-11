@@ -93,11 +93,13 @@ function init(): void {
                 let exitTriggered = false;
                 const handleExitIntent = (e: MouseEvent) => {
                     if (exitTriggered) return;
-                    // Cursor left the viewport toward the top (browser chrome / close tab)
+                    // Only when the pointer leaves the document entirely toward the top
+                    // (browser chrome / close tab). relatedTarget null = left the window.
+                    if (e.relatedTarget != null) return;
                     if (e.clientY > 0) return;
 
                     exitTriggered = true;
-                    document.documentElement.removeEventListener("mouseleave", handleExitIntent);
+                    document.removeEventListener("mouseout", handleExitIntent);
                     logger.log(
                         `%c[PFM Surveys] 🎉 Exit intent detected, showing survey "${nextSurvey.name}"`,
                         "color: #667eea; font-weight: bold"
@@ -106,7 +108,16 @@ function init(): void {
                     shownInThisCycle.add(nextSurvey.id);
                 };
 
-                document.documentElement.addEventListener("mouseleave", handleExitIntent);
+                // Delay arming so page-load / layout quirks can't false-trigger immediately
+                const EXIT_INTENT_ARM_DELAY_MS = 1500;
+                setTimeout(() => {
+                    if (exitTriggered) return;
+                    document.addEventListener("mouseout", handleExitIntent);
+                    logger.log(
+                        `%c[PFM Surveys] 🚪 Exit intent armed for survey "${nextSurvey.name}"`,
+                        "color: #667eea"
+                    );
+                }, EXIT_INTENT_ARM_DELAY_MS);
             } else {
                 logger.log(
                     `%c[PFM Surveys] 🎉 Showing next survey "${nextSurvey.name}" after ${delay}ms delay`,
