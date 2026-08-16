@@ -50,6 +50,34 @@ function getTwoWordPhrases(answerTexts: string[]): { phrase: string; answerCount
         .slice(0, TOP_PHRASES_LIMIT);
 }
 
+const CUSTOM_EVENT_NAME_RE = /^[a-z0-9_]{1,64}$/;
+
+const behaviorSchema = z
+    .object({
+        timing: z.enum(["immediate", "delay", "scroll", "exit_intent", "custom_event"]),
+        delaySeconds: z.number().default(0),
+        scrollPercentage: z.number().min(0).max(100).default(50),
+        frequency: z.enum(["until_submit", "once", "always"]),
+        customEventName: z.string().regex(CUSTOM_EVENT_NAME_RE).optional().or(z.literal("")),
+    })
+    .refine((b) => b.timing !== "custom_event" || CUSTOM_EVENT_NAME_RE.test((b.customEventName || "").trim()), {
+        message: "Event name is required for custom event timing (lowercase letters, numbers, underscores)",
+        path: ["customEventName"],
+    });
+
+function showDelayMsForBehavior(timing: string, delaySeconds: number): number {
+    if (timing === "delay" || (timing === "custom_event" && delaySeconds > 0)) {
+        return Math.max(0, Math.floor(Number(delaySeconds) || 0) * 1000);
+    }
+    return 0;
+}
+
+function customEventNameForBehavior(timing: string, name?: string | null): string | null {
+    if (timing !== "custom_event") return null;
+    const trimmed = (name || "").trim();
+    return trimmed || null;
+}
+
 const createSurveySchema = z.object({
     site_id: z.string().uuid(),
     name: z.string().min(1),
@@ -101,14 +129,7 @@ const createSurveySchema = z.object({
                 .optional(),
         })
         .optional(),
-    behavior: z
-        .object({
-            timing: z.enum(["immediate", "delay", "scroll", "exit_intent"]),
-            delaySeconds: z.number().default(0),
-            scrollPercentage: z.number().min(0).max(100).default(50),
-            frequency: z.enum(["until_submit", "once", "always"]),
-        })
-        .optional(),
+    behavior: behaviorSchema.optional(),
     appearance: z
         .object({
             backgroundColor: z.string().optional(),
@@ -329,15 +350,13 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
 
                 // Save display settings
                 const behavior = data.behavior || {
-                    timing: "immediate",
+                    timing: "immediate" as const,
                     delaySeconds: 0,
                     scrollPercentage: 50,
-                    frequency: "until_submit",
+                    customEventName: "",
+                    frequency: "until_submit" as const,
                 };
-                const showDelayMs =
-                    behavior.timing === "delay"
-                        ? Math.max(0, Math.floor(Number(behavior.delaySeconds) || 0) * 1000)
-                        : 0;
+                const showDelayMs = showDelayMsForBehavior(behavior.timing, behavior.delaySeconds);
                 const displaySettings = (data as any).displaySettings || {};
                 await db
                     .insertInto("display_settings")
@@ -353,6 +372,7 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                         show_minimize_button: displaySettings.show_minimize_button === true,
                         timing_mode: behavior.timing || "immediate",
                         scroll_percentage: behavior.scrollPercentage ?? 50,
+                        custom_event_name: customEventNameForBehavior(behavior.timing, behavior.customEventName),
                         widget_background_color: displaySettings.widget_background_color || "#141a2c",
                         widget_background_opacity: displaySettings.widget_background_opacity ?? 1.0,
                         widget_border_radius: displaySettings.widget_border_radius || "8px",
@@ -813,6 +833,7 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                             show_minimize_button: displaySettings.show_minimize_button,
                             timing_mode: displaySettings.timing_mode,
                             scroll_percentage: displaySettings.scroll_percentage,
+                            custom_event_name: displaySettings.custom_event_name,
                             widget_background_color: displaySettings.widget_background_color,
                             widget_background_opacity: displaySettings.widget_background_opacity,
                             widget_border_radius: displaySettings.widget_border_radius,
@@ -930,6 +951,9 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                 const { tenant_id } = request.user as any;
                 const { id } = request.params as { id: string };
                 const data = request.body as any;
+                if (data.behavior) {
+                    data.behavior = behaviorSchema.parse(data.behavior);
+                }
 
                 // Verify ownership
                 const existing = await db
@@ -1177,16 +1201,17 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                         .where("survey_id", "=", id)
                         .executeTakeFirst();
                     // UPDATE display_settings instead of delete+insert
-                    const showDelayMs =
-                        data.behavior.timing === "delay"
-                            ? Math.max(0, Math.floor(Number(data.behavior.delaySeconds) || 0) * 1000)
-                            : 0;
+                    const showDelayMs = showDelayMsForBehavior(data.behavior.timing, data.behavior.delaySeconds);
                     const displaySettings = data.displaySettings || {};
                     const dsUpdate: any = {
                         show_delay_ms: showDelayMs,
                         display_frequency: data.behavior.frequency || "until_submit",
                         timing_mode: data.behavior.timing || "immediate",
                         scroll_percentage: data.behavior.scrollPercentage ?? 50,
+                        custom_event_name: customEventNameForBehavior(
+                            data.behavior.timing,
+                            data.behavior.customEventName
+                        ),
                     };
 
                     // Only update appearance fields if provided
@@ -1243,6 +1268,9 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                 await invalidateSurveyCache(existing.site_id).catch(() => { /* non-fatal */ });
                 return { survey: updated };
             } catch (error) {
+                if (error instanceof z.ZodError) {
+                    return reply.status(400).send({ error: "Invalid request data", details: error.errors });
+                }
                 fastify.log.error(error);
                 const message = error instanceof Error ? error.message : undefined;
                 return reply.status(500).send({

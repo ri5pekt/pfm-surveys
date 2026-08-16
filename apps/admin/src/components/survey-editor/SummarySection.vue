@@ -34,6 +34,10 @@
                         ? `After ${behavior.scrollPercentage}% scroll`
                         : behavior.timing === "exit_intent"
                         ? "Exit Intent"
+                        : behavior.timing === "custom_event"
+                        ? behavior.customEventName
+                            ? `On custom event "${behavior.customEventName}"`
+                            : "On a custom event"
                         : `After ${behavior.delaySeconds} seconds`
                 }}
             </div>

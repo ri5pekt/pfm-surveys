@@ -18,6 +18,7 @@ Welcome to the Survey Platform documentation. This directory contains all techni
 
 ### Architecture & Design
 
+- **[Custom Event Trigger](./CUSTOM_EVENT_TRIGGER.md)** - Spec for `window.PFMSurveys.trigger()` timing mode
 - **[Architecture Overview](./architecture.md)** _(to be created)_ - System design, data flow, and component interactions
 - **[Decision Records](./decisions.md)** _(to be created)_ - Architectural decisions and their rationale
 

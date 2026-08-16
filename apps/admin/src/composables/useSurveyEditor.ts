@@ -119,6 +119,7 @@ export function useSurveyEditor(
                     timing: timingMode,
                     delaySeconds: Math.floor((ds.show_delay_ms || 0) / 1000),
                     scrollPercentage: (ds as any).scroll_percentage ?? 50,
+                    customEventName: (ds as any).custom_event_name || "",
                     frequency: ds.display_frequency || "until_submit",
                 };
             }
@@ -178,6 +179,7 @@ export function useSurveyEditor(
                     timing: surveyData.value.behavior.timing,
                     delaySeconds: surveyData.value.behavior.delaySeconds,
                     scrollPercentage: surveyData.value.behavior.scrollPercentage,
+                    customEventName: (surveyData.value.behavior.customEventName || "").trim(),
                     frequency: surveyData.value.behavior.frequency,
                 },
                 appearance: {

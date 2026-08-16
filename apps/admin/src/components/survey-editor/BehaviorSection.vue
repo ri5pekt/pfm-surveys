@@ -20,10 +20,28 @@
                     <input type="radio" v-model="behavior.timing" value="exit_intent" />
                     <span>Exit Intent (when user moves to leave the page)</span>
                 </label>
+                <label class="radio-label">
+                    <input type="radio" v-model="behavior.timing" value="custom_event" />
+                    <span>On a custom event — when the host page calls window.PFMSurveys.trigger('event_name')</span>
+                </label>
             </div>
 
-            <div v-if="behavior.timing === 'delay'" class="delay-input">
-                <label>Display after</label>
+            <div v-if="behavior.timing === 'custom_event'" class="delay-input">
+                <label>Event name</label>
+                <input
+                    type="text"
+                    v-model="behavior.customEventName"
+                    placeholder="my_custom_event"
+                    maxlength="64"
+                    class="event-name-input"
+                    spellcheck="false"
+                    autocomplete="off"
+                />
+                <p class="help-text">Lowercase letters, numbers, and underscores only.</p>
+            </div>
+
+            <div v-if="behavior.timing === 'delay' || behavior.timing === 'custom_event'" class="delay-input">
+                <label>{{ behavior.timing === "custom_event" ? "Display after event (optional)" : "Display after" }}</label>
                 <div class="input-with-unit">
                     <input type="number" v-model.number="behavior.delaySeconds" min="0" class="number-input" />
                     <span class="unit">seconds</span>
@@ -139,6 +157,16 @@ defineProps<{
     border: 1px solid #d1d5db;
     border-radius: 6px;
     font-size: 14px;
+}
+
+.event-name-input {
+    width: 280px;
+    max-width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .unit {

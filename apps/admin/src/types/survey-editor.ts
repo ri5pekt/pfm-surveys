@@ -64,9 +64,10 @@ export interface SurveyData {
         userRules: UserGeoRule[];
     };
     behavior: {
-        timing: "immediate" | "delay" | "scroll" | "exit_intent";
+        timing: "immediate" | "delay" | "scroll" | "exit_intent" | "custom_event";
         delaySeconds: number;
         scrollPercentage: number;
+        customEventName: string;
         frequency: "until_submit" | "once" | "always";
     };
 }
@@ -103,6 +104,7 @@ export function createDefaultSurveyData(): SurveyData {
             timing: "immediate",
             delaySeconds: 0,
             scrollPercentage: 50,
+            customEventName: "",
             frequency: "until_submit",
         },
     };

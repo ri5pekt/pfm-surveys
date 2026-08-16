@@ -23,7 +23,10 @@ export function useSurveyValidation(surveyData: Ref<SurveyData>) {
             case "targeting":
                 return true; // Always complete with defaults
             case "behavior":
-                return true; // Always complete with defaults
+                if (surveyData.value.behavior.timing === "custom_event") {
+                    return /^[a-z0-9_]{1,64}$/.test((surveyData.value.behavior.customEventName || "").trim());
+                }
+                return true;
             default:
                 return false;
         }
@@ -69,6 +72,17 @@ export function useSurveyValidation(surveyData: Ref<SurveyData>) {
                         targetSection: "questions",
                     };
                 }
+            }
+        }
+
+        if (surveyData.value.behavior.timing === "custom_event") {
+            const eventName = (surveyData.value.behavior.customEventName || "").trim();
+            if (!/^[a-z0-9_]{1,64}$/.test(eventName)) {
+                return {
+                    valid: false,
+                    message: "Enter a custom event name using lowercase letters, numbers, and underscores",
+                    targetSection: "behavior",
+                };
             }
         }
 

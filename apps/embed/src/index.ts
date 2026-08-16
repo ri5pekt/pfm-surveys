@@ -12,6 +12,13 @@ import { fetchSurveys, fetchUserGeo } from "./fetch";
 import { createDisplaySurvey } from "./display";
 import type { Survey, UserGeo } from "./types";
 import { logger } from "./logger";
+import {
+    adoptStubQueue,
+    eventMatches,
+    installPublicTrigger,
+    isWaitingForEvent,
+    type QueuedTrigger,
+} from "./custom-events";
 
 function init(): void {
     const config = getConfigFromScript();
@@ -38,11 +45,59 @@ function init(): void {
     let allSurveys: Survey[] = [];
     let userGeo: UserGeo | null = null;
     const shownInThisCycle = new Set<string>(); // Track surveys shown in current page load
+    const firedEvents = new Set<string>();
+    const pendingTriggers: QueuedTrigger[] = [];
+    let surveysReady = false;
+    let displayInProgress = false;
+
+    function applyFiredEvent(name: string): void {
+        const trimmed = (name || "").trim();
+        if (trimmed) {
+            firedEvents.add(trimmed);
+        }
+        const listeners = allSurveys.filter(
+            (s) => (s.displaySettings?.custom_event_name || "").trim() === trimmed
+        );
+        if (listeners.length === 0) {
+            logger.log(`[PFM Surveys] no survey listens for event "${trimmed}"`);
+            return;
+        }
+        for (const survey of listeners) {
+            logger.log(`[PFM Surveys] survey "${survey.name}" matched custom event "${trimmed}"`);
+        }
+    }
+
+    function handleTrigger(name: string, payload?: Record<string, unknown>): void {
+        const trimmed = (name || "").trim();
+        logger.log(
+            `[PFM Surveys] trigger("${trimmed}") received`,
+            surveysReady ? "(surveys loaded)" : "(surveys not loaded yet)"
+        );
+
+        if (!surveysReady) {
+            pendingTriggers.push({ name: trimmed, payload: payload || {} });
+            return;
+        }
+
+        applyFiredEvent(trimmed);
+        if (!displayInProgress) {
+            void showNextSurvey();
+        }
+    }
+
+    const stubQueued = adoptStubQueue();
+    if (stubQueued.length > 0) {
+        logger.log(`[PFM Surveys] adopted ${stubQueued.length} queued trigger(s) from window.PFMSurveys._q`);
+        pendingTriggers.push(...stubQueued);
+    }
+    installPublicTrigger(handleTrigger);
 
     // Callback to show next survey after current one is closed
     async function showNextSurvey(): Promise<void> {
+        if (displayInProgress) return;
         const nextSurvey = await findNextSurvey();
         if (nextSurvey) {
+            displayInProgress = true;
             const timingMode = nextSurvey.displaySettings?.timing_mode || "immediate";
             const delay = nextSurvey.displaySettings?.show_delay_ms ?? 0;
             const scrollPercentage = nextSurvey.displaySettings?.scroll_percentage ?? 50;
@@ -50,7 +105,10 @@ function init(): void {
             const displaySurvey = createDisplaySurvey({
                 queueEvent,
                 siteId: config.siteId,
-                onClose: showNextSurvey,
+                onClose: () => {
+                    displayInProgress = false;
+                    void showNextSurvey();
+                },
             });
 
             if (timingMode === "scroll") {
@@ -150,6 +208,21 @@ function init(): void {
                 continue;
             }
 
+            if (isWaitingForEvent(survey)) {
+                const expected = (survey.displaySettings?.custom_event_name || "").trim();
+                if (!expected) {
+                    logger.warn(
+                        `[PFM Surveys] survey "${survey.name}" skipped (custom event name empty)`
+                    );
+                    continue;
+                }
+                if (!eventMatches(survey, firedEvents)) {
+                    logger.log(`[PFM Surveys] survey "${survey.name}" skipped (custom event not fired yet)`);
+                    continue;
+                }
+                logger.log(`[PFM Surveys] survey "${survey.name}" matched custom event "${expected}"`);
+            }
+
             // Fetch geo only when this survey has user rules and we don't have geo yet (avoid calls for all users)
             const hasUserRules = targeting?.userType === "specific" && (targeting?.userRules?.length ?? 0) > 0;
             if (hasUserRules && userGeo === null) {
@@ -219,6 +292,14 @@ function init(): void {
 
         if (fetchedSurveys.length === 0) {
             logger.log("%c[PFM Surveys] ℹ️ No active surveys available for this site", "color: #999");
+            allSurveys = [];
+            surveysReady = true;
+            const queuedEmpty = pendingTriggers.splice(0);
+            for (const item of queuedEmpty) {
+                const trimmed = (item.name || "").trim();
+                logger.log(`[PFM Surveys] trigger("${trimmed}") received (surveys loaded)`);
+                applyFiredEvent(trimmed);
+            }
             return;
         }
 
@@ -239,6 +320,15 @@ function init(): void {
             }
 
         allSurveys = fetchedSurveys;
+        surveysReady = true;
+
+        const queued = pendingTriggers.splice(0);
+        for (const item of queued) {
+            const trimmed = (item.name || "").trim();
+            logger.log(`[PFM Surveys] trigger("${trimmed}") received (surveys loaded)`);
+            applyFiredEvent(trimmed);
+        }
+
         void showNextSurvey();
     })();
 }

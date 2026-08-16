@@ -103,6 +103,7 @@ export interface DisplaySettingsTable {
     show_minimize_button: boolean;
     timing_mode: string;
     scroll_percentage: number;
+    custom_event_name: string | null;
     created_at: Date;
 }
 
