@@ -20,6 +20,8 @@ import {
     type QueuedTrigger,
 } from "./custom-events";
 
+type DisarmFn = () => void;
+
 function init(): void {
     const config = getConfigFromScript();
     if (!config?.apiUrl || !config?.siteId) {
@@ -45,10 +47,24 @@ function init(): void {
     let allSurveys: Survey[] = [];
     let userGeo: UserGeo | null = null;
     const shownInThisCycle = new Set<string>(); // Track surveys shown in current page load
+    const armedSurveyIds = new Set<string>(); // Currently waiting (delay/scroll/exit) — don't re-arm
     const firedEvents = new Set<string>();
     const pendingTriggers: QueuedTrigger[] = [];
     let surveysReady = false;
     let displayInProgress = false;
+    const activeDisarms: DisarmFn[] = [];
+
+    function clearArms(): void {
+        while (activeDisarms.length > 0) {
+            const disarm = activeDisarms.pop();
+            try {
+                disarm?.();
+            } catch {
+                /* ignore */
+            }
+        }
+        armedSurveyIds.clear();
+    }
 
     function applyFiredEvent(name: string): void {
         const trimmed = (name || "").trim();
@@ -92,106 +108,160 @@ function init(): void {
     }
     installPublicTrigger(handleTrigger);
 
-    // Callback to show next survey after current one is closed
-    async function showNextSurvey(): Promise<void> {
-        if (displayInProgress) return;
-        const nextSurvey = await findNextSurvey();
-        if (nextSurvey) {
-            displayInProgress = true;
-            const timingMode = nextSurvey.displaySettings?.timing_mode || "immediate";
-            const delay = nextSurvey.displaySettings?.show_delay_ms ?? 0;
-            const scrollPercentage = nextSurvey.displaySettings?.scroll_percentage ?? 50;
+    function presentSurvey(survey: Survey): void {
+        if (displayInProgress || shownInThisCycle.has(survey.id)) return;
 
-            const displaySurvey = createDisplaySurvey({
-                queueEvent,
-                siteId: config.siteId,
-                onClose: () => {
-                    displayInProgress = false;
-                    void showNextSurvey();
-                },
-            });
+        displayInProgress = true;
+        clearArms();
+        shownInThisCycle.add(survey.id);
 
-            if (timingMode === "scroll") {
-                logger.log(
-                    `%c[PFM Surveys] 📜 Waiting for user to scroll ${scrollPercentage}% down the page for survey "${nextSurvey.name}"`,
-                    "color: #667eea; font-weight: bold"
-                );
+        logger.log(
+            `%c[PFM Surveys] 🎉 Showing survey "${survey.name}"`,
+            "color: #667eea; font-weight: bold"
+        );
 
-                let scrollTriggered = false;
-                const handleScroll = () => {
-                    if (scrollTriggered) return;
+        const displaySurvey = createDisplaySurvey({
+            queueEvent,
+            siteId: config.siteId,
+            onClose: () => {
+                displayInProgress = false;
+                void showNextSurvey();
+            },
+        });
+        displaySurvey(survey);
+    }
 
-                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                    const docHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-                    const scrolledPercent = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+    function armSurvey(survey: Survey): void {
+        if (armedSurveyIds.has(survey.id) || shownInThisCycle.has(survey.id) || displayInProgress) {
+            return;
+        }
 
-                    if (scrolledPercent >= scrollPercentage) {
-                        scrollTriggered = true;
-                        window.removeEventListener("scroll", handleScroll);
-                        logger.log(
-                            `%c[PFM Surveys] 🎉 Scroll threshold reached (${scrolledPercent.toFixed(
-                                1
-                            )}%), showing survey "${nextSurvey.name}"`,
-                            "color: #667eea; font-weight: bold"
-                        );
-                        displaySurvey(nextSurvey);
-                        shownInThisCycle.add(nextSurvey.id);
-                    }
-                };
+        const timingMode = survey.displaySettings?.timing_mode || "immediate";
+        const delay = survey.displaySettings?.show_delay_ms ?? 0;
+        const scrollPercentage = survey.displaySettings?.scroll_percentage ?? 50;
 
-                window.addEventListener("scroll", handleScroll, { passive: true });
-                // Also check immediately in case already scrolled
-                handleScroll();
-            } else if (timingMode === "exit_intent") {
-                logger.log(
-                    `%c[PFM Surveys] 🚪 Waiting for exit intent for survey "${nextSurvey.name}"`,
-                    "color: #667eea; font-weight: bold"
-                );
+        armedSurveyIds.add(survey.id);
 
-                let exitTriggered = false;
-                const handleExitIntent = (e: MouseEvent) => {
-                    if (exitTriggered) return;
-                    // Only when the pointer leaves the document entirely toward the top
-                    // (browser chrome / close tab). relatedTarget null = left the window.
-                    if (e.relatedTarget != null) return;
-                    if (e.clientY > 0) return;
+        if (timingMode === "scroll") {
+            logger.log(
+                `%c[PFM Surveys] 📜 Waiting for user to scroll ${scrollPercentage}% for survey "${survey.name}"`,
+                "color: #667eea; font-weight: bold"
+            );
 
-                    exitTriggered = true;
-                    document.removeEventListener("mouseout", handleExitIntent);
+            let scrollTriggered = false;
+            const handleScroll = () => {
+                if (scrollTriggered || displayInProgress) return;
+
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const docHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+                const scrolledPercent = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+
+                if (scrolledPercent >= scrollPercentage) {
+                    scrollTriggered = true;
+                    window.removeEventListener("scroll", handleScroll);
                     logger.log(
-                        `%c[PFM Surveys] 🎉 Exit intent detected, showing survey "${nextSurvey.name}"`,
+                        `%c[PFM Surveys] 🎉 Scroll threshold reached (${scrolledPercent.toFixed(1)}%) for "${survey.name}"`,
                         "color: #667eea; font-weight: bold"
                     );
-                    displaySurvey(nextSurvey);
-                    shownInThisCycle.add(nextSurvey.id);
-                };
+                    presentSurvey(survey);
+                }
+            };
 
-                // Delay arming so page-load / layout quirks can't false-trigger immediately
-                const EXIT_INTENT_ARM_DELAY_MS = 1500;
-                setTimeout(() => {
-                    if (exitTriggered) return;
-                    document.addEventListener("mouseout", handleExitIntent);
-                    logger.log(
-                        `%c[PFM Surveys] 🚪 Exit intent armed for survey "${nextSurvey.name}"`,
-                        "color: #667eea"
-                    );
-                }, EXIT_INTENT_ARM_DELAY_MS);
-            } else {
+            window.addEventListener("scroll", handleScroll, { passive: true });
+            activeDisarms.push(() => {
+                scrollTriggered = true;
+                window.removeEventListener("scroll", handleScroll);
+            });
+            handleScroll();
+            return;
+        }
+
+        if (timingMode === "exit_intent") {
+            logger.log(
+                `%c[PFM Surveys] 🚪 Waiting for exit intent for survey "${survey.name}"`,
+                "color: #667eea; font-weight: bold"
+            );
+
+            let exitTriggered = false;
+            const handleExitIntent = (e: MouseEvent) => {
+                if (exitTriggered || displayInProgress) return;
+                if (e.relatedTarget != null) return;
+                if (e.clientY > 0) return;
+
+                exitTriggered = true;
+                document.removeEventListener("mouseout", handleExitIntent);
                 logger.log(
-                    `%c[PFM Surveys] 🎉 Showing next survey "${nextSurvey.name}" after ${delay}ms delay`,
+                    `%c[PFM Surveys] 🎉 Exit intent detected for "${survey.name}"`,
                     "color: #667eea; font-weight: bold"
                 );
-                setTimeout(() => {
-                    displaySurvey(nextSurvey);
-                    shownInThisCycle.add(nextSurvey.id);
-                }, delay);
-            }
-        } else {
+                presentSurvey(survey);
+            };
+
+            const EXIT_INTENT_ARM_DELAY_MS = 1500;
+            const armTimer = window.setTimeout(() => {
+                if (exitTriggered || displayInProgress) return;
+                document.addEventListener("mouseout", handleExitIntent);
+                logger.log(`%c[PFM Surveys] 🚪 Exit intent armed for "${survey.name}"`, "color: #667eea");
+            }, EXIT_INTENT_ARM_DELAY_MS);
+
+            activeDisarms.push(() => {
+                exitTriggered = true;
+                window.clearTimeout(armTimer);
+                document.removeEventListener("mouseout", handleExitIntent);
+            });
+            return;
+        }
+
+        // immediate / delay
+        logger.log(
+            `%c[PFM Surveys] ⏱ Arming "${survey.name}" after ${delay}ms delay`,
+            "color: #667eea; font-weight: bold"
+        );
+        const timer = window.setTimeout(() => {
+            if (displayInProgress) return;
+            presentSurvey(survey);
+        }, delay);
+        activeDisarms.push(() => {
+            window.clearTimeout(timer);
+        });
+    }
+
+    /**
+     * Find every eligible survey and arm wait-triggers in parallel.
+     * First one to fire wins; others are disarmed. Immediate (0ms) surveys win first in list order.
+     */
+    async function showNextSurvey(): Promise<void> {
+        if (displayInProgress) return;
+
+        const eligible = await findEligibleSurveys();
+        if (eligible.length === 0) {
             logger.log("%c[PFM Surveys] ✓ No more surveys to show", "color: #999");
+            return;
+        }
+
+        // Show first ready-now survey (immediate / delay 0 / custom event already fired)
+        const readyNow = eligible.find((s) => {
+            const mode = s.displaySettings?.timing_mode || "immediate";
+            const delay = s.displaySettings?.show_delay_ms ?? 0;
+            if (mode === "scroll" || mode === "exit_intent") return false;
+            if (mode === "custom_event") return true; // already passed event gate in findEligible
+            return delay <= 0;
+        });
+
+        if (readyNow) {
+            presentSurvey(readyNow);
+            return;
+        }
+
+        // Arm all deferred surveys; first trigger wins
+        for (const survey of eligible) {
+            armSurvey(survey);
         }
     }
 
-    async function findNextSurvey(): Promise<Survey | null> {
+    async function findEligibleSurveys(): Promise<Survey[]> {
+        const eligible: Survey[] = [];
+
         for (const survey of allSurveys) {
             const { displaySettings, targeting } = survey;
 
@@ -202,18 +272,20 @@ function init(): void {
                 userGeo,
             });
 
-            // Skip if already shown in this display cycle
             if (shownInThisCycle.has(survey.id)) {
                 logger.log(`%c[PFM Surveys] ❌ Survey "${survey.name}" already shown in this cycle`, "color: #e74c3c");
+                continue;
+            }
+
+            if (armedSurveyIds.has(survey.id)) {
+                logger.log(`[PFM Surveys] survey "${survey.name}" already armed — skipping re-arm`);
                 continue;
             }
 
             if (isWaitingForEvent(survey)) {
                 const expected = (survey.displaySettings?.custom_event_name || "").trim();
                 if (!expected) {
-                    logger.warn(
-                        `[PFM Surveys] survey "${survey.name}" skipped (custom event name empty)`
-                    );
+                    logger.warn(`[PFM Surveys] survey "${survey.name}" skipped (custom event name empty)`);
                     continue;
                 }
                 if (!eventMatches(survey, firedEvents)) {
@@ -223,7 +295,6 @@ function init(): void {
                 logger.log(`[PFM Surveys] survey "${survey.name}" matched custom event "${expected}"`);
             }
 
-            // Fetch geo only when this survey has user rules and we don't have geo yet (avoid calls for all users)
             const hasUserRules = targeting?.userType === "specific" && (targeting?.userRules?.length ?? 0) > 0;
             if (hasUserRules && userGeo === null) {
                 logger.log("[PFM Surveys]   - Survey has user (geo) rules; fetching userGeo (lazy)...");
@@ -280,10 +351,10 @@ function init(): void {
             }
             logger.log(`%c[PFM Surveys] ✓ Sample rate check passed`, "color: #27ae60");
 
-            return survey;
+            eligible.push(survey);
         }
 
-        return null;
+        return eligible;
     }
 
     (async () => {
@@ -308,16 +379,18 @@ function init(): void {
         const anyHasUserRules = fetchedSurveys.some(
             (s) => s.targeting?.userType === "specific" && (s.targeting?.userRules?.length ?? 0) > 0
         );
-            if (anyHasUserRules) {
-                logger.log("[PFM Surveys] At least one survey has user (geo) rules; fetching userGeo now...");
-                userGeo = await fetchUserGeo(config);
-                logger.log("[PFM Surveys] userGeo for targeting:", userGeo);
-                if (!userGeo) {
-                    logger.warn("[PFM Surveys] ⚠️ userGeo is null (API /api/public/geo failed or returned null). Surveys with geo rules will be skipped.");
-                }
-            } else {
-                logger.log("[PFM Surveys] No surveys with user rules; skipping geo fetch.");
+        if (anyHasUserRules) {
+            logger.log("[PFM Surveys] At least one survey has user (geo) rules; fetching userGeo now...");
+            userGeo = await fetchUserGeo(config);
+            logger.log("[PFM Surveys] userGeo for targeting:", userGeo);
+            if (!userGeo) {
+                logger.warn(
+                    "[PFM Surveys] ⚠️ userGeo is null (API /api/public/geo failed or returned null). Surveys with geo rules will be skipped."
+                );
             }
+        } else {
+            logger.log("[PFM Surveys] No surveys with user rules; skipping geo fetch.");
+        }
 
         allSurveys = fetchedSurveys;
         surveysReady = true;
