@@ -16,6 +16,9 @@
 
             <!-- Survey action bar -->
             <div class="survey-actions">
+                <RouterLink :to="{ name: 'survey-edit', params: { id: surveyId } }" class="action-btn">
+                    Edit Survey
+                </RouterLink>
                 <button type="button" class="action-btn" @click="showExportModal = true">
                     <span class="action-btn-icon">↓</span> Export Responses
                 </button>
@@ -328,6 +331,7 @@ watch([currentPage, pageSize], async () => {
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
+    text-decoration: none;
     transition: background 0.15s, color 0.15s;
 }
 .action-btn:hover {

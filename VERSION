@@ -3,11 +3,12 @@
 ## Version History
 
 ### v1.3.4 (2026-08-24)
-**Custom Submit Button Text**
+**Custom Submit Button Text & Stats Edit Shortcut**
 
 New Features:
 - Appearance setting for submit button text
 - Leave empty to keep the default label "Submit"
+- Edit Survey button on the survey stats / responses screen
 
 ### v1.3.3 (2026-08-16)
 **Custom Event Trigger**
