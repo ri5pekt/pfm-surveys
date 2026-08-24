@@ -26,6 +26,7 @@ export interface DisplaySettings {
     question_text_size?: string;
     answer_font_size?: string;
     button_background_color?: string;
+    submit_button_text?: string | null;
 }
 
 export interface PageRule {

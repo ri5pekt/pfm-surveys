@@ -78,6 +78,11 @@ function customEventNameForBehavior(timing: string, name?: string | null): strin
     return trimmed || null;
 }
 
+function submitButtonTextForStore(value?: string | null): string | null {
+    const trimmed = (value || "").trim();
+    return trimmed ? trimmed.slice(0, 64) : null;
+}
+
 const createSurveySchema = z.object({
     site_id: z.string().uuid(),
     name: z.string().min(1),
@@ -380,6 +385,7 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                         question_text_size: displaySettings.question_text_size || "1em",
                         answer_font_size: displaySettings.answer_font_size || "0.875em",
                         button_background_color: displaySettings.button_background_color || "#2a44b7",
+                        submit_button_text: submitButtonTextForStore(displaySettings.submit_button_text),
                     } as any)
                     .execute();
 
@@ -841,6 +847,7 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                             question_text_size: displaySettings.question_text_size,
                             answer_font_size: displaySettings.answer_font_size,
                             button_background_color: displaySettings.button_background_color,
+                            submit_button_text: displaySettings.submit_button_text,
                         } as any)
                         .execute();
                 }
@@ -1232,6 +1239,8 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                         dsUpdate.answer_font_size = displaySettings.answer_font_size;
                     if (displaySettings.button_background_color !== undefined)
                         dsUpdate.button_background_color = displaySettings.button_background_color;
+                    if (displaySettings.submit_button_text !== undefined)
+                        dsUpdate.submit_button_text = submitButtonTextForStore(displaySettings.submit_button_text);
 
                     await db.updateTable("display_settings").set(dsUpdate).where("survey_id", "=", id).execute();
                 } else if (data.displaySettings) {
@@ -1255,6 +1264,8 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                         dsUpdate.answer_font_size = data.displaySettings.answer_font_size;
                     if (data.displaySettings.button_background_color !== undefined)
                         dsUpdate.button_background_color = data.displaySettings.button_background_color;
+                    if (data.displaySettings.submit_button_text !== undefined)
+                        dsUpdate.submit_button_text = submitButtonTextForStore(data.displaySettings.submit_button_text);
                     if (Object.keys(dsUpdate).length > 0) {
                         await db.updateTable("display_settings").set(dsUpdate).where("survey_id", "=", id).execute();
                     }

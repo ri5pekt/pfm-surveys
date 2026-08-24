@@ -54,6 +54,7 @@ export interface SurveyData {
         questionTextSize: string;
         answerFontSize: string;
         buttonBackgroundColor: string;
+        submitButtonText: string;
     };
     targeting: {
         pageType: "all" | "specific";
@@ -91,6 +92,7 @@ export function createDefaultSurveyData(): SurveyData {
             questionTextSize: "1em",
             answerFontSize: "0.875em",
             buttonBackgroundColor: "#2a44b7",
+            submitButtonText: "",
         },
         targeting: {
             pageType: "all",

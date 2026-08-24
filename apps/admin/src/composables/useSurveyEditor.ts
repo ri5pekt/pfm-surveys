@@ -72,6 +72,8 @@ export function useSurveyEditor(
                 surveyData.value.appearance.answerFontSize = survey.displaySettings.answer_font_size || "0.875em";
                 surveyData.value.appearance.buttonBackgroundColor =
                     survey.displaySettings.button_background_color || "#2a44b7";
+                surveyData.value.appearance.submitButtonText =
+                    (survey.displaySettings as any).submit_button_text || "";
             }
 
             // Load targeting rules (page rules: exact/contains; page exclude rules: not_contains; user rules: geo)
@@ -195,6 +197,7 @@ export function useSurveyEditor(
                     question_text_size: surveyData.value.appearance.questionTextSize,
                     answer_font_size: surveyData.value.appearance.answerFontSize,
                     button_background_color: surveyData.value.appearance.buttonBackgroundColor,
+                    submit_button_text: (surveyData.value.appearance.submitButtonText || "").trim(),
                 },
             };
 

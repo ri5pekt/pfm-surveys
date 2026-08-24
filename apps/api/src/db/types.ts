@@ -104,6 +104,7 @@ export interface DisplaySettingsTable {
     timing_mode: string;
     scroll_percentage: number;
     custom_event_name: string | null;
+    submit_button_text: string | null;
     created_at: Date;
 }
 

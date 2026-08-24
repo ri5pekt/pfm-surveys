@@ -72,7 +72,8 @@ export function createDisplaySurvey(deps: DisplayDeps) {
             const btn = document.createElement("button");
             btn.type = "button";
             btn.className = isLast ? "pfm-submit-btn" : "pfm-next-btn";
-            btn.textContent = isLast ? "Submit" : "Next";
+            const submitLabel = (displaySettings?.submit_button_text || "").trim() || "Submit";
+            btn.textContent = isLast ? submitLabel : "Next";
             btn.style.cssText = `width: 100%; padding: 12px; background: ${buttonBgColor}; color: ${textColor}; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s;`;
             footer.appendChild(btn);
 

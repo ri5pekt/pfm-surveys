@@ -64,6 +64,16 @@
                     />
                 </div>
             </div>
+            <div class="form-group form-group-flex">
+                <label>Submit button text</label>
+                <input
+                    type="text"
+                    v-model="appearance.submitButtonText"
+                    maxlength="64"
+                    placeholder="Submit"
+                />
+                <p class="field-hint">Leave empty to use “Submit”.</p>
+            </div>
         </div>
 
         <!-- Widget Buttons -->
@@ -145,6 +155,12 @@ defineProps<{
 
 .color-text {
     flex: 1;
+}
+
+.field-hint {
+    margin: 6px 0 0;
+    font-size: 12px;
+    color: #6b7280;
 }
 
 .checkbox-group {

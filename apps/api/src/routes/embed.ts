@@ -293,6 +293,7 @@ const embedRoutes: FastifyPluginAsync = async (fastify) => {
                             "question_text_size",
                             "answer_font_size",
                             "button_background_color",
+                            "submit_button_text",
                         ])
                         .where("survey_id", "=", survey.id)
                         .executeTakeFirst();
@@ -309,6 +310,7 @@ const embedRoutes: FastifyPluginAsync = async (fastify) => {
                               question_text_size: (displaySettingsRow as any).question_text_size ?? "1em",
                               answer_font_size: (displaySettingsRow as any).answer_font_size ?? "0.875em",
                               button_background_color: (displaySettingsRow as any).button_background_color ?? "#2a44b7",
+                              submit_button_text: (displaySettingsRow as any).submit_button_text ?? null,
                           }
                         : null;
 
