@@ -12,6 +12,7 @@ import { testConnection } from './db/connection';
 import { getRedis } from './redis';
 import corsPlugin from './plugins/cors';
 import jwtPlugin from './plugins/jwt';
+import apiKeyPlugin from './plugins/apiKey';
 import authRoutes from './routes/auth';
 import sitesRoutes from './routes/sites';
 import surveysRoutes from './routes/surveys';
@@ -20,6 +21,8 @@ import userRoutes from './routes/user';
 import embedRoutes from './routes/embed';
 import operationsRoutes from './routes/operations';
 import autocompleteRoutes from './routes/autocomplete';
+import v1Routes from './routes/v1';
+import apiKeysRoutes from './routes/apiKeys';
 
 const PORT = parseInt(process.env.API_PORT || '3000', 10);
 const HOST = process.env.API_HOST || '0.0.0.0';
@@ -41,6 +44,7 @@ const fastify = Fastify({
 // Register plugins
 fastify.register(corsPlugin);
 fastify.register(jwtPlugin);
+fastify.register(apiKeyPlugin);
 
 // Global rate limiting (catch general abuse)
 fastify.register(rateLimit, {
@@ -82,6 +86,8 @@ fastify.register(userRoutes);
 fastify.register(embedRoutes); // Public embed script and event tracking
 fastify.register(operationsRoutes, { prefix: '/api/operations' });
 fastify.register(autocompleteRoutes);
+fastify.register(v1Routes, { prefix: '/api/v1' });
+fastify.register(apiKeysRoutes, { prefix: '/api/keys' });
 
 // When DB/Redis are unreachable, return 503 with a clear message instead of 500
 fastify.setErrorHandler((err, request, reply) => {

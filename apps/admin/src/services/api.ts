@@ -265,4 +265,38 @@ export interface OperationsResponse {
     session_id: string | null;
 }
 
+// API Keys (external /api/v1/ access management)
+export interface ApiKey {
+    id: string;
+    name: string;
+    key_prefix: string;     // e.g. "pfm_sk_live_a1b2" — safe to display
+    scopes: string[];
+    last_used_at: string | null;
+    expires_at: string | null;
+    revoked_at: string | null;
+    created_at: string;
+    key?: string;           // only present immediately after creation
+}
+
+export const apiKeysApi = {
+    async list(): Promise<{ api_keys: ApiKey[] }> {
+        const { data } = await api.get('/api/keys');
+        return data;
+    },
+
+    async create(payload: {
+        name: string;
+        scopes: string[];
+        expires_in_days?: number;
+    }): Promise<{ api_key: ApiKey; warning: string }> {
+        const { data } = await api.post('/api/keys', payload);
+        return data;
+    },
+
+    async revoke(id: string): Promise<{ success: boolean }> {
+        const { data } = await api.delete(`/api/keys/${id}`);
+        return data;
+    },
+};
+
 export default api;

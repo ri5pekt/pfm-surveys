@@ -14,6 +14,7 @@ export interface Database {
     event_dedup: EventDedupTable;
     worker_activity_logs: WorkerActivityLogsTable;
     ip_geolocation_cache: IpGeolocationCacheTable;
+    api_keys: ApiKeysTable;
 }
 
 export interface TenantsTable {
@@ -181,5 +182,18 @@ export interface IpGeolocationCacheTable {
     lookup_count: number;
     first_seen_at: Date;
     last_seen_at: Date;
+    created_at: Date;
+}
+
+export interface ApiKeysTable {
+    id: string;
+    tenant_id: string;
+    name: string;
+    key_hash: string;
+    key_prefix: string;       // e.g. "pfm_sk_live_a1b2c3d4" — safe to display
+    scopes: string[];
+    last_used_at: Date | null;
+    expires_at: Date | null;
+    revoked_at: Date | null;
     created_at: Date;
 }

@@ -60,6 +60,11 @@ const router = createRouter({
                     name: "add-site",
                     component: () => import("../views/AddSiteView.vue"),
                 },
+                {
+                    path: "api-keys",
+                    name: "api-keys",
+                    component: () => import("../views/ApiKeysView.vue"),
+                },
             ],
         },
     ],

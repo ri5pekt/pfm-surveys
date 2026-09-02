@@ -27,6 +27,7 @@
                     <RouterLink to="/" class="nav-link" exact>Surveys</RouterLink>
                     <RouterLink to="/websites" class="nav-link">Websites</RouterLink>
                     <RouterLink to="/team" class="nav-link">Team</RouterLink>
+                    <RouterLink to="/api-keys" class="nav-link">API Keys</RouterLink>
                 </nav>
 
                 <!-- Operations Icon (Dev only) -->
