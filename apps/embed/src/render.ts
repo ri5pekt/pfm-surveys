@@ -181,13 +181,13 @@ export function createSurveyHTML(survey: Survey): string {
     if (showMinimize) {
         absoluteButtons.push(
             `<button type="button" class="pfm-minimize-btn" title="Minimize" style="position: absolute; top: 8px; right: ${
-                showClose ? "38px" : "8px"
-            }; background: none; border: none; color: ${textColor}99; cursor: pointer; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 4px; z-index: 10;"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6.25 L8 10.25 L12 6.25" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
+                showClose ? "38px" : "10px"
+            }; background: none; border: none; color: ${textColor}99; cursor: pointer; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 4px; z-index: 10; line-height: 0;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6.25 L8 10.25 L12 6.25" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
         );
     }
     if (showClose) {
         absoluteButtons.push(
-            `<button type="button" class="pfm-close-btn" title="Close" style="position: absolute; top: 8px; right: 8px; background: none; border: none; font-size: 22px; color: ${textColor}99; cursor: pointer; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 4px; z-index: 10;">&times;</button>`
+            `<button type="button" class="pfm-close-btn" title="Close" style="position: absolute; top: 8px; right: 10px; background: none; border: none; color: ${textColor}99; cursor: pointer; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 4px; z-index: 10; line-height: 0;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4.5 4.5 L11.5 11.5 M11.5 4.5 L4.5 11.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>`
         );
     }
 
@@ -226,8 +226,8 @@ export function createSurveyHTML(survey: Survey): string {
           ">Next</button>
         </div>
       </div>
-      <div class="pfm-survey-minimized" style="display: none; width: 100%; border-radius: ${widgetBorderRadius}; background: transparent; align-items: center; padding: 14px 20px; flex-direction: row; box-sizing: border-box;">
-        <button type="button" class="pfm-expand-btn" style="flex: 1; min-width: 0; text-align: left; background: none; border: none; cursor: pointer; font-size: ${questionTextSize}; color: ${textColor}; padding: 0; padding-right: 64px; font-family: inherit; font-weight: 600; line-height: 1.35;">
+      <div class="pfm-survey-minimized" style="display: none; width: 100%; border-radius: ${widgetBorderRadius}; background: transparent; align-items: center; padding: 10px 10px; flex-direction: row; box-sizing: border-box;">
+        <button type="button" class="pfm-expand-btn" style="flex: 1; min-width: 0; text-align: left; background: none; border: none; cursor: pointer; font-size: ${questionTextSize}; color: ${textColor}; padding: 0; padding-right: 58px; font-family: inherit; font-weight: 600; line-height: 1.35;">
           <span class="pfm-minimized-question-text" style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
         </button>
       </div>
