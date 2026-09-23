@@ -335,13 +335,8 @@ export function createDisplaySurvey(deps: DisplayDeps) {
 
             for (const btn of [toggleBtn, closeBtn]) {
                 if (!btn) continue;
-                if (minimized) {
-                    btn.style.top = "50%";
-                    btn.style.transform = "translateY(-50%)";
-                } else {
-                    btn.style.top = "8px";
-                    btn.style.transform = "";
-                }
+                btn.style.top = minimized ? "10px" : "8px";
+                btn.style.transform = "";
             }
 
             if (toggleBtn) {
