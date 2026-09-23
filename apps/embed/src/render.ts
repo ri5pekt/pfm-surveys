@@ -182,7 +182,7 @@ export function createSurveyHTML(survey: Survey): string {
         absoluteButtons.push(
             `<button type="button" class="pfm-minimize-btn" title="Minimize" style="position: absolute; top: 8px; right: ${
                 showClose ? "38px" : "10px"
-            }; background: none; border: none; color: ${textColor}99; cursor: pointer; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 4px; z-index: 10; line-height: 0;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6.25 L8 10.25 L12 6.25" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
+            }; background: rgba(255, 255, 255, 0.14); border: none; color: ${textColor}; cursor: pointer; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 4px; z-index: 10; line-height: 0;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6.25 L8 10.25 L12 6.25" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
         );
     }
     if (showClose) {
@@ -262,9 +262,9 @@ export function createSurveyHTML(survey: Survey): string {
         from { opacity: 1; transform: translateY(0); }
         to { opacity: 0; transform: translateY(20px); }
       }
-      .pfm-close-btn:hover, .pfm-minimize-btn:hover { background: rgba(255, 255, 255, 0.1) !important; }
-      .pfm-minimize-btn svg { display: block; transition: transform 0.15s ease; }
-      .pfm-minimize-btn.is-collapsed svg { transform: rotate(180deg); }
+      .pfm-close-btn:hover { background: rgba(255, 255, 255, 0.1) !important; }
+      .pfm-minimize-btn:hover { background: rgba(255, 255, 255, 0.24) !important; }
+      .pfm-minimize-btn svg { display: block; }
       .pfm-next-btn:hover, .pfm-submit-btn:hover, .pfm-close-thank-you-btn:hover { opacity: 0.9; }
       .pfm-radio-label:hover, .pfm-checkbox-label:hover { border-color: ${textColor}80 !important; background: rgba(255, 255, 255, 0.05) !important; }
       .pfm-radio-input:checked + span, .pfm-checkbox-label input:checked + span { font-weight: 500; }
