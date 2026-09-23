@@ -20,9 +20,19 @@ export function createDisplaySurvey(deps: DisplayDeps) {
     return function displaySurvey(survey: Survey): void {
         const container = document.createElement("div");
         container.innerHTML = createSurveyHTML(survey);
-        document.body.appendChild(container.firstElementChild!);
+        const widget = container.querySelector(".pfm-survey-container");
+        const widgetStyle = container.querySelector("style");
+        if (widget) document.body.appendChild(widget);
+        if (widgetStyle) {
+            widgetStyle.id = `pfm-survey-style-${survey.id}`;
+            document.head.appendChild(widgetStyle);
+        }
 
         const surveyEl = document.getElementById(`pfm-survey-${survey.id}`)!;
+        const removeSurveyNode = (): void => {
+            surveyEl.remove();
+            document.getElementById(`pfm-survey-style-${survey.id}`)?.remove();
+        };
         const { questions, displaySettings } = survey;
 
         const position = displaySettings?.position ?? "bottom-right";
@@ -238,7 +248,7 @@ export function createDisplaySurvey(deps: DisplayDeps) {
                     closeThankYouBtn.addEventListener("click", () => {
                         surveyEl.style.animation = "pfm-slide-out 0.2s ease-in";
                         setTimeout(() => {
-                            surveyEl.remove();
+                            removeSurveyNode();
                             if (onClose) onClose();
                         }, 200);
                     });
@@ -247,7 +257,7 @@ export function createDisplaySurvey(deps: DisplayDeps) {
                 // No thank you message - close immediately
                 surveyEl.style.animation = "pfm-slide-out 0.2s ease-in";
                 setTimeout(() => {
-                    surveyEl.remove();
+                    removeSurveyNode();
                     if (onClose) onClose();
                 }, 200);
             }
@@ -260,7 +270,7 @@ export function createDisplaySurvey(deps: DisplayDeps) {
             });
             surveyEl.style.animation = "pfm-slide-out 0.2s ease-in";
             setTimeout(() => {
-                surveyEl.remove();
+                removeSurveyNode();
                 if (onClose) onClose();
             }, 200);
         }
@@ -268,7 +278,6 @@ export function createDisplaySurvey(deps: DisplayDeps) {
         function setMinimized(minimized: boolean): void {
             const main = surveyEl.querySelector(".pfm-survey-main") as HTMLElement;
             const minDiv = surveyEl.querySelector(".pfm-survey-minimized") as HTMLElement;
-            const minimizeBtn = surveyEl.querySelector(".pfm-minimize-btn") as HTMLElement;
             const mobile = isMobile();
 
             if (minimized) {
@@ -292,10 +301,7 @@ export function createDisplaySurvey(deps: DisplayDeps) {
                 }
                 main.style.display = "none";
                 minDiv.style.display = "flex";
-                if (minimizeBtn) {
-                    minimizeBtn.classList.add("is-collapsed");
-                    minimizeBtn.title = "Expand";
-                }
+                syncCollapsedChrome(true);
             } else {
                 surveyEl.classList.add("pfm-survey-expanded");
                 surveyEl.classList.remove("pfm-survey-minimized-bar");
@@ -317,9 +323,48 @@ export function createDisplaySurvey(deps: DisplayDeps) {
                 }
                 main.style.display = "block";
                 minDiv.style.display = "none";
-                if (minimizeBtn) {
-                    minimizeBtn.classList.remove("is-collapsed");
-                    minimizeBtn.title = "Minimize";
+                syncCollapsedChrome(false);
+            }
+        }
+
+        function syncCollapsedChrome(minimized: boolean): void {
+            const toggleBtn = surveyEl.querySelector(".pfm-minimize-btn") as HTMLElement | null;
+            const closeBtn = surveyEl.querySelector(".pfm-close-btn") as HTMLElement | null;
+            const questionText = surveyEl.querySelector(".pfm-minimized-question-text") as HTMLElement | null;
+            const chevron = toggleBtn?.querySelector("path");
+
+            for (const btn of [toggleBtn, closeBtn]) {
+                if (!btn) continue;
+                if (minimized) {
+                    btn.style.top = "50%";
+                    btn.style.transform = "translateY(-50%)";
+                } else {
+                    btn.style.top = "8px";
+                    btn.style.transform = "";
+                }
+            }
+
+            if (toggleBtn) {
+                toggleBtn.classList.toggle("is-collapsed", minimized);
+                toggleBtn.title = minimized ? "Expand" : "Minimize";
+            }
+            if (chevron) {
+                chevron.setAttribute("d", minimized ? "M4 9.75 L8 5.75 L12 9.75" : "M4 6.25 L8 10.25 L12 6.25");
+            }
+
+            if (questionText) {
+                if (minimized && isMobile()) {
+                    questionText.style.display = "-webkit-box";
+                    questionText.style.setProperty("-webkit-box-orient", "vertical");
+                    questionText.style.setProperty("-webkit-line-clamp", "2");
+                    questionText.style.overflow = "hidden";
+                    questionText.style.whiteSpace = "normal";
+                } else {
+                    questionText.style.display = "block";
+                    questionText.style.removeProperty("-webkit-box-orient");
+                    questionText.style.removeProperty("-webkit-line-clamp");
+                    questionText.style.overflow = "hidden";
+                    questionText.style.whiteSpace = "nowrap";
                 }
             }
         }

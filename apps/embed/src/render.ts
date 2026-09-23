@@ -182,7 +182,7 @@ export function createSurveyHTML(survey: Survey): string {
         absoluteButtons.push(
             `<button type="button" class="pfm-minimize-btn" title="Minimize" style="position: absolute; top: 8px; right: ${
                 showClose ? "38px" : "8px"
-            }; background: none; border: none; color: ${textColor}99; cursor: pointer; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 4px; z-index: 10;"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 6.5 L8 11 L12.5 6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
+            }; background: none; border: none; color: ${textColor}99; cursor: pointer; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 4px; z-index: 10;"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6.25 L8 10.25 L12 6.25" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
         );
     }
     if (showClose) {
@@ -227,7 +227,7 @@ export function createSurveyHTML(survey: Survey): string {
         </div>
       </div>
       <div class="pfm-survey-minimized" style="display: none; width: 100%; border-radius: ${widgetBorderRadius}; background: transparent; align-items: center; padding: 14px 20px; flex-direction: row; box-sizing: border-box;">
-        <button type="button" class="pfm-expand-btn" style="flex: 1; min-width: 0; text-align: left; background: none; border: none; cursor: pointer; font-size: ${questionTextSize}; color: ${textColor}; padding: 0; padding-right: 50px; font-family: inherit; font-weight: 600; line-height: 1.5;">
+        <button type="button" class="pfm-expand-btn" style="flex: 1; min-width: 0; text-align: left; background: none; border: none; cursor: pointer; font-size: ${questionTextSize}; color: ${textColor}; padding: 0; padding-right: 64px; font-family: inherit; font-weight: 600; line-height: 1.35;">
           <span class="pfm-minimized-question-text" style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
         </button>
       </div>
