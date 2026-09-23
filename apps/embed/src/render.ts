@@ -24,6 +24,11 @@ const POSITION_STYLES: Record<string, string> = {
     center: "top: 50%; left: 50%; transform: translate(-50%, -50%);",
 };
 
+export function formatQuestionLabel(questionText: string): string {
+    const trimmed = questionText.trim();
+    return /^question:/i.test(trimmed) ? trimmed : `Question: ${trimmed}`;
+}
+
 export function renderQuestionHTML(
     question: Question,
     textColor: string = "#ffffff",
@@ -33,7 +38,7 @@ export function renderQuestionHTML(
     let html = `
     <div class="pfm-question" data-question-id="${question.id}" style="margin-bottom: 16px;">
       <label class="pfm-question-label" style="display: block; margin-bottom: 16px; padding-right: 50px; font-size: ${questionTextSize}; font-weight: 600; color: ${textColor}; line-height: 1.5;">
-        ${escapeHtml(question.question_text)}
+        ${escapeHtml(formatQuestionLabel(question.question_text))}
       </label>
   `;
 
@@ -228,7 +233,7 @@ export function createSurveyHTML(survey: Survey): string {
       </div>
       <div class="pfm-survey-minimized" style="display: none; width: 100%; border-radius: ${widgetBorderRadius}; background: transparent; align-items: center; padding: 10px 10px; flex-direction: row; box-sizing: border-box;">
         <button type="button" class="pfm-expand-btn" style="flex: 1; min-width: 0; text-align: left; background: none; border: none; cursor: pointer; font-size: ${questionTextSize}; color: ${textColor}; padding: 0; padding-right: 58px; font-family: inherit; font-weight: 600; line-height: 1.35;">
-          <span class="pfm-minimized-question-text" style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
+          <span class="pfm-minimized-question-text" style="display: block; white-space: normal; overflow: visible;"></span>
         </button>
       </div>
       ${

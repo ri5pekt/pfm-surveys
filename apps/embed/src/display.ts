@@ -3,7 +3,7 @@
  */
 
 import { getDevice, markSurveyShown, SESSION_SHOWN_KEY } from "./utils";
-import { createSurveyHTML, renderQuestionHTML, getCurrentAnswer, setCurrentAnswer, POSITION_STYLES } from "./render";
+import { createSurveyHTML, renderQuestionHTML, formatQuestionLabel, getCurrentAnswer, setCurrentAnswer, POSITION_STYLES } from "./render";
 import type { Survey } from "./types";
 import type { QueueEventFn } from "./events";
 import { logger } from "./logger";
@@ -94,7 +94,7 @@ export function createDisplaySurvey(deps: DisplayDeps) {
             footer.appendChild(btn);
 
             const minimizedText = surveyEl.querySelector(".pfm-minimized-question-text");
-            if (minimizedText) minimizedText.textContent = question.question_text;
+            if (minimizedText) minimizedText.textContent = formatQuestionLabel(question.question_text);
 
             // Radio: show/hide comment fields based on selection
             if (question.question_type === "radio") {
@@ -353,19 +353,12 @@ export function createDisplaySurvey(deps: DisplayDeps) {
             }
 
             if (questionText) {
-                if (minimized && isMobile()) {
-                    questionText.style.display = "-webkit-box";
-                    questionText.style.setProperty("-webkit-box-orient", "vertical");
-                    questionText.style.setProperty("-webkit-line-clamp", "2");
-                    questionText.style.overflow = "hidden";
-                    questionText.style.whiteSpace = "normal";
-                } else {
-                    questionText.style.display = "block";
-                    questionText.style.removeProperty("-webkit-box-orient");
-                    questionText.style.removeProperty("-webkit-line-clamp");
-                    questionText.style.overflow = "hidden";
-                    questionText.style.whiteSpace = "nowrap";
-                }
+                questionText.style.display = "block";
+                questionText.style.removeProperty("-webkit-box-orient");
+                questionText.style.removeProperty("-webkit-line-clamp");
+                questionText.style.overflow = "visible";
+                questionText.style.whiteSpace = "normal";
+                questionText.style.textOverflow = "clip";
             }
         }
 
