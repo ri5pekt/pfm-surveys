@@ -292,7 +292,10 @@ export function createDisplaySurvey(deps: DisplayDeps) {
                 }
                 main.style.display = "none";
                 minDiv.style.display = "flex";
-                if (minimizeBtn) minimizeBtn.textContent = "+";
+                if (minimizeBtn) {
+                    minimizeBtn.classList.add("is-collapsed");
+                    minimizeBtn.title = "Expand";
+                }
             } else {
                 surveyEl.classList.add("pfm-survey-expanded");
                 surveyEl.classList.remove("pfm-survey-minimized-bar");
@@ -314,7 +317,10 @@ export function createDisplaySurvey(deps: DisplayDeps) {
                 }
                 main.style.display = "block";
                 minDiv.style.display = "none";
-                if (minimizeBtn) minimizeBtn.textContent = "−";
+                if (minimizeBtn) {
+                    minimizeBtn.classList.remove("is-collapsed");
+                    minimizeBtn.title = "Minimize";
+                }
             }
         }
 
