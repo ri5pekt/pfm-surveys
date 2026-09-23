@@ -2,7 +2,7 @@
  * Display survey widget and handle one-question-at-a-time flow.
  */
 
-import { markSurveyShown, SESSION_SHOWN_KEY } from "./utils";
+import { getDevice, markSurveyShown, SESSION_SHOWN_KEY } from "./utils";
 import { createSurveyHTML, renderQuestionHTML, getCurrentAnswer, setCurrentAnswer, POSITION_STYLES } from "./render";
 import type { Survey } from "./types";
 import type { QueueEventFn } from "./events";
@@ -45,8 +45,14 @@ export function createDisplaySurvey(deps: DisplayDeps) {
         };
         const widgetBg = hexToRgba(widgetBgColor, widgetBgOpacity);
 
-        // Mobile detection
-        const isMobile = (): boolean => window.innerWidth < 768;
+        // Phone-sized viewport, or a phone user agent (covers device-mode toggles).
+        const isMobile = (): boolean =>
+            window.matchMedia("(max-width: 767px)").matches ||
+            window.innerWidth < 768 ||
+            document.documentElement.clientWidth < 768 ||
+            getDevice() === "Mobile";
+
+        let userExpanded = false;
 
         // Apply mobile styles immediately if on mobile
         if (isMobile()) {
@@ -315,9 +321,17 @@ export function createDisplaySurvey(deps: DisplayDeps) {
         showQuestion(0);
 
         // Mobile opens as the question bar. Visitors expand it to answer.
-        if (isMobile()) {
+        // Also re-check after layout and when DevTools switches into a phone size,
+        // unless the visitor has already opened the survey themselves.
+        const collapseIfMobile = (): void => {
+            if (userExpanded || !isMobile()) return;
+            if (surveyEl.classList.contains("pfm-survey-minimized-bar")) return;
             setMinimized(true);
-        }
+        };
+        collapseIfMobile();
+        requestAnimationFrame(collapseIfMobile);
+        window.addEventListener("resize", collapseIfMobile);
+        window.matchMedia("(max-width: 767px)").addEventListener("change", collapseIfMobile);
 
         logger.log(`[PFM Surveys] ✓ Survey "${survey.name}" displayed (impression tracked)`);
         queueEvent("impression", { survey_id: survey.id });
@@ -338,6 +352,7 @@ export function createDisplaySurvey(deps: DisplayDeps) {
                 const isMinimized = surveyEl.classList.contains("pfm-survey-minimized-bar");
                 if (isMinimized) {
                     logger.log(`[PFM Surveys] Survey "${survey.name}" expanded by user`);
+                    userExpanded = true;
                     setMinimized(false);
                 } else {
                     logger.log(`[PFM Surveys] Survey "${survey.name}" minimized by user`);
@@ -349,7 +364,10 @@ export function createDisplaySurvey(deps: DisplayDeps) {
 
         const expandBtn = surveyEl.querySelector(".pfm-expand-btn");
         if (expandBtn) {
-            expandBtn.addEventListener("click", () => setMinimized(false));
+            expandBtn.addEventListener("click", () => {
+                userExpanded = true;
+                setMinimized(false);
+            });
         }
 
         if (survey.displaySettings?.auto_close_ms) {

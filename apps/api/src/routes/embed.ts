@@ -186,7 +186,7 @@ const embedRoutes: FastifyPluginAsync = async (fastify) => {
 
         reply
             .header("Content-Type", "application/javascript")
-            .header("Cache-Control", "public, max-age=300, stale-while-revalidate=60") // 5-min cache in production
+            .header("Cache-Control", "public, max-age=60, must-revalidate")
             .send(script);
     });
 
