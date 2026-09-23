@@ -314,6 +314,11 @@ export function createDisplaySurvey(deps: DisplayDeps) {
 
         showQuestion(0);
 
+        // Mobile opens as the question bar. Visitors expand it to answer.
+        if (isMobile()) {
+            setMinimized(true);
+        }
+
         logger.log(`[PFM Surveys] ✓ Survey "${survey.name}" displayed (impression tracked)`);
         queueEvent("impression", { survey_id: survey.id });
         markSurveyShown(survey.id, siteId);
