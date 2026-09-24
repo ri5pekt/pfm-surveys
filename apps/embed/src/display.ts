@@ -85,13 +85,35 @@ export function createDisplaySurvey(deps: DisplayDeps) {
 
             const isLast = index === questions.length - 1;
             footer.innerHTML = "";
+            footer.classList.remove("is-invalid");
+            const validation = document.createElement("p");
+            validation.className = "pfm-validation-msg";
+            validation.setAttribute("role", "alert");
             const btn = document.createElement("button");
             btn.type = "button";
             btn.className = isLast ? "pfm-submit-btn" : "pfm-next-btn";
             const submitLabel = (displaySettings?.submit_button_text || "").trim() || "Submit";
             btn.textContent = isLast ? submitLabel : "Next";
             btn.style.cssText = `width: 100%; padding: 12px; background: ${buttonBgColor}; color: ${textColor}; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s;`;
+            footer.appendChild(validation);
             footer.appendChild(btn);
+
+            const showValidation = (message: string): void => {
+                footer.classList.add("is-invalid");
+                validation.textContent = message;
+                surveyEl.querySelector(".pfm-question")?.classList.add("pfm-invalid");
+                validation.style.animation = "none";
+                void validation.offsetWidth;
+                validation.style.animation = "";
+            };
+            const clearValidation = (): void => {
+                footer.classList.remove("is-invalid");
+                validation.textContent = "";
+                surveyEl.querySelector(".pfm-question")?.classList.remove("pfm-invalid");
+                surveyEl.querySelectorAll(".pfm-comment-field.is-invalid").forEach((el) => {
+                    el.classList.remove("is-invalid");
+                });
+            };
 
             const minimizedText = surveyEl.querySelector(".pfm-minimized-question-text");
             if (minimizedText) minimizedText.textContent = formatQuestionLabel(question.question_text);
@@ -103,6 +125,7 @@ export function createDisplaySurvey(deps: DisplayDeps) {
                 );
                 radioInputs.forEach((radio) => {
                     radio.addEventListener("change", () => {
+                        clearValidation();
                         // Hide all comment fields for this question
                         surveyEl.querySelectorAll(`.pfm-comment-field`).forEach((cf) => {
                             const cfEl = cf as HTMLElement;
@@ -121,11 +144,29 @@ export function createDisplaySurvey(deps: DisplayDeps) {
                         }
                     });
                 });
+                surveyEl.querySelectorAll<HTMLTextAreaElement>(".pfm-comment-field textarea").forEach((field) => {
+                    field.addEventListener("input", () => clearValidation());
+                });
+            }
+
+            if (question.question_type === "checkbox") {
+                surveyEl
+                    .querySelectorAll<HTMLInputElement>(`input[name="question_${question.id}"]`)
+                    .forEach((input) => {
+                        input.addEventListener("change", () => clearValidation());
+                    });
+            }
+
+            if (question.question_type === "text") {
+                surveyEl
+                    .querySelector<HTMLTextAreaElement>(`textarea[name="question_${question.id}"]`)
+                    ?.addEventListener("input", () => clearValidation());
             }
 
             if (question.question_type === "rating") {
                 surveyEl.querySelectorAll(".pfm-rating-btn").forEach((btnEl) => {
                     btnEl.addEventListener("click", () => {
+                        clearValidation();
                         const qId = (btnEl as HTMLElement).dataset.question!;
                         const val = (btnEl as HTMLElement).dataset.value!;
                         const hidden = surveyEl.querySelector<HTMLInputElement>(
@@ -146,7 +187,16 @@ export function createDisplaySurvey(deps: DisplayDeps) {
                 const required = currentQuestion.required;
                 const empty = value === null || value === "" || (Array.isArray(value) && value.length === 0);
 
-                if (required && empty) return;
+                if (required && empty) {
+                    const message =
+                        currentQuestion.question_type === "text"
+                            ? "Please enter an answer"
+                            : currentQuestion.question_type === "rating"
+                              ? "Please select a rating"
+                              : "Please select an answer";
+                    showValidation(message);
+                    return;
+                }
 
                 // Radio: validate comment requirement
                 if (currentQuestion.question_type === "radio" && value) {
@@ -158,8 +208,8 @@ export function createDisplaySurvey(deps: DisplayDeps) {
                         );
                         const commentText = commentField?.value?.trim() || "";
                         if (!commentText) {
-                            // Show a brief validation message
-                            alert("Please enter a comment for your selection.");
+                            showValidation("Please enter a comment");
+                            commentField?.closest(".pfm-comment-field")?.classList.add("is-invalid");
                             return;
                         }
                     }

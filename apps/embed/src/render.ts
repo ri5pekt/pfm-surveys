@@ -277,6 +277,30 @@ export function createSurveyHTML(survey: Survey): string {
       textarea:focus { outline: none; border-color: ${textColor}80; }
       .pfm-rating-btn:hover { border-color: ${buttonBgColor} !important; color: ${buttonBgColor} !important; }
       .pfm-rating-btn.selected { background: ${buttonBgColor} !important; color: ${textColor} !important; border-color: ${buttonBgColor} !important; }
+      .pfm-validation-msg {
+        display: none;
+        margin: 0 0 10px 0;
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 1.4;
+        color: #ffb4ab;
+      }
+      .pfm-survey-footer.is-invalid .pfm-validation-msg { display: block; animation: pfm-shake 0.35s ease; }
+      .pfm-question.pfm-invalid .pfm-radio-label,
+      .pfm-question.pfm-invalid .pfm-radio-label:hover,
+      .pfm-question.pfm-invalid .pfm-checkbox-label,
+      .pfm-question.pfm-invalid .pfm-checkbox-label:hover,
+      .pfm-question.pfm-invalid .pfm-rating-btn,
+      .pfm-question.pfm-invalid .pfm-rating-btn:hover,
+      .pfm-question.pfm-invalid textarea,
+      .pfm-comment-field.is-invalid textarea {
+        border-color: #ff8a80 !important;
+      }
+      @keyframes pfm-shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-3px); }
+        75% { transform: translateX(3px); }
+      }
 
       /* Mobile styles: full width, flush with edges, no shadow */
       @media (max-width: 767px) {
