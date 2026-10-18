@@ -8,6 +8,18 @@ import type { Survey } from "./types";
 import type { QueueEventFn } from "./events";
 import { logger } from "./logger";
 
+/** When the comment box belongs to the last answer, bring it into the scrolling list. */
+function scrollLastCommentIntoView(commentDiv: HTMLElement): void {
+    const answers = commentDiv.closest(".pfm-answers");
+    if (!(answers instanceof HTMLElement)) return;
+    if (commentDiv.parentElement !== answers.lastElementChild) return;
+    const scrollToEnd = (): void => {
+        answers.scrollTop = answers.scrollHeight;
+    };
+    scrollToEnd();
+    requestAnimationFrame(scrollToEnd);
+}
+
 interface DisplayDeps {
     queueEvent: QueueEventFn;
     siteId: string;
@@ -140,7 +152,10 @@ export function createDisplaySurvey(deps: DisplayDeps) {
                             const commentDiv = surveyEl.querySelector(
                                 `.pfm-comment-field[data-option-id="${radio.value}"]`
                             ) as HTMLElement | null;
-                            if (commentDiv) commentDiv.style.display = "block";
+                            if (commentDiv) {
+                                commentDiv.style.display = "block";
+                                scrollLastCommentIntoView(commentDiv);
+                            }
                         }
                     });
                 });
