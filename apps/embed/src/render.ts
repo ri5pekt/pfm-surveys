@@ -306,6 +306,31 @@ export function createSurveyHTML(survey: Survey): string {
         max-height: calc(100vh - 180px);
         max-height: calc(100dvh - 180px);
       }
+      @media (min-width: 768px) {
+        #pfm-survey-${survey.id}.pfm-survey-expanded .pfm-answers {
+          scrollbar-width: thin;
+          scrollbar-color: ${textColor}66 transparent;
+          padding-right: 6px;
+        }
+        #pfm-survey-${survey.id}.pfm-survey-expanded .pfm-answers::-webkit-scrollbar {
+          width: 10px;
+        }
+        #pfm-survey-${survey.id}.pfm-survey-expanded .pfm-answers::-webkit-scrollbar-track {
+          background: transparent;
+          margin: 4px 0;
+        }
+        #pfm-survey-${survey.id}.pfm-survey-expanded .pfm-answers::-webkit-scrollbar-thumb {
+          background-color: ${textColor}59;
+          border-radius: 999px;
+          border: 2px solid transparent;
+          background-clip: padding-box;
+        }
+        #pfm-survey-${survey.id}.pfm-survey-expanded .pfm-answers::-webkit-scrollbar-thumb:hover {
+          background-color: ${textColor}8c;
+          border: 2px solid transparent;
+          background-clip: padding-box;
+        }
+      }
       .pfm-close-btn:hover { background: rgba(255, 255, 255, 0.1) !important; }
       .pfm-minimize-btn:hover { background: rgba(255, 255, 255, 0.24) !important; }
       .pfm-minimize-btn svg { display: block; }
