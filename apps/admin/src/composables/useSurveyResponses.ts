@@ -7,7 +7,17 @@ import type { ResponseSummary, ResponseRow, SurveyQuestion } from "../types";
  * Handles survey details, metrics, question data, and paginated responses.
  * When selectedQuestionId is provided, responses are filtered to that question.
  */
-export function useSurveyResponses(surveyId: Ref<string>, selectedQuestionId?: Ref<string | null>) {
+export interface ResponseDateFilter {
+    from: string;
+    to: string;
+    timezone: string;
+}
+
+export function useSurveyResponses(
+    surveyId: Ref<string>,
+    selectedQuestionId?: Ref<string | null>,
+    dateFilter?: Ref<ResponseDateFilter | null>
+) {
     // State
     const loading = ref(true);
     const loadingResponses = ref(false);
@@ -40,17 +50,26 @@ export function useSurveyResponses(surveyId: Ref<string>, selectedQuestionId?: R
         }
     }
 
+    function responseListParams(page: number, limit: number) {
+        const questionId = selectedQuestionId?.value ?? undefined;
+        const range = dateFilter?.value;
+        return {
+            page,
+            limit,
+            ...(questionId ? { question_id: questionId } : {}),
+            ...(range ? { from_date: range.from, to_date: range.to, timezone: range.timezone } : {}),
+        };
+    }
+
     // Fetch all aggregated data (metrics + question summaries)
     async function fetchAllData() {
         if (!surveyId.value) return;
         try {
             // First fetch responses to get pagination data (optionally for one question)
-            const questionId = selectedQuestionId?.value ?? undefined;
-            const responsesResp = await surveysApi.getResponses(surveyId.value, {
-                page: currentPage.value,
-                limit: pageSize.value,
-                ...(questionId ? { question_id: questionId } : {}),
-            });
+            const responsesResp = await surveysApi.getResponses(
+                surveyId.value,
+                responseListParams(currentPage.value, pageSize.value)
+            );
             allResponsesData.value = responsesResp.responses || [];
             totalResponsesCount.value = responsesResp.total || 0;
 
@@ -86,12 +105,10 @@ export function useSurveyResponses(surveyId: Ref<string>, selectedQuestionId?: R
         if (!surveyId.value) return;
         loadingResponses.value = true;
         try {
-            const questionId = selectedQuestionId?.value ?? undefined;
-            const responsesResp = await surveysApi.getResponses(surveyId.value, {
-                page: currentPage.value,
-                limit: pageSize.value,
-                ...(questionId ? { question_id: questionId } : {}),
-            });
+            const responsesResp = await surveysApi.getResponses(
+                surveyId.value,
+                responseListParams(currentPage.value, pageSize.value)
+            );
             allResponsesData.value = responsesResp.responses || [];
             totalResponsesCount.value = responsesResp.total || 0;
         } catch (e) {

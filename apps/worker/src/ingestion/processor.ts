@@ -197,6 +197,10 @@ export async function processIngestionJob(job: Job<IngestJobData>): Promise<void
                     event_type: ev.event_type,
                     survey_id: ev.survey_id,
                     processed_at: new Date(),
+                    // Already sent by the embed on every event. Persisted here so impressions
+                    // keep the page and device; answer rows still store their own copy.
+                    page_url: ev.page_url ?? null,
+                    device: ev.device ?? null,
                 })
                 .onConflict((oc) => oc.column("event_uid").doNothing())
                 .returning(["event_uid"])

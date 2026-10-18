@@ -11,53 +11,81 @@
         <div v-if="loading" class="loading">Loading...</div>
 
         <template v-else>
-            <!-- Interaction Metrics -->
-            <ResponseMetricsCards :metrics="overallMetrics" />
-
-            <!-- Survey action bar -->
-            <div class="survey-actions">
-                <RouterLink :to="{ name: 'survey-edit', params: { id: surveyId } }" class="action-btn">
-                    Edit Survey
-                </RouterLink>
-                <button type="button" class="action-btn" @click="showExportModal = true">
-                    <span class="action-btn-icon">↓</span> Export Responses
+            <div class="stats-tabs" role="tablist">
+                <button type="button" role="tab" :class="{ active: activeTab === 'overview' }" @click="setTab('overview')">
+                    Overview
+                </button>
+                <button type="button" role="tab" :class="{ active: activeTab === 'daily' }" @click="setTab('daily')">
+                    Daily breakdown
+                </button>
+                <button type="button" role="tab" :class="{ active: activeTab === 'individual' }" @click="setTab('individual')">
+                    Individual responses
                 </button>
             </div>
 
-            <!-- Questions - Loop through all questions -->
-            <QuestionSummaryCard
-                v-for="(question, qIndex) in questions"
-                :key="question.id"
-                :question="question"
-                :index="qIndex"
-                :data="questionData[question.id]"
-                :pie-chart-data="getPieData(question)"
-                :selected-for-responses-table="selectedQuestionIdForResponses === question.id"
-                @toggle-expanded="toggleShowAllBars"
-                @show-individual-responses="showIndividualResponsesForQuestion"
+            <div v-show="activeTab === 'overview'">
+                <ResponseMetricsCards :metrics="overallMetrics" />
+
+                <div class="survey-actions">
+                    <RouterLink :to="{ name: 'survey-edit', params: { id: surveyId } }" class="action-btn">
+                        Edit Survey
+                    </RouterLink>
+                    <button type="button" class="action-btn" @click="openExportFromOverview">
+                        <span class="action-btn-icon">↓</span> Export Responses
+                    </button>
+                </div>
+
+                <QuestionSummaryCard
+                    v-for="(question, qIndex) in questions"
+                    :key="question.id"
+                    :question="question"
+                    :index="qIndex"
+                    :data="questionData[question.id]"
+                    :pie-chart-data="getPieData(question)"
+                    :selected-for-responses-table="selectedQuestionIdForResponses === question.id"
+                    @toggle-expanded="toggleShowAllBars"
+                    @show-individual-responses="showIndividualResponsesForQuestion"
+                />
+            </div>
+
+            <DailyBreakdownPanel
+                v-if="dailyMounted"
+                v-show="activeTab === 'daily'"
+                :survey-id="surveyId"
+                :survey-name="surveyDetail?.survey?.name ?? 'survey'"
+                :questions="questions"
+                :question-id="dailyQuestionId"
+                @update:question-id="dailyQuestionId = $event"
+                @open-day="openDayResponses"
+                @export="openExportFromDaily"
             />
 
-            <!-- Individual responses table -->
-            <ResponsesTable
-                :responses="allResponses"
-                :selected-ids="selectedIds"
-                :is-all-selected="isAllSelected"
-                :is-some-selected="isSomeSelected"
-                :loading-responses="loadingResponses"
-                :open-menu-id="openMenuId"
-                v-model:current-page="currentPage"
-                v-model:page-size="pageSize"
-                :total="totalResponsesCount"
-                :total-pages="totalPages"
-                @toggle-select="toggleSelect"
-                @toggle-select-all="toggleSelectAll"
-                @bulk-delete="confirmBulkDelete"
-                @view-response="openViewResponseWithSession"
-                @toggle-menu="toggleRowMenu"
-                @close-menu="openMenuId = null"
-                @copy-answer="copyAnswer"
-                @delete-one="openDeleteOneDialog"
-            />
+            <div v-show="activeTab === 'individual'">
+                <div v-if="dayFilter" class="day-filter-banner">
+                    Showing responses for {{ formatDayLabel(dayFilter.from) }}
+                    <button type="button" @click="clearDayFilter">Show all days</button>
+                </div>
+                <ResponsesTable
+                    :responses="allResponses"
+                    :selected-ids="selectedIds"
+                    :is-all-selected="isAllSelected"
+                    :is-some-selected="isSomeSelected"
+                    :loading-responses="loadingResponses"
+                    :open-menu-id="openMenuId"
+                    v-model:current-page="currentPage"
+                    v-model:page-size="pageSize"
+                    :total="totalResponsesCount"
+                    :total-pages="totalPages"
+                    @toggle-select="toggleSelect"
+                    @toggle-select-all="toggleSelectAll"
+                    @bulk-delete="confirmBulkDelete"
+                    @view-response="openViewResponseWithSession"
+                    @toggle-menu="toggleRowMenu"
+                    @close-menu="openMenuId = null"
+                    @copy-answer="copyAnswer"
+                    @delete-one="openDeleteOneDialog"
+                />
+            </div>
         </template>
 
         <!-- View response modal -->
@@ -69,6 +97,11 @@
             :survey-id="surveyId"
             :survey-name="surveyDetail?.survey?.name ?? 'survey'"
             :questions="questions"
+            :initial-layout="exportInitial.layout"
+            :initial-range="exportInitial.range"
+            :initial-from="exportInitial.from"
+            :initial-to="exportInitial.to"
+            :initial-question-id="exportInitial.questionId"
             @close="showExportModal = false"
         />
 
@@ -92,7 +125,7 @@
 
 <script setup lang="ts">
 import { computed, watch, onMounted, onUnmounted, ref } from "vue";
-import { useRoute, RouterLink } from "vue-router";
+import { useRoute, useRouter, RouterLink } from "vue-router";
 import Dialog from "primevue/dialog";
 import { surveysApi } from "../services/api";
 import ResponseMetricsCards from "../components/ResponseMetricsCards.vue";
@@ -100,7 +133,9 @@ import QuestionSummaryCard from "../components/QuestionSummaryCard.vue";
 import ViewResponseDialog from "../components/ViewResponseDialog.vue";
 import ResponsesTable from "../components/ResponsesTable.vue";
 import ExportResponsesModal from "../components/ExportResponsesModal.vue";
-import { useSurveyResponses } from "../composables/useSurveyResponses";
+import DailyBreakdownPanel from "../components/DailyBreakdownPanel.vue";
+import { useSurveyResponses, type ResponseDateFilter } from "../composables/useSurveyResponses";
+import { browserTimeZone, formatDayLabel } from "../utils/dailySummary";
 import { useResponseSelection } from "../composables/useResponseSelection";
 import { useResponseDialog } from "../composables/useResponseDialog";
 import { useChartData } from "../composables/useChartData";
@@ -108,10 +143,28 @@ import { useResponseFormatters } from "../composables/useResponseFormatters";
 import type { ResponseRow } from "../types";
 
 const route = useRoute();
+const router = useRouter();
 const surveyId = computed(() => route.params.id as string);
+
+type StatsTab = "overview" | "daily" | "individual";
+const activeTab = computed<StatsTab>(() => {
+    const value = route.query.tab;
+    if (value === "daily" || value === "individual") return value;
+    return "overview";
+});
+const dailyMounted = ref(activeTab.value === "daily");
+
+function setTab(next: StatsTab) {
+    const query = { ...route.query };
+    if (next === "overview") delete query.tab;
+    else query.tab = next;
+    router.replace({ query });
+}
 
 // Which question's responses are shown in the Individual responses table (default: first question)
 const selectedQuestionIdForResponses = ref<string | null>(null);
+const dailyQuestionId = ref<string | null>(null);
+const dayFilter = ref<ResponseDateFilter | null>(null);
 
 // Data fetching and state
 const {
@@ -130,10 +183,26 @@ const {
     loadSurvey,
     fetchAllData,
     fetchResponses,
-} = useSurveyResponses(surveyId, selectedQuestionIdForResponses);
+} = useSurveyResponses(surveyId, selectedQuestionIdForResponses, dayFilter);
 
 function showIndividualResponsesForQuestion(questionId: string) {
     selectedQuestionIdForResponses.value = questionId;
+    dayFilter.value = null;
+    currentPage.value = 1;
+    setTab("individual");
+    fetchResponses();
+}
+
+function openDayResponses(date: string) {
+    if (dailyQuestionId.value) selectedQuestionIdForResponses.value = dailyQuestionId.value;
+    dayFilter.value = { from: date, to: date, timezone: browserTimeZone() };
+    currentPage.value = 1;
+    setTab("individual");
+    fetchResponses();
+}
+
+function clearDayFilter() {
+    dayFilter.value = null;
     currentPage.value = 1;
     fetchResponses();
 }
@@ -154,8 +223,32 @@ const { getPieChartData: getPieChartDataFn, toggleShowAllBars } = useChartData()
 // Formatters
 const { copyToClipboard } = useResponseFormatters();
 
-// Export modal
+// Export modal. Overview keeps the original defaults. The daily tab pre-selects a daily summary.
 const showExportModal = ref(false);
+const exportInitial = ref({
+    layout: "individual" as "individual" | "daily" | "both",
+    range: "all" as "all" | "range" | "day",
+    from: "",
+    to: "",
+    questionId: null as string | null,
+});
+
+function openExportFromOverview() {
+    exportInitial.value = { layout: "individual", range: "all", from: "", to: "", questionId: null };
+    showExportModal.value = true;
+}
+
+function openExportFromDaily(range: { from: string; to: string; preset: "7" | "14" | "all" | "custom" }) {
+    const sameDay = range.from && range.from === range.to;
+    exportInitial.value = {
+        layout: "daily",
+        range: range.preset === "all" ? "all" : sameDay ? "day" : "range",
+        from: range.from,
+        to: range.to,
+        questionId: dailyQuestionId.value,
+    };
+    showExportModal.value = true;
+}
 
 // Delete state and logic
 const showDeleteDialog = ref(false);
@@ -238,6 +331,7 @@ onMounted(async () => {
     await loadSurvey();
     if (questions.value.length > 0 && selectedQuestionIdForResponses.value === null) {
         selectedQuestionIdForResponses.value = questions.value[0].id;
+        dailyQuestionId.value = questions.value[0].id;
     }
     await fetchAllData();
     document.addEventListener("click", handleClickOutside);
@@ -250,11 +344,18 @@ onUnmounted(() => {
 // Watchers
 watch(surveyId, async () => {
     selectedQuestionIdForResponses.value = null;
+    dailyQuestionId.value = null;
+    dayFilter.value = null;
     await loadSurvey();
     if (questions.value.length > 0) {
         selectedQuestionIdForResponses.value = questions.value[0].id;
+        dailyQuestionId.value = questions.value[0].id;
     }
     await fetchAllData();
+});
+
+watch(activeTab, (tab) => {
+    if (tab === "daily") dailyMounted.value = true;
 });
 
 watch([currentPage, pageSize], async () => {
@@ -306,6 +407,48 @@ watch([currentPage, pageSize], async () => {
     font-size: 18px;
     font-weight: 500;
     color: #718096;
+}
+
+.stats-tabs {
+    display: flex;
+    gap: 20px;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 20px;
+}
+.stats-tabs button {
+    background: none;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    padding: 10px 2px;
+    margin-bottom: -1px;
+    font-size: 14px;
+    color: #718096;
+    cursor: pointer;
+}
+.stats-tabs button.active {
+    color: #3730a3;
+    border-bottom-color: #4f46e5;
+    font-weight: 600;
+}
+.day-filter-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding: 10px 14px;
+    background: #eef2ff;
+    border-radius: 8px;
+    color: #3730a3;
+    font-size: 14px;
+}
+.day-filter-banner button {
+    border: 0;
+    background: white;
+    color: #3730a3;
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
 }
 /* Survey Action Bar */
 .survey-actions {

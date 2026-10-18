@@ -148,6 +148,8 @@ export interface EventDedupTable {
     event_type: string;
     survey_id: string;
     processed_at: Date;
+    page_url: string | null;
+    device: string | null;
 }
 
 export interface WorkerActivityLogsTable {

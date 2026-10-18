@@ -4,6 +4,7 @@ import { db } from "../db/connection";
 import { z } from "zod";
 import { cleanupSurveyEvents } from "../queues/eventIngestion";
 import { invalidateSurveyCache } from "../redis";
+import { addCalendarDays, getDailyStats, isIsoDate, isValidTimeZone } from "../services/dailyStats";
 
 /** Stopwords for 2-word phrase extraction (open-text answers) */
 const STOPWORDS = new Set(
@@ -555,10 +556,55 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
         }
     );
 
+    // GET /api/surveys/:id/daily — per-day impressions, dismissals, and answer counts
+    fastify.get<{
+        Params: { id: string };
+        Querystring: { question_id?: string; from?: string; to?: string; timezone?: string };
+    }>(
+        "/:id/daily",
+        {
+            onRequest: [fastify.authenticate],
+        },
+        async (request, reply) => {
+            try {
+                const { tenant_id } = request.user as { tenant_id: string };
+                const { id: surveyId } = request.params;
+                const ownership = await ensureSurveyOwnership(surveyId, tenant_id);
+                if (!ownership) {
+                    return reply.status(404).send({ error: "Survey not found" });
+                }
+
+                const timezone = request.query.timezone || "UTC";
+                const result = await getDailyStats({
+                    surveyId,
+                    questionId: request.query.question_id,
+                    from: request.query.from,
+                    to: request.query.to,
+                    timezone,
+                });
+                if ("error" in result) {
+                    return reply.status(result.status).send({ error: result.error });
+                }
+                return reply.send(result);
+            } catch (error) {
+                fastify.log.error(error);
+                return reply.status(500).send({ error: "Internal server error" });
+            }
+        }
+    );
+
     // GET /api/surveys/:id/responses — paginated list with display_label (metadata from responses table)
     fastify.get<{
         Params: { id: string };
-        Querystring: { question_id?: string; page?: string; limit?: string; session_id?: string; from_date?: string; to_date?: string };
+        Querystring: {
+            question_id?: string;
+            page?: string;
+            limit?: string;
+            session_id?: string;
+            from_date?: string;
+            to_date?: string;
+            timezone?: string;
+        };
     }>(
         "/:id/responses",
         {
@@ -568,12 +614,32 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
             try {
                 const { tenant_id } = request.user as { tenant_id: string };
                 const { id: surveyId } = request.params;
-                const { question_id: questionId, page: pageStr, limit: limitStr, session_id: sessionId, from_date: fromDate, to_date: toDate } = request.query;
+                const {
+                    question_id: questionId,
+                    page: pageStr,
+                    limit: limitStr,
+                    session_id: sessionId,
+                    from_date: fromDate,
+                    to_date: toDate,
+                    timezone,
+                } = request.query;
 
                 const ownership = await ensureSurveyOwnership(surveyId, tenant_id);
                 if (!ownership) {
                     return reply.status(404).send({ error: "Survey not found" });
                 }
+
+                // Timezone is optional. Callers that omit it keep the existing UTC day bounds.
+                if (timezone && !isValidTimeZone(timezone)) {
+                    return reply.status(400).send({ error: "Invalid timezone" });
+                }
+                if (timezone && fromDate && !isIsoDate(fromDate)) {
+                    return reply.status(400).send({ error: "from_date must be YYYY-MM-DD" });
+                }
+                if (timezone && toDate && !isIsoDate(toDate)) {
+                    return reply.status(400).send({ error: "to_date must be YYYY-MM-DD" });
+                }
+                const toExclusive = timezone && toDate ? addCalendarDays(toDate, 1) : null;
 
                 const page = Math.max(1, parseInt(pageStr || "1", 10));
                 const limit = Math.min(500, Math.max(1, parseInt(limitStr || "25", 10)));
@@ -584,8 +650,14 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                     .where("responses.survey_id", "=", surveyId)
                     .$if(!!questionId, (q) => q.where("responses.question_id", "=", questionId!))
                     .$if(!!sessionId, (q) => q.where("responses.session_id", "=", sessionId))
-                    .$if(!!fromDate, (q) => q.where("responses.timestamp", ">=", fromDate! + "T00:00:00.000Z"))
-                    .$if(!!toDate, (q) => q.where("responses.timestamp", "<=", toDate! + "T23:59:59.999Z"));
+                    .$if(!!fromDate && !timezone, (q) => q.where("responses.timestamp", ">=", fromDate! + "T00:00:00.000Z"))
+                    .$if(!!toDate && !timezone, (q) => q.where("responses.timestamp", "<=", toDate! + "T23:59:59.999Z"))
+                    .$if(!!fromDate && !!timezone, (q) =>
+                        q.where(sql<boolean>`responses.timestamp >= (${fromDate}::timestamp AT TIME ZONE ${timezone})`)
+                    )
+                    .$if(!!toExclusive && !!timezone, (q) =>
+                        q.where(sql<boolean>`responses.timestamp < (${toExclusive}::timestamp AT TIME ZONE ${timezone})`)
+                    );
 
                 const totalCount = await baseQuery.select(db.fn.countAll().as("count")).executeTakeFirst();
                 const totalNum = Number((totalCount as any)?.count ?? 0);

@@ -19,6 +19,10 @@
                             <input type="radio" v-model="exportMode" value="range" :disabled="exporting" />
                             <span>Custom range</span>
                         </label>
+                        <label class="radio-option">
+                            <input type="radio" v-model="exportMode" value="day" :disabled="exporting" />
+                            <span>Single day</span>
+                        </label>
                     </div>
                 </div>
 
@@ -30,6 +34,30 @@
                     <div class="date-field">
                         <label for="export-to-date">To</label>
                         <input id="export-to-date" type="date" v-model="toDate" :disabled="exporting" />
+                    </div>
+                </div>
+                <div v-else-if="exportMode === 'day'" class="date-range">
+                    <div class="date-field">
+                        <label for="export-single-date">Day</label>
+                        <input id="export-single-date" type="date" v-model="singleDate" :disabled="exporting" />
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <span class="field-label">Layout</span>
+                    <div class="layout-choices">
+                        <button type="button" class="layout-card" :class="{ active: layout === 'individual' }" :disabled="exporting" @click="layout = 'individual'">
+                            <strong>Individual</strong>
+                            <span>One row per response</span>
+                        </button>
+                        <button type="button" class="layout-card" :class="{ active: layout === 'daily' }" :disabled="exporting" @click="layout = 'daily'">
+                            <strong>Daily summary</strong>
+                            <span>One row per day with counts</span>
+                        </button>
+                        <button type="button" class="layout-card" :class="{ active: layout === 'both' }" :disabled="exporting" @click="layout = 'both'">
+                            <strong>Both</strong>
+                            <span>2 sheets / 2 files in a zip</span>
+                        </button>
                     </div>
                 </div>
 
@@ -69,13 +97,47 @@
                     </div>
                 </div>
 
+                <div v-if="previewFilename" class="preview-block">
+                    <div class="field-label">Preview · {{ previewFilename }}</div>
+                    <div v-if="previewLoading" class="preview-note">Building preview…</div>
+                    <div v-else class="preview-scroll">
+                        <table v-if="previewHeaders.length">
+                            <thead>
+                                <tr>
+                                    <th v-for="header in previewHeaders" :key="header">{{ header }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="(row, index) in previewRows" :key="index">
+                                    <td v-for="(cell, cellIndex) in row" :key="cellIndex">{{ cell }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <p v-else class="preview-note">No rows in this range.</p>
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <span class="field-label">Format</span>
+                    <div class="radio-group">
+                        <label class="radio-option">
+                            <input type="radio" v-model="fileFormat" value="csv" :disabled="exporting" />
+                            <span>CSV</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" v-model="fileFormat" value="xlsx" :disabled="exporting" />
+                            <span>Excel (.xlsx)</span>
+                        </label>
+                    </div>
+                </div>
+
                 <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
             </div>
 
             <div class="modal-footer">
                 <button type="button" class="btn-cancel" @click="close" :disabled="exporting">Cancel</button>
-                <button type="button" class="btn-export" @click="runExport" :disabled="exporting">
-                    {{ exporting ? "Exporting…" : "Export CSV" }}
+                <button type="button" class="btn-export" @click="runExport" :disabled="exporting || !canExport">
+                    {{ exporting ? "Exporting…" : exportButtonLabel }}
                 </button>
             </div>
         </div>
@@ -85,31 +147,87 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import type { SurveyQuestion } from "../types";
-import { exportSurveyResponsesCsv } from "../utils/exportSurveyResponsesCsv";
+import { surveysApi } from "../services/api";
+import {
+    buildIndividualTable,
+    downloadBlob,
+    exportSurveyResponsesCsv,
+    individualExportFilename,
+    loadIndividualExport,
+} from "../utils/exportSurveyResponsesCsv";
+import {
+    browserTimeZone,
+    buildDailySummaryTable,
+    dailyExportBasename,
+    filesToZipBlob,
+    rowsToXlsxBlob,
+    statsToSummaryQuestion,
+    toCsv,
+    type SummaryQuestion,
+} from "../utils/dailySummary";
 
 const props = defineProps<{
     visible: boolean;
     surveyId: string;
     surveyName: string;
     questions: SurveyQuestion[];
+    initialLayout?: "individual" | "daily" | "both";
+    initialRange?: "all" | "range" | "day";
+    initialFrom?: string;
+    initialTo?: string;
+    initialQuestionId?: string | null;
 }>();
 
 const emit = defineEmits<{
     close: [];
 }>();
 
-const exportMode = ref<"all" | "range">("all");
+const exportMode = ref<"all" | "range" | "day">("all");
+const layout = ref<"individual" | "daily" | "both">("individual");
+const fileFormat = ref<"csv" | "xlsx">("csv");
 const fromDate = ref("");
 const toDate = ref("");
+const singleDate = ref("");
 const exporting = ref(false);
 const progress = ref(0);
 const progressLabel = ref("");
 const errorMsg = ref("");
 const selectedQuestionIds = ref<string[]>([]);
+const previewHeaders = ref<string[]>([]);
+const previewRows = ref<string[][]>([]);
+const previewFilename = ref("");
+const previewLoading = ref(false);
+let previewToken = 0;
 
-const allQuestionsSelected = computed(
-    () => selectedQuestionIds.value.length === props.questions.length
-);
+const timezone = browserTimeZone();
+
+const allQuestionsSelected = computed(() => selectedQuestionIds.value.length === props.questions.length);
+
+const activeFrom = computed(() => {
+    if (exportMode.value === "day") return singleDate.value;
+    if (exportMode.value === "range") return fromDate.value;
+    return "";
+});
+const activeTo = computed(() => {
+    if (exportMode.value === "day") return singleDate.value;
+    if (exportMode.value === "range") return toDate.value;
+    return "";
+});
+
+const canExport = computed(() => {
+    if (selectedQuestionIds.value.length === 0) return false;
+    if (exportMode.value === "range") return !!fromDate.value && !!toDate.value && fromDate.value <= toDate.value;
+    if (exportMode.value === "day") return !!singleDate.value;
+    return true;
+});
+
+const exportButtonLabel = computed(() => {
+    if (layout.value === "both" && fileFormat.value === "csv") return "Export ZIP";
+    if (layout.value === "both") return "Export Excel";
+    if (layout.value === "daily" && fileFormat.value === "csv") return "Export daily CSV";
+    if (layout.value === "daily") return "Export daily Excel";
+    return fileFormat.value === "csv" ? "Export CSV" : "Export Excel";
+});
 
 function toggleAllQuestions() {
     if (allQuestionsSelected.value) {
@@ -119,22 +237,31 @@ function toggleAllQuestions() {
     }
 }
 
-// Reset state when modal opens
 watch(
     () => props.visible,
     (v) => {
         if (v) {
-            exportMode.value = "all";
-            fromDate.value = "";
-            toDate.value = "";
+            exportMode.value = props.initialRange ?? "all";
+            layout.value = props.initialLayout ?? "individual";
+            fileFormat.value = "csv";
+            fromDate.value = props.initialRange === "range" ? props.initialFrom ?? "" : "";
+            toDate.value = props.initialRange === "range" ? props.initialTo ?? "" : "";
+            singleDate.value = props.initialRange === "day" ? props.initialFrom ?? "" : "";
             exporting.value = false;
             progress.value = 0;
             progressLabel.value = "";
             errorMsg.value = "";
-            selectedQuestionIds.value = props.questions.map((q) => q.id);
+            selectedQuestionIds.value = props.initialQuestionId
+                ? [props.initialQuestionId]
+                : props.questions.map((q) => q.id);
+            refreshPreview();
         }
     }
 );
+
+watch([exportMode, layout, fileFormat, fromDate, toDate, singleDate, selectedQuestionIds], () => {
+    if (props.visible && !exporting.value) refreshPreview();
+}, { deep: true });
 
 function close() {
     if (!exporting.value) {
@@ -142,32 +269,154 @@ function close() {
     }
 }
 
+async function loadDailyQuestions(): Promise<{ questions: SummaryQuestion[]; from: string; to: string }> {
+    const selected = props.questions.filter((question) => selectedQuestionIds.value.includes(question.id));
+    const summaries = await Promise.all(
+        selected.map(async (question, index) => {
+            const stats = await surveysApi.getDailyStats(props.surveyId, {
+                timezone,
+                question_id: question.id,
+                ...(exportMode.value === "all" ? {} : { from: activeFrom.value, to: activeTo.value }),
+            });
+            const number = props.questions.findIndex((item) => item.id === question.id) + 1;
+            return { stats, number, index };
+        })
+    );
+    const from = summaries[0]?.stats.from ?? activeFrom.value;
+    const to = summaries[0]?.stats.to ?? activeTo.value;
+    return {
+        from,
+        to,
+        questions: summaries.map((item) => statsToSummaryQuestion(item.stats, item.number || item.index + 1)),
+    };
+}
+
+async function refreshPreview() {
+    const token = ++previewToken;
+    previewLoading.value = true;
+    try {
+        if (!canExport.value || (layout.value !== "individual" && selectedQuestionIds.value.length === 0)) {
+            previewHeaders.value = [];
+            previewRows.value = [];
+            previewFilename.value = "";
+            return;
+        }
+        if (layout.value === "individual") {
+            const page = await surveysApi.getResponses(props.surveyId, {
+                page: 1,
+                limit: 50,
+                ...(exportMode.value === "all"
+                    ? {}
+                    : { from_date: activeFrom.value, to_date: activeTo.value, timezone }),
+            });
+            const selected = props.questions.filter((question) => selectedQuestionIds.value.includes(question.id));
+            const table = buildIndividualTable(page.responses, props.questions, selected);
+            if (token !== previewToken) return;
+            const filename = individualExportFilename(props.surveyName, fileFormat.value === "xlsx" ? "xlsx" : "csv");
+            previewHeaders.value = table.headers;
+            previewRows.value = table.rows.slice(0, 5);
+            previewFilename.value = filename;
+            return;
+        }
+        const daily = await loadDailyQuestions();
+        if (token !== previewToken) return;
+        const table = buildDailySummaryTable(daily.questions);
+        previewHeaders.value = table.headers;
+        previewRows.value = table.rows.slice(0, 6);
+        const base = dailyExportBasename(props.surveyName, daily.from, daily.to);
+        previewFilename.value = layout.value === "both" && fileFormat.value === "csv" ? `${base}.zip` : `${base}.${fileFormat.value === "xlsx" ? "xlsx" : "csv"}`;
+    } catch (e) {
+        console.error("Preview failed:", e);
+        if (token === previewToken) {
+            previewHeaders.value = [];
+            previewRows.value = [];
+            previewFilename.value = "";
+        }
+    } finally {
+        if (token === previewToken) previewLoading.value = false;
+    }
+}
+
 async function runExport() {
-    if (selectedQuestionIds.value.length === 0) return;
+    if (!canExport.value) return;
 
     errorMsg.value = "";
     exporting.value = true;
     progress.value = 0;
-    progressLabel.value = "Fetching responses…";
+    progressLabel.value = "Preparing export…";
 
     try {
-        const submissionCount = await exportSurveyResponsesCsv({
-            surveyId: props.surveyId,
-            surveyName: props.surveyName,
-            questions: props.questions,
-            questionIds: selectedQuestionIds.value,
-            fromDate: exportMode.value === "range" ? fromDate.value || undefined : undefined,
-            toDate: exportMode.value === "range" ? toDate.value || undefined : undefined,
-            onProgress: (label, percent) => {
-                progressLabel.value = label;
-                progress.value = percent;
-            },
-        });
+        const wantsIndividual = layout.value === "individual" || layout.value === "both";
+        const wantsDaily = layout.value === "daily" || layout.value === "both";
+        const dateArgs = {
+            fromDate: exportMode.value === "all" ? undefined : activeFrom.value,
+            toDate: exportMode.value === "all" ? undefined : activeTo.value,
+            timezone: exportMode.value === "all" ? undefined : timezone,
+        };
 
-        progressLabel.value = `Done! Exported ${submissionCount} responses.`;
-        setTimeout(() => {
-            emit("close");
-        }, 1200);
+        if (layout.value === "individual" && fileFormat.value === "csv") {
+            const submissionCount = await exportSurveyResponsesCsv({
+                surveyId: props.surveyId,
+                surveyName: props.surveyName,
+                questions: props.questions,
+                questionIds: selectedQuestionIds.value,
+                ...dateArgs,
+                onProgress: (label, percent) => {
+                    progressLabel.value = label;
+                    progress.value = percent;
+                },
+            });
+            progressLabel.value = `Done! Exported ${submissionCount} responses.`;
+            setTimeout(() => emit("close"), 1200);
+            return;
+        }
+
+        let individual: Awaited<ReturnType<typeof loadIndividualExport>> | null = null;
+        if (wantsIndividual) {
+            progressLabel.value = "Fetching responses…";
+            individual = await loadIndividualExport({
+                surveyId: props.surveyId,
+                surveyName: props.surveyName,
+                questions: props.questions,
+                questionIds: selectedQuestionIds.value,
+                ...dateArgs,
+                onProgress: (label, percent) => {
+                    progressLabel.value = label;
+                    progress.value = Math.round(percent * 0.6);
+                },
+            });
+        }
+
+        let dailyTable: { headers: string[]; rows: string[][] } | null = null;
+        let dailyName = "daily.csv";
+        if (wantsDaily) {
+            progressLabel.value = "Building daily summary…";
+            const daily = await loadDailyQuestions();
+            dailyTable = buildDailySummaryTable(daily.questions);
+            dailyName = `${dailyExportBasename(props.surveyName, daily.from, daily.to)}.csv`;
+        }
+
+        progressLabel.value = "Preparing download…";
+        if (layout.value === "both" && fileFormat.value === "csv" && individual && dailyTable) {
+            const blob = await filesToZipBlob([
+                { name: individual.filename, content: individual.csvContent },
+                { name: dailyName, content: toCsv(dailyTable.headers, dailyTable.rows) },
+            ]);
+            downloadBlob(dailyName.replace(/\.csv$/, ".zip"), blob);
+        } else if (fileFormat.value === "xlsx") {
+            const sheets = [];
+            if (individual) sheets.push({ name: "Individual", headers: individual.headers, rows: individual.rows });
+            if (dailyTable) sheets.push({ name: "Daily summary", headers: dailyTable.headers, rows: dailyTable.rows });
+            const blob = await rowsToXlsxBlob(sheets);
+            const filename = (dailyTable ? dailyName : individual?.filename ?? "export.csv").replace(/\.csv$/, ".xlsx");
+            downloadBlob(filename, blob);
+        } else if (dailyTable) {
+            downloadBlob(dailyName, new Blob([toCsv(dailyTable.headers, dailyTable.rows)], { type: "text/csv;charset=utf-8;" }));
+        }
+
+        progress.value = 100;
+        progressLabel.value = "Done!";
+        setTimeout(() => emit("close"), 1200);
     } catch (e) {
         console.error("Export failed:", e);
         errorMsg.value = "Export failed. Please try again.";
@@ -193,7 +442,7 @@ async function runExport() {
 .modal-content {
     background: white;
     border-radius: 12px;
-    width: 480px;
+    width: 720px;
     max-width: calc(100vw - 32px);
     max-height: calc(100vh - 64px);
     display: flex;
@@ -495,5 +744,62 @@ async function runExport() {
     margin: 4px 0 0;
     font-size: 12px;
     color: #dd6b20;
+}
+
+.layout-choices {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+.layout-card {
+    text-align: left;
+    border: 1px solid #e2e8f0;
+    background: white;
+    border-radius: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+}
+.layout-card strong {
+    display: block;
+    font-size: 14px;
+    color: #1a202c;
+}
+.layout-card span {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: #718096;
+}
+.layout-card.active {
+    border-color: #4f46e5;
+    background: #eef2ff;
+}
+.preview-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.preview-scroll {
+    overflow: auto;
+    max-height: 180px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+.preview-scroll table {
+    border-collapse: collapse;
+    font-size: 12px;
+    min-width: 100%;
+}
+.preview-scroll th,
+.preview-scroll td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #edf2f7;
+    white-space: nowrap;
+    text-align: left;
+}
+.preview-note {
+    margin: 0;
+    font-size: 13px;
+    color: #718096;
 }
 </style>

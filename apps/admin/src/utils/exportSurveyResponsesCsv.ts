@@ -9,6 +9,8 @@ export interface ExportSurveyCsvOptions {
     questionIds?: string[];
     fromDate?: string;
     toDate?: string;
+    /** When set with a date range, day bounds use this IANA timezone instead of UTC. */
+    timezone?: string;
     onProgress?: (label: string, percent: number) => void;
 }
 
@@ -21,7 +23,10 @@ function escapeCell(v: string | null | undefined): string {
 }
 
 function downloadCsv(filename: string, csvContent: string): void {
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    downloadBlob(filename, new Blob([csvContent], { type: "text/csv;charset=utf-8;" }));
+}
+
+export function downloadBlob(filename: string, blob: Blob): void {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -32,11 +37,11 @@ function downloadCsv(filename: string, csvContent: string): void {
     URL.revokeObjectURL(url);
 }
 
-function buildCsvFromRows(
+export function buildIndividualTable(
     allRows: ResponseRow[],
     allQuestions: SurveyQuestion[],
     exportQuestions: SurveyQuestion[]
-): { csvContent: string; submissionCount: number } {
+): { headers: string[]; rows: string[][]; submissionCount: number } {
     type AnswerRow = ResponseRow;
     const bySession = new Map<string, Map<string, AnswerRow[]>>();
 
@@ -93,11 +98,9 @@ function buildCsvFromRows(
         ...questionHeaders,
     ];
 
-    const csvLines: string[] = [headers.map(escapeCell).join(",")];
-
-    for (const { sid, meta, answers } of submissions) {
+    const rows = submissions.map(({ sid, meta, answers }) => {
         const questionAnswers = exportQuestions.map((q) => answers.get(q.id) ?? "");
-        const cells = [
+        return [
             sid.startsWith("__no_session_") ? "" : sid,
             meta.timestamp ? new Date(meta.timestamp).toLocaleString() : "",
             meta.page_url ?? "",
@@ -110,21 +113,29 @@ function buildCsvFromRows(
             meta.device ?? "",
             ...questionAnswers,
         ];
-        csvLines.push(cells.map(escapeCell).join(","));
-    }
+    });
 
     return {
-        csvContent: "\uFEFF" + csvLines.join("\n"),
+        headers,
+        rows,
         submissionCount: submissions.length,
     };
 }
 
-/**
- * Fetch all responses for a survey and download a CSV file.
- * Returns the number of submission rows written.
- */
-export async function exportSurveyResponsesCsv(options: ExportSurveyCsvOptions): Promise<number> {
-    const { surveyId, surveyName, questions, fromDate, toDate, onProgress } = options;
+export function individualExportFilename(surveyName: string, extension: "csv" | "xlsx" = "csv"): string {
+    const safeName = surveyName.replace(/[^a-z0-9]+/gi, "_").toLowerCase() || "survey";
+    return `${safeName}_responses_${new Date().toISOString().split("T")[0]}.${extension}`;
+}
+
+/** Fetch every response row for an export. Does not download anything. */
+export async function loadIndividualExport(options: ExportSurveyCsvOptions): Promise<{
+    headers: string[];
+    rows: string[][];
+    csvContent: string;
+    submissionCount: number;
+    filename: string;
+}> {
+    const { surveyId, surveyName, questions, fromDate, toDate, timezone, onProgress } = options;
     const selectedIds = options.questionIds ?? questions.map((q) => q.id);
     const exportQuestions = questions.filter((q) => selectedIds.includes(q.id));
 
@@ -136,6 +147,7 @@ export async function exportSurveyResponsesCsv(options: ExportSurveyCsvOptions):
     const dateParams = {
         ...(fromDate ? { from_date: fromDate } : {}),
         ...(toDate ? { to_date: toDate } : {}),
+        ...(timezone && (fromDate || toDate) ? { timezone } : {}),
     };
 
     onProgress?.("Fetching responses…", 0);
@@ -165,19 +177,27 @@ export async function exportSurveyResponsesCsv(options: ExportSurveyCsvOptions):
         );
     }
 
-    onProgress?.("Building CSV…", 82);
+    onProgress?.("Building export…", 82);
+    const table = buildIndividualTable(allRows, questions, exportQuestions);
+    const csvContent = "\uFEFF" + [table.headers, ...table.rows].map((row) => row.map(escapeCell).join(",")).join("\n");
 
-    const { csvContent, submissionCount } = buildCsvFromRows(allRows, questions, exportQuestions);
+    return {
+        ...table,
+        csvContent,
+        filename: individualExportFilename(surveyName, "csv"),
+    };
+}
 
-    onProgress?.("Preparing download…", 95);
-
-    const safeName = surveyName.replace(/[^a-z0-9]+/gi, "_").toLowerCase() || "survey";
-    const filename = `${safeName}_responses_${new Date().toISOString().split("T")[0]}.csv`;
-    downloadCsv(filename, csvContent);
-
-    onProgress?.(`Done! Exported ${submissionCount} responses.`, 100);
-
-    return submissionCount;
+/**
+ * Fetch all responses for a survey and download a CSV file.
+ * Returns the number of submission rows written.
+ */
+export async function exportSurveyResponsesCsv(options: ExportSurveyCsvOptions): Promise<number> {
+    const loaded = await loadIndividualExport(options);
+    options.onProgress?.("Preparing download…", 95);
+    downloadCsv(loaded.filename, loaded.csvContent);
+    options.onProgress?.(`Done! Exported ${loaded.submissionCount} responses.`, 100);
+    return loaded.submissionCount;
 }
 
 /** Small delay so browsers don't coalesce rapid multi-file downloads. */

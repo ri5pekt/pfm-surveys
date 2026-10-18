@@ -96,6 +96,36 @@ export interface ResponseSummary {
     };
 }
 
+export interface DailyStatOption {
+    id: string;
+    option_text: string;
+    order_index: number;
+}
+
+export interface DailyStatDay {
+    date: string;
+    impressions: number;
+    responses: number;
+    response_rate: number;
+    dismissals: number;
+    options: Record<string, number>;
+}
+
+export interface DailyStats {
+    timezone: string;
+    from: string;
+    to: string;
+    truncated: boolean;
+    question: {
+        id: string;
+        question_text: string;
+        question_type: string;
+        order_index: number;
+        options: DailyStatOption[];
+    } | null;
+    days: DailyStatDay[];
+}
+
 export interface ResponseRow {
     id: number;
     question_id: string;
