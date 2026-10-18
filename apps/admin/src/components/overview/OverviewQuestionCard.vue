@@ -62,16 +62,41 @@
                 <span class="num">Count</span>
                 <span v-if="showShift" class="num shift">1st half → 2nd half</span>
             </div>
-            <div v-for="option in question.options" :key="option.id" class="answer-grid">
-                <span class="option-label">{{ option.label }}</span>
-                <div class="track bar">
-                    <div class="fill" :class="{ faded }" :style="{ width: barWidth(option.count) }"></div>
+            <div v-for="option in question.options" :key="option.id" class="option-block">
+                <div class="answer-grid">
+                    <span class="option-label">
+                        <button
+                            v-if="option.comments?.length"
+                            type="button"
+                            class="chevron"
+                            :class="{ open: isOpen(option.id) }"
+                            :aria-expanded="isOpen(option.id)"
+                            :aria-controls="`comments-${option.id}`"
+                            @click="toggle(option.id)"
+                        >
+                            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+                                <path d="M3 5.2 7 9l4-3.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            <span class="sr">{{ isOpen(option.id) ? "Hide" : "Show" }} {{ option.comments.length }} comments</span>
+                        </button>
+                        <span v-else-if="hasComments" class="chevron-gap" aria-hidden="true"></span>
+                        {{ option.label }}
+                    </span>
+                    <div class="track bar">
+                        <div class="fill" :class="{ faded }" :style="{ width: barWidth(option.count) }"></div>
+                    </div>
+                    <span class="num share">{{ option.share }}%</span>
+                    <span class="num count">{{ option.count }}</span>
+                    <span v-if="showShift" class="num shift" :class="{ moved: option.shift }">
+                        {{ option.shift ? shiftLabel(option.shift.from, option.shift.to, option.shift.delta) : "—" }}
+                    </span>
                 </div>
-                <span class="num share">{{ option.share }}%</span>
-                <span class="num count">{{ option.count }}</span>
-                <span v-if="showShift" class="num shift" :class="{ moved: option.shift }">
-                    {{ option.shift ? shiftLabel(option.shift.from, option.shift.to, option.shift.delta) : "—" }}
-                </span>
+                <div v-if="isOpen(option.id)" :id="`comments-${option.id}`" class="comments">
+                    <p v-for="(comment, index) in option.comments" :key="`${option.id}-${index}`" class="comment">
+                        <span>“{{ comment.text }}”</span>
+                        <time>{{ formatNyDateTime(comment.at) }}</time>
+                    </p>
+                </div>
             </div>
         </div>
 
@@ -104,14 +129,26 @@ const devices = [
 ] as const;
 
 const search = ref("");
+const openIds = ref<string[]>([]);
 watch(
-    () => props.questionId,
+    () => [props.questionId, props.device] as const,
     () => {
         search.value = "";
+        openIds.value = [];
     }
 );
 
+function isOpen(id: string): boolean {
+    return openIds.value.includes(id);
+}
+
+function toggle(id: string) {
+    openIds.value = isOpen(id) ? openIds.value.filter((item) => item !== id) : [...openIds.value, id];
+}
+
 const question = computed(() => props.questions.find((item) => item.id === props.questionId) ?? props.questions[0] ?? null);
+
+const hasComments = computed(() => (question.value?.options ?? []).some((option) => (option.comments?.length ?? 0) > 0));
 
 const faded = computed(() => (question.value?.answers ?? 0) < 30);
 
@@ -309,7 +346,74 @@ h2 {
     padding-bottom: 4px;
 }
 .option-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     font-size: 15px;
+    font-weight: 600;
+}
+.chevron,
+.chevron-gap {
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+}
+.chevron {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--ink-2);
+    cursor: pointer;
+}
+.chevron:hover {
+    background: var(--brand-soft);
+    color: var(--brand-ink);
+}
+.chevron svg {
+    transition: transform 0.15s ease;
+}
+.chevron.open svg {
+    transform: rotate(180deg);
+}
+.sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+.comments {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0 0 8px 28px;
+}
+.comment {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0;
+    padding: 8px 12px;
+    border: 1px solid #eceef4;
+    border-radius: 8px;
+    background: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.4;
+}
+.comment time {
+    flex: 0 0 auto;
+    color: var(--muted);
+    font-size: 12px;
     font-weight: 600;
 }
 .num {
@@ -411,6 +515,9 @@ h2 {
     .answer-grid .bar,
     .answer-grid .shift {
         display: none;
+    }
+    .comment {
+        flex-wrap: wrap;
     }
 }
 </style>

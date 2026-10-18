@@ -145,6 +145,7 @@ export interface OverviewOption {
     count: number;
     share: number;
     shift: OverviewShift | null;
+    comments: Array<{ text: string; at: string }>;
 }
 
 export interface OverviewQuestion {

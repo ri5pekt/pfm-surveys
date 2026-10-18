@@ -30,6 +30,7 @@ export interface OverviewOption {
     count: number;
     share: number;
     shift: OverviewShift | null;
+    comments: Array<{ text: string; at: string }>;
 }
 
 export interface OverviewQuestion {
@@ -743,6 +744,7 @@ async function loadLatest(surveyId: string): Promise<OverviewResult["latest"]> {
 interface QuestionBody {
     answers: number;
     counts: Map<string, number>;
+    comments: Map<string, Array<{ text: string; at: string }>>;
     averagePicks?: number;
     answeredShare?: number;
     shifts: Map<string, OverviewShift>;
@@ -777,28 +779,48 @@ async function loadChoiceQuestion(
     const peopleExpr = checkbox
         ? sql`COUNT(DISTINCT COALESCE(session_id, 'row:' || id::text))::int`
         : sql`COUNT(*)::int`;
-    const peopleRow = await sql<{ people: number; picks: number }>`
-        SELECT ${peopleExpr} AS people, COUNT(*)::int AS picks
-        FROM responses
-        WHERE survey_id = ${surveyId}::uuid
-          AND question_id = ${question.id}::uuid
-          AND ${deviceSql(device)}
-    `.execute(db);
+    const [peopleRow, optionRows, commentRows] = await Promise.all([
+        sql<{ people: number; picks: number }>`
+            SELECT ${peopleExpr} AS people, COUNT(*)::int AS picks
+            FROM responses
+            WHERE survey_id = ${surveyId}::uuid
+              AND question_id = ${question.id}::uuid
+              AND ${deviceSql(device)}
+        `.execute(db),
+        sql<{ answer_option_id: string; count: number }>`
+            SELECT answer_option_id, COUNT(*)::int AS count
+            FROM responses
+            WHERE survey_id = ${surveyId}::uuid
+              AND question_id = ${question.id}::uuid
+              AND answer_option_id IS NOT NULL
+              AND ${deviceSql(device)}
+            GROUP BY answer_option_id
+        `.execute(db),
+        sql<{ answer_option_id: string; text: string; at: Date }>`
+            SELECT answer_option_id, btrim(answer_text) AS text, timestamp AS at
+            FROM responses
+            WHERE survey_id = ${surveyId}::uuid
+              AND question_id = ${question.id}::uuid
+              AND answer_option_id IS NOT NULL
+              AND NULLIF(btrim(answer_text), '') IS NOT NULL
+              AND ${deviceSql(device)}
+            ORDER BY timestamp DESC, id DESC
+        `.execute(db),
+    ]);
     const people = asNumber(peopleRow.rows[0]?.people);
     const picks = asNumber(peopleRow.rows[0]?.picks);
-    const optionRows = await sql<{ answer_option_id: string; count: number }>`
-        SELECT answer_option_id, COUNT(*)::int AS count
-        FROM responses
-        WHERE survey_id = ${surveyId}::uuid
-          AND question_id = ${question.id}::uuid
-          AND answer_option_id IS NOT NULL
-          AND ${deviceSql(device)}
-        GROUP BY answer_option_id
-    `.execute(db);
     const counts = new Map(optionRows.rows.map((row) => [String(row.answer_option_id), asNumber(row.count)]));
+    const comments = new Map<string, Array<{ text: string; at: string }>>();
+    for (const row of commentRows.rows) {
+        const id = String(row.answer_option_id);
+        const list = comments.get(id) ?? [];
+        list.push({ text: row.text, at: asIso(row.at) });
+        comments.set(id, list);
+    }
     return {
         answers: people,
         counts,
+        comments,
         averagePicks: checkbox && people > 0 ? Math.round((picks / people) * 10) / 10 : undefined,
         shifts: new Map(),
     };
@@ -882,6 +904,7 @@ async function loadTextQuestion(
     return {
         answers,
         counts: new Map(),
+        comments: new Map(),
         answeredShare: wholePercent(answers, surveyResponses),
         shifts: new Map(),
         latest: latestRows.rows.map((row) => ({
@@ -908,6 +931,7 @@ function mergeOptions(
             count,
             share: wholePercent(count, people),
             shift: shifts?.get(option.id) ?? null,
+            comments: body?.comments.get(option.id) ?? [],
         };
     });
 }
