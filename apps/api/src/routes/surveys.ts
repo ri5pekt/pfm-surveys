@@ -1101,12 +1101,12 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                     // Get existing answer options for each question (for comparing when survey has responses)
                     const existingOptionsByQuestionId = new Map<
                         string,
-                        { option_text: string; order_index: number }[]
+                        { id: string; option_text: string; order_index: number }[]
                     >();
                     for (const eq of existingQuestions) {
                         const options = await db
                             .selectFrom("answer_options")
-                            .select(["option_text", "order_index"])
+                            .select(["id", "option_text", "order_index"])
                             .where("question_id", "=", eq.id)
                             .orderBy("order_index", "asc")
                             .execute();
@@ -1119,6 +1119,19 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                     // Helper: normalize option to text for comparison
                     const optionText = (opt: string | { text?: string } | undefined): string =>
                         opt == null ? "" : typeof opt === "string" ? opt : String(opt?.text ?? "").trim();
+
+                    const optionFlags = (
+                        opt: unknown
+                    ): { requires_comment: boolean; pin_to_bottom: boolean } => {
+                        if (typeof opt !== "object" || !opt) {
+                            return { requires_comment: false, pin_to_bottom: false };
+                        }
+                        const row = opt as { requires_comment?: boolean; pin_to_bottom?: boolean };
+                        return {
+                            requires_comment: row.requires_comment ?? false,
+                            pin_to_bottom: row.pin_to_bottom ?? false,
+                        };
+                    };
 
                     // Update or insert questions
                     for (let i = 0; i < data.questions.length; i++) {
@@ -1181,7 +1194,21 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                                             "This survey has already received responses. Answer options cannot be changed once users have submitted answers. You can create a copy of this survey to make changes.",
                                     });
                                 }
-                                skipOptionInsert = true; // options unchanged, do not re-insert
+                                // Texts stay put so existing answers keep their option ids.
+                                // Comment and pin flags are safe to change on those same rows.
+                                const incomingRaw = Array.isArray(q.options) ? q.options : [];
+                                for (let j = 0; j < existingOpts.length; j++) {
+                                    const flags = optionFlags(incomingRaw[j]);
+                                    await db
+                                        .updateTable("answer_options")
+                                        .set({
+                                            requires_comment: flags.requires_comment,
+                                            pin_to_bottom: flags.pin_to_bottom,
+                                        })
+                                        .where("id", "=", existingOpts[j].id)
+                                        .execute();
+                                }
+                                skipOptionInsert = true;
                             } else {
                                 // No responses: safe to replace options
                                 await db.deleteFrom("answer_options").where("question_id", "=", questionId).execute();
