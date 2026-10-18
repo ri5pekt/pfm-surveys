@@ -1,10 +1,23 @@
 <template>
     <div class="responses-view">
         <div class="header-section">
-            <div class="header-left">
-                <RouterLink to="/" class="back-link">← Back to surveys</RouterLink>
+            <RouterLink to="/" class="back-link">← Back to surveys</RouterLink>
+            <div class="header-row">
                 <h2 v-if="surveyDetail?.survey?.name" class="survey-title">{{ surveyDetail.survey.name }}</h2>
-                <h2 class="response-count">{{ totalResponses }} responses</h2>
+                <div class="header-actions">
+                    <RouterLink :to="{ name: 'survey-edit', params: { id: surveyId } }" class="action-btn">
+                        Edit survey
+                    </RouterLink>
+                    <button type="button" class="action-btn action-btn-primary" @click="openExportFromOverview">
+                        Export
+                    </button>
+                </div>
+            </div>
+            <div v-if="overview" class="header-meta">
+                <span class="status-pill" :class="overview.survey.status">{{ statusLabel }}</span>
+                <span v-if="runLine">{{ runLine }}</span>
+                <span v-if="questionLine">{{ questionLine }}</span>
+                <span v-if="overview.survey.primaryPage">Most answers from {{ overview.survey.primaryPage }}</span>
             </div>
         </div>
 
@@ -24,27 +37,16 @@
             </div>
 
             <div v-show="activeTab === 'overview'">
-                <ResponseMetricsCards :metrics="overallMetrics" />
-
-                <div class="survey-actions">
-                    <RouterLink :to="{ name: 'survey-edit', params: { id: surveyId } }" class="action-btn">
-                        Edit Survey
-                    </RouterLink>
-                    <button type="button" class="action-btn" @click="openExportFromOverview">
-                        <span class="action-btn-icon">↓</span> Export Responses
-                    </button>
-                </div>
-
-                <QuestionSummaryCard
-                    v-for="(question, qIndex) in questions"
-                    :key="question.id"
-                    :question="question"
-                    :index="qIndex"
-                    :data="questionData[question.id]"
-                    :pie-chart-data="getPieData(question)"
-                    :selected-for-responses-table="selectedQuestionIdForResponses === question.id"
-                    @toggle-expanded="toggleShowAllBars"
-                    @show-individual-responses="showIndividualResponsesForQuestion"
+                <StatsOverview
+                    :overview="overview"
+                    :loading="overviewLoading"
+                    :question-id="overviewQuestionId"
+                    :device="overviewDevice"
+                    @device="setOverviewDevice"
+                    @select-question="overviewQuestionId = $event"
+                    @open-responses="showIndividualResponsesForQuestion"
+                    @open-daily="setTab('daily')"
+                    @open-all="showAllResponses"
                 />
             </div>
 
@@ -128,8 +130,7 @@ import { computed, watch, onMounted, onUnmounted, ref } from "vue";
 import { useRoute, useRouter, RouterLink } from "vue-router";
 import Dialog from "primevue/dialog";
 import { surveysApi } from "../services/api";
-import ResponseMetricsCards from "../components/ResponseMetricsCards.vue";
-import QuestionSummaryCard from "../components/QuestionSummaryCard.vue";
+import StatsOverview from "../components/overview/StatsOverview.vue";
 import ViewResponseDialog from "../components/ViewResponseDialog.vue";
 import ResponsesTable from "../components/ResponsesTable.vue";
 import ExportResponsesModal from "../components/ExportResponsesModal.vue";
@@ -138,9 +139,9 @@ import { useSurveyResponses, type ResponseDateFilter } from "../composables/useS
 import { browserTimeZone, formatDayLabel } from "../utils/dailySummary";
 import { useResponseSelection } from "../composables/useResponseSelection";
 import { useResponseDialog } from "../composables/useResponseDialog";
-import { useChartData } from "../composables/useChartData";
 import { useResponseFormatters } from "../composables/useResponseFormatters";
-import type { ResponseRow } from "../types";
+import type { ResponseRow, SurveyOverview } from "../types";
+import { formatMonthDay, formatMonthDayYear } from "../utils/overviewFormat";
 
 const route = useRoute();
 const router = useRouter();
@@ -163,6 +164,10 @@ function setTab(next: StatsTab) {
 
 // Which question's responses are shown in the Individual responses table (default: first question)
 const selectedQuestionIdForResponses = ref<string | null>(null);
+const overview = ref<SurveyOverview | null>(null);
+const overviewLoading = ref(false);
+const overviewDevice = ref<"all" | "mobile" | "desktop" | "tablet">("all");
+const overviewQuestionId = ref<string | null>(null);
 const dailyQuestionId = ref<string | null>(null);
 const dayFilter = ref<ResponseDateFilter | null>(null);
 
@@ -171,19 +176,70 @@ const {
     loading,
     loadingResponses,
     surveyDetail,
-    overallMetrics,
-    questionData,
     allResponsesData,
     totalResponsesCount,
     currentPage,
     pageSize,
     totalPages,
     questions,
-    totalResponses,
     loadSurvey,
     fetchAllData,
     fetchResponses,
 } = useSurveyResponses(surveyId, selectedQuestionIdForResponses, dayFilter);
+
+async function loadOverview() {
+    if (!surveyId.value) return;
+    overviewLoading.value = true;
+    try {
+        overview.value = await surveysApi.getOverview(
+            surveyId.value,
+            overviewDevice.value === "all" ? undefined : overviewDevice.value
+        );
+        if (!overviewQuestionId.value && overview.value.questions[0]) {
+            overviewQuestionId.value = overview.value.questions[0].id;
+        }
+    } catch (error) {
+        console.error("Failed to load overview:", error);
+        overview.value = null;
+    } finally {
+        overviewLoading.value = false;
+    }
+}
+
+function setOverviewDevice(next: "all" | "mobile" | "desktop" | "tablet") {
+    overviewDevice.value = next;
+    loadOverview();
+}
+
+function showAllResponses() {
+    dayFilter.value = null;
+    currentPage.value = 1;
+    setTab("individual");
+    fetchResponses();
+}
+
+const statusLabel = computed(() => {
+    const status = overview.value?.survey.status;
+    if (status === "live") return "Live";
+    if (status === "ended") return "Ended";
+    if (status === "draft") return "Draft";
+    return "";
+});
+
+const runLine = computed(() => {
+    const run = overview.value?.survey.run;
+    if (!run || run.kind === "none" || !run.from || run.days == null) return "";
+    if (run.kind === "live") return `Started ${formatMonthDay(run.from)} · day ${run.days}`;
+    return `Ran ${formatMonthDay(run.from)} – ${formatMonthDayYear(run.to || run.from)} · ${run.days} days`;
+});
+
+const questionLine = computed(() => {
+    const items = overview.value?.survey.questions ?? [];
+    if (items.length === 0) return "";
+    const types = [...new Set(items.map((item) => item.typeLabel.toLowerCase()))].join(", ");
+    const noun = items.length === 1 ? "question" : "questions";
+    return `${items.length} ${noun} · ${types}`;
+});
 
 function showIndividualResponsesForQuestion(questionId: string) {
     selectedQuestionIdForResponses.value = questionId;
@@ -216,9 +272,6 @@ const { selectedIds, isAllSelected, isSomeSelected, toggleSelect, toggleSelectAl
 
 // View response dialog
 const { viewResponseVisible, viewingResponse, openMenuId, toggleRowMenu } = useResponseDialog();
-
-// Chart data
-const { getPieChartData: getPieChartDataFn, toggleShowAllBars } = useChartData();
 
 // Formatters
 const { copyToClipboard } = useResponseFormatters();
@@ -320,15 +373,9 @@ function handleClickOutside(event: MouseEvent) {
     }
 }
 
-// Wrapper for pie chart data (limit to 5 slices for text-answer questions)
-function getPieData(question: { id: string; question_type: string }) {
-    const maxSlices = question.question_type === "text" ? 5 : undefined;
-    return getPieChartDataFn(question.id, questionData.value, maxSlices);
-}
-
 // Lifecycle
 onMounted(async () => {
-    await loadSurvey();
+    await Promise.all([loadSurvey(), loadOverview()]);
     if (questions.value.length > 0 && selectedQuestionIdForResponses.value === null) {
         selectedQuestionIdForResponses.value = questions.value[0].id;
         dailyQuestionId.value = questions.value[0].id;
@@ -344,9 +391,11 @@ onUnmounted(() => {
 // Watchers
 watch(surveyId, async () => {
     selectedQuestionIdForResponses.value = null;
+    overviewQuestionId.value = null;
+    overviewDevice.value = "all";
     dailyQuestionId.value = null;
     dayFilter.value = null;
-    await loadSurvey();
+    await Promise.all([loadSurvey(), loadOverview()]);
     if (questions.value.length > 0) {
         selectedQuestionIdForResponses.value = questions.value[0].id;
         dailyQuestionId.value = questions.value[0].id;
@@ -366,12 +415,14 @@ watch([currentPage, pageSize], async () => {
 </script>
 
 <style scoped>
-/* Layout & Container Styles */
+@import url("https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&display=swap");
+
 .responses-view {
     background: white;
     border-radius: 8px;
     padding: 24px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    font-family: "Nunito Sans", system-ui, sans-serif;
 }
 
 /* Header Section */
@@ -379,11 +430,62 @@ watch([currentPage, pageSize], async () => {
     margin-bottom: 24px;
 }
 
-.header-left {
+.header-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.header-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.header-meta {
     display: flex;
     flex-wrap: wrap;
+    gap: 8px 18px;
+    margin-top: 10px;
+    color: #5b6170;
+    font-size: 14px;
+}
+
+.status-pill {
+    display: inline-flex;
     align-items: center;
-    gap: 16px;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 13px;
+    background: #eceef4;
+    color: #3c4150;
+}
+
+.status-pill.live {
+    background: #e7f4ec;
+    color: #2a6b3f;
+}
+
+.status-pill::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    background: #8a90a0;
+}
+
+.status-pill.live::before {
+    background: #2f9e57;
+}
+
+.action-btn-primary {
+    background: #5b67e0;
+    color: #fff;
+    border-color: #5b67e0;
 }
 
 .back-link {

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { cleanupSurveyEvents } from "../queues/eventIngestion";
 import { invalidateSurveyCache } from "../redis";
 import { addCalendarDays, getDailyStats, isIsoDate, isValidTimeZone } from "../services/dailyStats";
+import { getOverviewStats, parseOverviewDevice } from "../services/overviewStats";
 
 /** Stopwords for 2-word phrase extraction (open-text answers) */
 const STOPWORDS = new Set(
@@ -549,6 +550,37 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                         autoCloseCount: Number(autoCloseCount),
                     },
                 });
+            } catch (error) {
+                fastify.log.error(error);
+                return reply.status(500).send({ error: "Internal server error" });
+            }
+        }
+    );
+
+    // GET /api/surveys/:id/overview — lifetime overview for the stats screen
+    fastify.get<{
+        Params: { id: string };
+        Querystring: { device?: string };
+    }>(
+        "/:id/overview",
+        {
+            onRequest: [fastify.authenticate],
+        },
+        async (request, reply) => {
+            try {
+                const { tenant_id } = request.user as { tenant_id: string };
+                const { id: surveyId } = request.params;
+                const device = parseOverviewDevice(request.query.device);
+                if (device && typeof device === "object" && "error" in device) {
+                    return reply.status(400).send({ error: device.error });
+                }
+                const result = await getOverviewStats({
+                    surveyId,
+                    tenantId: tenant_id,
+                    device: device as "mobile" | "desktop" | "tablet" | null,
+                });
+                if (!result) return reply.status(404).send({ error: "Survey not found" });
+                return reply.send(result);
             } catch (error) {
                 fastify.log.error(error);
                 return reply.status(500).send({ error: "Internal server error" });

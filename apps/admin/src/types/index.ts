@@ -126,6 +126,118 @@ export interface DailyStats {
     days: DailyStatDay[];
 }
 
+export interface OverviewBenchmark {
+    p25: number;
+    median: number;
+    p75: number;
+    scaleMax: number;
+}
+
+export interface OverviewShift {
+    from: number;
+    to: number;
+    delta: number;
+}
+
+export interface OverviewOption {
+    id: string;
+    label: string;
+    count: number;
+    share: number;
+    shift: OverviewShift | null;
+}
+
+export interface OverviewQuestion {
+    id: string;
+    order: number;
+    number: number;
+    text: string;
+    short: string;
+    type: string;
+    typeLabel: string;
+    answers: number;
+    options?: OverviewOption[];
+    averagePicks?: number;
+    answeredShare?: number;
+    latest?: Array<{
+        text: string;
+        at: string;
+        device: string | null;
+        browser: string | null;
+        location: string | null;
+    }>;
+}
+
+export interface OverviewAlert {
+    id: "low_response" | "ignored" | "high_close" | "mix_shifted" | "still_live";
+    tone: "problem" | "caution";
+    kicker: string;
+    title: string;
+    body: string;
+}
+
+export interface OverviewSegmentRow {
+    name?: string;
+    url?: string;
+    responses: number;
+    impressions: number;
+    rate: number;
+    shareOfResponses: number;
+}
+
+export interface SurveyOverview {
+    survey: {
+        name: string;
+        active: boolean;
+        status: "live" | "ended" | "draft";
+        run: { kind: "live" | "ended" | "none"; from: string | null; to: string | null; days: number | null };
+        questions: Array<{
+            id: string;
+            order: number;
+            number: number;
+            text: string;
+            short: string;
+            type: string;
+            typeLabel: string;
+        }>;
+        primaryPage: string | null;
+    };
+    totals: {
+        impressions: number;
+        responses: number;
+        closes: number;
+        responseRate: number;
+        closeRate: number;
+        noAction: number;
+        noActionRate: number;
+    };
+    benchmarks: {
+        surveyCount: number;
+        responseRate: OverviewBenchmark;
+        closeRate: OverviewBenchmark;
+        noAction: OverviewBenchmark;
+    };
+    questions: OverviewQuestion[];
+    alerts: {
+        comparedTo: number;
+        items: OverviewAlert[];
+    };
+    segments: {
+        from: string;
+        lifetimeImpressions: number;
+        devices: { ready: boolean; taggedImpressions: number; rows: OverviewSegmentRow[] };
+        pages: { ready: boolean; taggedImpressions: number; rows: OverviewSegmentRow[] };
+    };
+    daily: Array<{ date: string; responses: number }>;
+    latest: Array<{
+        answer: string;
+        device: string | null;
+        browser: string | null;
+        location: string | null;
+        at: string;
+    }>;
+}
+
 export interface ResponseRow {
     id: number;
     question_id: string;

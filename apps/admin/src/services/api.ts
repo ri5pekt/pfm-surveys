@@ -9,6 +9,7 @@ import type {
     ResponseSummary,
     ResponseRow,
     DailyStats,
+    SurveyOverview,
 } from "../types";
 
 // Use relative URLs - works in both dev and production
@@ -159,6 +160,13 @@ export const surveysApi = {
     ): Promise<{ responses: ResponseRow[]; total: number }> {
         const { data } = await api.get(`/api/surveys/${surveyId}/responses`, {
             params,
+        });
+        return data;
+    },
+
+    async getOverview(surveyId: string, device?: "mobile" | "desktop" | "tablet"): Promise<SurveyOverview> {
+        const { data } = await api.get(`/api/surveys/${surveyId}/overview`, {
+            params: device ? { device } : undefined,
         });
         return data;
     },
