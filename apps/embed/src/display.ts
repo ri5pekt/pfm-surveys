@@ -68,7 +68,7 @@ export function createDisplaySurvey(deps: DisplayDeps) {
         if (isMobile()) {
             surveyEl.setAttribute(
                 "style",
-                `position: fixed; bottom: 0; left: 0; right: 0; z-index: 999999; max-width: none; background: ${widgetBg}; border-radius: 0; box-shadow: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; animation: pfm-slide-in 0.3s ease-out;`
+                `position: fixed; bottom: 0; left: 0; right: 0; z-index: 999999; max-width: none; width: 100%; background: ${widgetBg}; border-radius: 0; box-shadow: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box; max-height: 100dvh; animation: pfm-slide-in 0.3s ease-out;`
             );
         }
 
@@ -338,7 +338,7 @@ export function createDisplaySurvey(deps: DisplayDeps) {
                     // Mobile: full width at bottom, flush with edges, no shadow
                     surveyEl.setAttribute(
                         "style",
-                        `position: fixed; bottom: 0; left: 0; right: 0; z-index: 999999; max-width: none; background: ${widgetBg}; border-radius: 0; box-shadow: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0;`
+                        `position: fixed; bottom: 0; left: 0; right: 0; z-index: 999999; max-width: none; width: 100%; background: ${widgetBg}; border-radius: 0; box-shadow: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box; max-height: 100dvh;`
                     );
                 } else {
                     // Desktop: positioned widget
@@ -346,7 +346,7 @@ export function createDisplaySurvey(deps: DisplayDeps) {
                         "style",
                         `position: fixed; ${
                             POSITION_STYLES[position] ?? POSITION_STYLES["bottom-right"]
-                        } z-index: 999999; min-width: 300px; max-width: 420px; background: ${widgetBg}; border-radius: ${widgetBorderRadius}; box-shadow: 0 8px 40px rgba(0,0,0,0.3); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;`
+                        } z-index: 999999; min-width: 300px; max-width: 420px; background: ${widgetBg}; border-radius: ${widgetBorderRadius}; box-shadow: 0 8px 40px rgba(0,0,0,0.3); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box; max-height: calc(100dvh - 40px);`
                     );
                 }
                 main.style.display = "none";
@@ -360,7 +360,7 @@ export function createDisplaySurvey(deps: DisplayDeps) {
                     // Mobile: full width at bottom, flush with edges, no shadow
                     surveyEl.setAttribute(
                         "style",
-                        `position: fixed; bottom: 0; left: 0; right: 0; z-index: 999999; max-width: none; background: ${widgetBg}; border-radius: 0; box-shadow: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0;`
+                        `position: fixed; bottom: 0; left: 0; right: 0; z-index: 999999; max-width: none; width: 100%; background: ${widgetBg}; border-radius: 0; box-shadow: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box; max-height: 100dvh;`
                     );
                 } else {
                     // Desktop: positioned widget
@@ -368,10 +368,10 @@ export function createDisplaySurvey(deps: DisplayDeps) {
                         "style",
                         `position: fixed; ${
                             POSITION_STYLES[position] ?? POSITION_STYLES["bottom-right"]
-                        } z-index: 999999; min-width: 300px; max-width: 420px; background: ${widgetBg}; border-radius: ${widgetBorderRadius}; box-shadow: 0 8px 40px rgba(0,0,0,0.3); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;`
+                        } z-index: 999999; min-width: 300px; max-width: 420px; background: ${widgetBg}; border-radius: ${widgetBorderRadius}; box-shadow: 0 8px 40px rgba(0,0,0,0.3); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box; max-height: calc(100dvh - 40px);`
                     );
                 }
-                main.style.display = "block";
+                main.style.display = "";
                 minDiv.style.display = "none";
                 syncCollapsedChrome(false);
             }

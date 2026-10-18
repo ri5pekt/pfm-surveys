@@ -40,6 +40,7 @@ export function renderQuestionHTML(
       <label class="pfm-question-label" style="display: block; margin-bottom: 16px; padding-right: 50px; font-size: ${questionTextSize}; font-weight: 600; color: ${textColor}; line-height: 1.5;">
         ${escapeHtml(formatQuestionLabel(question.question_text))}
       </label>
+      <div class="pfm-answers">
   `;
 
     if (question.question_type === "radio" && question.options) {
@@ -153,7 +154,7 @@ export function renderQuestionHTML(
     `;
     }
 
-    html += `</div>`;
+    html += `</div></div>`;
     return html;
 }
 
@@ -267,6 +268,44 @@ export function createSurveyHTML(survey: Survey): string {
         from { opacity: 1; transform: translateY(0); }
         to { opacity: 0; transform: translateY(20px); }
       }
+      #pfm-survey-${survey.id}.pfm-survey-expanded {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-sizing: border-box;
+        max-height: calc(100vh - 40px);
+        max-height: calc(100dvh - 40px);
+      }
+      #pfm-survey-${survey.id}.pfm-survey-expanded .pfm-survey-main {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: 100%;
+        overflow: hidden;
+        box-sizing: border-box;
+      }
+      #pfm-survey-${survey.id}.pfm-survey-expanded .pfm-survey-body,
+      #pfm-survey-${survey.id}.pfm-survey-expanded .pfm-question {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+      }
+      #pfm-survey-${survey.id}.pfm-survey-expanded .pfm-question-label,
+      #pfm-survey-${survey.id}.pfm-survey-expanded .pfm-survey-footer {
+        flex: 0 0 auto;
+      }
+      #pfm-survey-${survey.id}.pfm-survey-expanded .pfm-answers {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+        max-height: calc(100vh - 180px);
+        max-height: calc(100dvh - 180px);
+      }
       .pfm-close-btn:hover { background: rgba(255, 255, 255, 0.1) !important; }
       .pfm-minimize-btn:hover { background: rgba(255, 255, 255, 0.24) !important; }
       .pfm-minimize-btn svg { display: block; }
@@ -312,10 +351,22 @@ export function createSurveyHTML(survey: Survey): string {
           top: auto !important;
           max-width: none !important;
           min-width: 0 !important;
+          width: 100% !important;
           transform: none !important;
           border-radius: 0 !important;
           box-shadow: none !important;
           margin: 0 !important;
+        }
+        #pfm-survey-${survey.id}.pfm-survey-expanded {
+          max-height: 100vh !important;
+          max-height: 100dvh !important;
+        }
+        #pfm-survey-${survey.id}.pfm-survey-expanded .pfm-survey-main {
+          padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+        }
+        #pfm-survey-${survey.id}.pfm-survey-expanded .pfm-answers {
+          max-height: calc(100vh - 160px);
+          max-height: calc(100dvh - 160px);
         }
       }
     </style>
