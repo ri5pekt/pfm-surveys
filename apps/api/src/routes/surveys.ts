@@ -824,6 +824,36 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
         }
     );
 
+    // DELETE /api/surveys/:id/results — wipe answers and stats, keep the survey
+    fastify.delete(
+        "/:id/results",
+        {
+            onRequest: [fastify.authenticate],
+        },
+        async (request, reply) => {
+            try {
+                const { tenant_id } = request.user as { tenant_id: string };
+                const { id } = request.params as { id: string };
+
+                const ownership = await ensureSurveyOwnership(id, tenant_id);
+                if (!ownership) {
+                    return reply.status(404).send({ error: "Survey not found" });
+                }
+
+                await db.transaction().execute(async (trx) => {
+                    await trx.deleteFrom("responses").where("survey_id", "=", id).execute();
+                    await trx.deleteFrom("event_dedup").where("survey_id", "=", id).execute();
+                    await trx.deleteFrom("survey_stats").where("survey_id", "=", id).execute();
+                });
+
+                return reply.send({ cleared: true });
+            } catch (error) {
+                fastify.log.error(error);
+                return reply.status(500).send({ error: "Internal server error" });
+            }
+        }
+    );
+
     // Copy/duplicate survey - MUST come before GET /:id to avoid route conflict
     fastify.post(
         "/:id/copy",

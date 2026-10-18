@@ -185,6 +185,11 @@ export const surveysApi = {
         });
         return data;
     },
+
+    async clearResults(surveyId: string): Promise<{ cleared: boolean }> {
+        const { data } = await api.delete(`/api/surveys/${surveyId}/results`);
+        return data;
+    },
 };
 
 // Operations API (worker activity logs, read-only)

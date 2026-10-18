@@ -5,6 +5,9 @@
             <div class="header-row">
                 <h2 v-if="surveyDetail?.survey?.name" class="survey-title">{{ surveyDetail.survey.name }}</h2>
                 <div class="header-actions">
+                    <button type="button" class="action-btn action-btn-danger" @click="showClearDialog = true">
+                        Clear answers
+                    </button>
                     <RouterLink :to="{ name: 'survey-edit', params: { id: surveyId } }" class="action-btn">
                         Edit survey
                     </RouterLink>
@@ -53,6 +56,7 @@
             <DailyBreakdownPanel
                 v-if="dailyMounted"
                 v-show="activeTab === 'daily'"
+                :key="resultsVersion"
                 :survey-id="surveyId"
                 :survey-name="surveyDetail?.survey?.name ?? 'survey'"
                 :questions="questions"
@@ -107,6 +111,26 @@
             @close="showExportModal = false"
         />
 
+        <Dialog v-model:visible="showClearDialog" modal :closable="true" :style="{ width: '28rem' }">
+            <template #header>
+                <div class="dialog-header-content">
+                    <h3>Clear answers and stats?</h3>
+                </div>
+            </template>
+            <p>
+                This removes every answer, impression, and close for
+                <strong>{{ surveyDetail?.survey?.name || "this survey" }}</strong>. The survey itself stays. This cannot
+                be undone.
+            </p>
+            <p v-if="clearError" class="dialog-error">{{ clearError }}</p>
+            <template #footer>
+                <button class="btn-dialog-secondary" @click="showClearDialog = false" :disabled="clearing">Cancel</button>
+                <button class="btn-dialog-danger" @click="executeClear" :disabled="clearing">
+                    {{ clearing ? "Clearing..." : "Clear answers and stats" }}
+                </button>
+            </template>
+        </Dialog>
+
         <!-- Delete confirmation -->
         <Dialog v-model:visible="showDeleteDialog" modal :closable="true" :style="{ width: '28rem' }">
             <template #header>
@@ -154,6 +178,10 @@ const activeTab = computed<StatsTab>(() => {
     return "overview";
 });
 const dailyMounted = ref(activeTab.value === "daily");
+const resultsVersion = ref(0);
+const showClearDialog = ref(false);
+const clearing = ref(false);
+const clearError = ref("");
 
 function setTab(next: StatsTab) {
     const query = { ...route.query };
@@ -337,6 +365,23 @@ function confirmBulkDelete() {
     showDeleteDialog.value = true;
 }
 
+async function executeClear() {
+    clearing.value = true;
+    clearError.value = "";
+    try {
+        await surveysApi.clearResults(surveyId.value);
+        selectedIds.value = [];
+        showClearDialog.value = false;
+        resultsVersion.value += 1;
+        await Promise.all([loadOverview(), fetchAllData()]);
+    } catch (error) {
+        console.error("Failed to clear survey results:", error);
+        clearError.value = "Could not clear the answers. Try again.";
+    } finally {
+        clearing.value = false;
+    }
+}
+
 async function executeDelete() {
     if (deleteTarget.value === "one" && responseToDelete.value) {
         deleting.value = true;
@@ -488,6 +533,12 @@ watch([currentPage, pageSize], async () => {
     border-color: #5b67e0;
 }
 
+.dialog-error {
+    margin: 12px 0 0;
+    color: #c53030;
+    font-size: 14px;
+}
+
 .back-link {
     color: #667eea;
     text-decoration: none;
@@ -582,6 +633,16 @@ watch([currentPage, pageSize], async () => {
 .action-btn:hover {
     background: #667eea;
     color: white;
+}
+.action-btn.action-btn-danger {
+    color: #c53030;
+    border-color: #f3b4b4;
+    background: #fff;
+}
+.action-btn.action-btn-danger:hover {
+    background: #c53030;
+    color: #fff;
+    border-color: #c53030;
 }
 .action-btn-icon {
     font-size: 15px;

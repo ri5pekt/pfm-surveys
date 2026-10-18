@@ -92,10 +92,12 @@
                     </span>
                 </div>
                 <div v-if="isOpen(option.id)" :id="`comments-${option.id}`" class="comments">
-                    <p v-for="(comment, index) in option.comments" :key="`${option.id}-${index}`" class="comment">
-                        <span>“{{ comment.text }}”</span>
-                        <time>{{ formatNyDateTime(comment.at) }}</time>
-                    </p>
+                    <div v-for="group in commentGroups(option.comments ?? [])" :key="group.label" class="comment">
+                        <span class="comment-text">“{{ group.label }}”</span>
+                        <span class="comment-share">{{ group.share }}%</span>
+                        <span class="comment-count">{{ group.count }}</span>
+                    </div>
+                    <p class="comment-note">Similar wording is grouped. The share is of the written comments.</p>
                 </div>
             </div>
         </div>
@@ -107,6 +109,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import type { OverviewQuestion } from "../../types";
+import { groupComments } from "../../utils/commentGroups";
 import { formatDevice, formatNyDateTime, shiftLabel } from "../../utils/overviewFormat";
 
 const props = defineProps<{
@@ -144,6 +147,10 @@ function isOpen(id: string): boolean {
 
 function toggle(id: string) {
     openIds.value = isOpen(id) ? openIds.value.filter((item) => item !== id) : [...openIds.value, id];
+}
+
+function commentGroups(comments: Array<{ text: string }>) {
+    return groupComments(comments);
 }
 
 const question = computed(() => props.questions.find((item) => item.id === props.questionId) ?? props.questions[0] ?? null);
@@ -398,9 +405,10 @@ h2 {
     margin: 0 0 8px 28px;
 }
 .comment {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr 52px 36px;
     gap: 12px;
+    align-items: center;
     margin: 0;
     padding: 8px 12px;
     border: 1px solid #eceef4;
@@ -410,11 +418,20 @@ h2 {
     font-weight: 500;
     line-height: 1.4;
 }
-.comment time {
-    flex: 0 0 auto;
+.comment-share {
+    text-align: right;
+    font-weight: 800;
+}
+.comment-count {
+    text-align: right;
+    color: var(--faint);
+    font-size: 13px;
+    font-weight: 700;
+}
+.comment-note {
+    margin: 2px 0 0;
     color: var(--muted);
     font-size: 12px;
-    font-weight: 600;
 }
 .num {
     text-align: right;
@@ -517,7 +534,8 @@ h2 {
         display: none;
     }
     .comment {
-        flex-wrap: wrap;
+        grid-template-columns: 1fr 44px 28px;
+        gap: 8px;
     }
 }
 </style>
