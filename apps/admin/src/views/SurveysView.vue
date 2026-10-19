@@ -31,28 +31,112 @@
             </div>
         </div>
 
-        <div class="tabs">
-            <button :class="['tab', { active: activeTab === 'all' }]" @click="activeTab = 'all'">
-                All ({{ filteredSurveys.length }})
-            </button>
-            <button :class="['tab', { active: activeTab === 'active' }]" @click="activeTab = 'active'">
-                Active ({{ activeSurveys.length }})
-            </button>
-            <button :class="['tab', { active: activeTab === 'inactive' }]" @click="activeTab = 'inactive'">
-                Inactive ({{ inactiveSurveys.length }})
-            </button>
-        </div>
-
         <div v-if="loading" class="loading">Loading surveys...</div>
 
-        <div v-else-if="currentSurveys.length === 0" class="empty-state">
-            <p>No {{ activeTab }} surveys yet</p>
-            <button @click="createSurvey" class="btn-primary">Create Your First Survey</button>
-        </div>
-
         <template v-else>
+            <div class="stat-grid">
+                <article class="stat-card">
+                    <p class="stat-label">Live now</p>
+                    <p class="stat-value">{{ formatCount(home?.summary.live ?? 0) }}</p>
+                    <p class="stat-note">
+                        {{ formatCount(home?.summary.liveCollecting ?? 0) }} collecting answers ·
+                        {{ formatCount(home?.summary.liveSilent ?? 0) }} silent
+                    </p>
+                </article>
+                <article class="stat-card">
+                    <p class="stat-label">Launched in {{ home?.summary.thisMonthLabel ?? "this month" }}</p>
+                    <p class="stat-value">{{ formatCount(home?.summary.launchedThisMonth ?? 0) }}</p>
+                    <p class="stat-note">
+                        {{ formatCount(home?.summary.launchedLastMonth ?? 0) }} in {{ home?.summary.lastMonthLabel ?? "last month" }}
+                    </p>
+                </article>
+                <article class="stat-card">
+                    <p class="stat-label">Response rate · last 30 days</p>
+                    <p class="stat-value" :class="{ 'stat-low': home?.summary.rate30dLow }">{{ rate30Label }}</p>
+                    <p class="stat-note">Your usual is {{ usualRateLabel }}</p>
+                </article>
+                <article class="stat-card">
+                    <p class="stat-label">Answers collected</p>
+                    <p class="stat-value">{{ formatCount(home?.summary.answersTotal ?? 0) }}</p>
+                    <p class="stat-note">{{ answersNote }}</p>
+                </article>
+            </div>
+
+            <section v-if="home && home.attention.length" class="attention" aria-label="Needs attention">
+                <div class="attention-head">
+                    <h3>{{ attentionHeading }}</h3>
+                    <p>Checked across all your surveys when you open this page</p>
+                </div>
+                <div class="attention-grid">
+                    <article
+                        v-for="card in home.attention"
+                        :key="`${card.rule}-${card.surveyId ?? 'all'}`"
+                        class="attention-card"
+                        :class="card.type"
+                    >
+                        <p class="attention-kicker">{{ card.kicker }}</p>
+                        <h4 :title="surveyTitle(card.surveyId)">{{ card.title }}</h4>
+                        <p class="attention-body">{{ card.body }}</p>
+                        <div class="attention-actions">
+                            <button type="button" class="attention-btn" @click="onCardAction(card)">
+                                {{ card.cta }}
+                            </button>
+                            <button
+                                v-if="card.canTurnOff && card.surveyId"
+                                type="button"
+                                class="attention-btn"
+                                @click="turnOffFromCard(card.surveyId, card.title)"
+                            >
+                                Turn off
+                            </button>
+                        </div>
+                    </article>
+                </div>
+                <button
+                    v-if="home.attentionTotal > home.attention.length"
+                    type="button"
+                    class="see-all"
+                    @click="selectTab('attention')"
+                >
+                    See all {{ home.attentionTotal }}
+                </button>
+            </section>
+
+            <div class="tabs-row">
+                <div class="tabs">
+                    <button :class="['tab', { active: activeTab === 'all' }]" @click="selectTab('all')">
+                        All ({{ filteredSurveys.length }})
+                    </button>
+                    <button :class="['tab', { active: activeTab === 'live' }]" @click="selectTab('live')">
+                        Live ({{ liveSurveys.length }})
+                    </button>
+                    <button :class="['tab', { active: activeTab === 'ended' }]" @click="selectTab('ended')">
+                        Ended ({{ endedSurveys.length }})
+                    </button>
+                    <button :class="['tab', { active: activeTab === 'drafts' }]" @click="selectTab('drafts')">
+                        Drafts ({{ draftSurveys.length }})
+                    </button>
+                    <button :class="['tab', { active: activeTab === 'attention' }]" @click="selectTab('attention')">
+                        Needs attention ({{ attentionSurveys.length }})
+                    </button>
+                </div>
+                <label class="test-toggle">
+                    <input v-model="showTests" type="checkbox" />
+                    Show test surveys ({{ testSurveys.length }})
+                </label>
+            </div>
+
+            <div v-if="currentSurveys.length === 0" class="empty-state">
+                <p>{{ emptyLabel }}</p>
+                <button v-if="activeTab === 'all' || activeTab === 'drafts' || activeTab === 'live'" @click="createSurvey" class="btn-primary">
+                    Create Your First Survey
+                </button>
+            </div>
+
+            <template v-else>
         <p v-if="exportError" class="export-error">{{ exportError }}</p>
 
+        <div class="table-wrap">
         <table class="surveys-table">
             <thead>
                 <tr>
@@ -69,9 +153,9 @@
                     <th>Name</th>
                     <th>Impressions</th>
                     <th>Responses</th>
+                    <th>Resp. rate</th>
                     <th>Created By</th>
-                    <th>Date Created</th>
-                    <th>Type</th>
+                    <th>Created</th>
                     <th v-if="!exportSelectMode">Actions</th>
                     <th v-if="!exportSelectMode">Status</th>
                 </tr>
@@ -99,19 +183,25 @@
                         :class="{ clickable: !exportSelectMode }"
                         @click="!exportSelectMode && viewResults(survey.id)"
                     >
+                        <span v-if="isFlagged(survey.id)" class="flag" title="Needs attention" aria-label="Needs attention">▲</span>
                         {{ survey.name }}
+                        <span v-if="survey.isTest" class="test-tag">Test</span>
                     </td>
                     <td>
                         <span class="metric-value" :title="`Survey was shown ${survey.impressions || 0} time(s)`">
-                            {{ survey.impressions || 0 }}
+                            {{ formatCount(survey.impressions || 0) }}
                         </span>
                     </td>
-                    <td>{{ survey.responses || 0 }}</td>
+                    <td>{{ formatCount(survey.responses || 0) }}</td>
+                    <td>
+                        <span v-if="shownRate(survey) == null" class="rate-empty">—</span>
+                        <span v-else class="rate" :class="rateBand(survey)">
+                            <i v-if="rateBand(survey) !== 'plain'" class="rate-dot" aria-hidden="true"></i>
+                            {{ formatPercent(shownRate(survey)!) }}
+                        </span>
+                    </td>
                     <td>{{ getCreatorName(survey) }}</td>
                     <td>{{ formatDate(survey.created_at) }}</td>
-                    <td>
-                        <span class="badge">{{ survey.type }}</span>
-                    </td>
                     <td v-if="!exportSelectMode">
                         <div class="actions-panel">
                             <button class="action-btn" @click="viewResults(survey.id)" title="View Results">
@@ -174,21 +264,31 @@
                         </div>
                     </td>
                     <td v-if="!exportSelectMode">
-                        <label class="toggle-label">
-                            <div class="toggle-switch" :class="{ active: survey.active }">
-                                <input
-                                    type="checkbox"
-                                    :checked="survey.active"
-                                    @change="showToggleConfirm(survey)"
-                                    class="toggle-input"
-                                />
-                                <span class="toggle-slider"></span>
-                            </div>
-                        </label>
+                        <div class="status-cell">
+                            <label class="toggle-label">
+                                <div class="toggle-switch" :class="{ active: survey.active }">
+                                    <input
+                                        type="checkbox"
+                                        :checked="survey.active"
+                                        @change="showToggleConfirm(survey)"
+                                        class="toggle-input"
+                                    />
+                                    <span class="toggle-slider"></span>
+                                </div>
+                            </label>
+                            <span class="status-text" :class="listStatus(survey)">{{ survey.statusText || statusLabel(survey) }}</span>
+                        </div>
                     </td>
                 </tr>
             </tbody>
         </table>
+        </div>
+        <p v-if="home" class="rate-legend">
+            <span class="legend-item low">Bottom 10% of your surveys (under {{ formatPercent(home.benchmark.p10) }})</span>
+            <span class="legend-item high">Top 10% (over {{ formatPercent(home.benchmark.p90) }})</span>
+            <span class="legend-item usual">In the usual range, or under 200 impressions</span>
+        </p>
+            </template>
         </template>
 
         <!-- Toggle Confirmation Dialog -->
@@ -214,8 +314,13 @@
             </template>
             <div class="dialog-body">
                 <p>
-                    Are you sure you want to {{ confirmAction === "activate" ? "activate" : "deactivate" }}
-                    <strong>"{{ pendingSurvey?.name }}"</strong>?
+                    <template v-if="cardTurnOff">
+                        Turn off <strong>{{ cardTurnOffName }}</strong>? It will stop showing on your site.
+                    </template>
+                    <template v-else>
+                        Are you sure you want to {{ confirmAction === "activate" ? "activate" : "deactivate" }}
+                        <strong>"{{ pendingSurvey?.name }}"</strong>?
+                    </template>
                 </p>
                 <p v-if="confirmAction === 'activate'" class="dialog-hint">
                     The survey will be visible to users on your website.
@@ -226,7 +331,7 @@
                 <div class="dialog-footer">
                     <button class="btn-dialog-secondary" @click="cancelToggle">Cancel</button>
                     <button class="btn-dialog-primary" @click="confirmToggle">
-                        {{ confirmAction === "activate" ? "Activate" : "Deactivate" }}
+                        {{ cardTurnOff ? "Turn off" : confirmAction === "activate" ? "Activate" : "Deactivate" }}
                     </button>
                 </div>
             </template>
@@ -322,7 +427,7 @@ import Dialog from "primevue/dialog";
 import { useSitesStore } from "../stores/sites";
 import { useAuthStore } from "../stores/auth";
 import { surveysApi } from "../services/api";
-import type { Survey, SurveyQuestion } from "../types";
+import type { HomeCard, Survey, SurveyHome, SurveyQuestion } from "../types";
 import { delay, exportSurveyResponsesCsv } from "../utils/exportSurveyResponsesCsv";
 
 const router = useRouter();
@@ -331,8 +436,13 @@ const sitesStore = useSitesStore();
 const authStore = useAuthStore();
 
 const surveys = ref<Survey[]>([]);
+const home = ref<SurveyHome | null>(null);
 const loading = ref(false);
-const activeTab = ref<"all" | "active" | "inactive">("all");
+const activeTab = ref<"all" | "live" | "ended" | "drafts" | "attention">("all");
+const showTests = ref(localStorage.getItem("pfm_showTestSurveys") === "true");
+const newestFirst = ref(false);
+const cardTurnOff = ref(false);
+const cardTurnOffName = ref("");
 const showMyOnly = ref(localStorage.getItem("pfm_showMySurveys") === "true");
 const showConfirmDialog = ref(false);
 const pendingSurvey = ref<Survey | null>(null);
@@ -353,20 +463,133 @@ const exportError = ref("");
 // Watch and persist showMyOnly preference
 watch(showMyOnly, (value) => {
     localStorage.setItem("pfm_showMySurveys", value.toString());
+    fetchHome();
+});
+watch(showTests, (value) => {
+    localStorage.setItem("pfm_showTestSurveys", value.toString());
 });
 
-const filteredSurveys = computed(() => {
+const ownedSurveys = computed(() => {
     if (!showMyOnly.value) return surveys.value;
-    return surveys.value.filter((s) => s.created_by === authStore.user?.id);
+    return surveys.value.filter((survey) => survey.created_by === authStore.user?.id);
+});
+const testSurveys = computed(() => ownedSurveys.value.filter((survey) => survey.isTest));
+const filteredSurveys = computed(() => {
+    if (showTests.value) return ownedSurveys.value;
+    return ownedSurveys.value.filter((survey) => !survey.isTest);
+});
+const flaggedIds = computed(() => new Set(home.value?.flaggedIds ?? []));
+const attentionSurveys = computed(() => filteredSurveys.value.filter((survey) => flaggedIds.value.has(survey.id)));
+
+const liveSurveys = computed(() => filteredSurveys.value.filter((s) => listStatus(s) === "live"));
+const endedSurveys = computed(() => filteredSurveys.value.filter((s) => listStatus(s) === "ended"));
+const draftSurveys = computed(() => filteredSurveys.value.filter((s) => listStatus(s) === "draft"));
+const currentSurveys = computed(() => {
+    if (activeTab.value === "live") return liveSurveys.value;
+    if (activeTab.value === "ended") return endedSurveys.value;
+    if (activeTab.value === "drafts") return draftSurveys.value;
+    if (activeTab.value === "attention") return attentionSurveys.value;
+    const rows = newestFirst.value
+        ? filteredSurveys.value
+        : [...liveSurveys.value, ...filteredSurveys.value.filter((survey) => listStatus(survey) !== "live")];
+    return rows;
 });
 
-const activeSurveys = computed(() => filteredSurveys.value.filter((s) => s.active));
-const inactiveSurveys = computed(() => filteredSurveys.value.filter((s) => !s.active));
-const currentSurveys = computed(() => {
-    if (activeTab.value === "all") return filteredSurveys.value;
-    if (activeTab.value === "active") return activeSurveys.value;
-    return inactiveSurveys.value;
+const emptyLabel = computed(() => {
+    if (activeTab.value === "live") return "No live surveys yet";
+    if (activeTab.value === "ended") return "No ended surveys yet";
+    if (activeTab.value === "drafts") return "No drafts yet";
+    if (activeTab.value === "attention") return "Nothing needs attention";
+    return "No surveys yet";
 });
+
+const attentionHeading = computed(() => {
+    const count = home.value?.attentionTotal ?? 0;
+    return count === 1 ? "1 thing needs attention" : `${count} things need attention`;
+});
+
+const rate30Label = computed(() => (home.value?.summary.rate30d == null ? "—" : formatPercent(home.value.summary.rate30d)));
+const usualRateLabel = computed(() => (home.value ? formatPercent(home.value.summary.usualRate) : "—"));
+const answersNote = computed(() => {
+    if (!home.value) return "";
+    const count = home.value.summary.surveysWithAnswers;
+    const since = home.value.summary.since;
+    const noun = count === 1 ? "survey" : "surveys";
+    return since ? `across ${formatCount(count)} ${noun} since ${since}` : `across ${formatCount(count)} ${noun}`;
+});
+
+function listStatus(survey: Survey): "live" | "ended" | "draft" {
+    if (survey.status) return survey.status;
+    if (survey.active) return "live";
+    if ((survey.impressions || 0) > 0 || (survey.responses || 0) > 0) return "ended";
+    return "draft";
+}
+
+function selectTab(tab: "all" | "live" | "ended" | "drafts" | "attention") {
+    newestFirst.value = false;
+    activeTab.value = tab;
+}
+
+function shownRate(survey: Survey): number | null {
+    if (survey.responseRate != null) return survey.responseRate;
+    const impressions = survey.impressions || 0;
+    if (impressions <= 0) return null;
+    return ((survey.responses || 0) / impressions) * 100;
+}
+
+function isFlagged(surveyId: string): boolean {
+    return flaggedIds.value.has(surveyId);
+}
+
+function surveyTitle(surveyId?: string): string | undefined {
+    if (!surveyId) return undefined;
+    return surveys.value.find((survey) => survey.id === surveyId)?.name;
+}
+
+function onCardAction(card: HomeCard) {
+    if (card.cta === "See surveys") {
+        newestFirst.value = true;
+        activeTab.value = "all";
+        return;
+    }
+    if (card.surveyId) viewResults(card.surveyId);
+}
+
+function turnOffFromCard(surveyId: string, name: string) {
+    const survey = surveys.value.find((item) => item.id === surveyId);
+    if (!survey) return;
+    pendingSurvey.value = survey;
+    confirmAction.value = "deactivate";
+    cardTurnOff.value = true;
+    cardTurnOffName.value = name;
+    showConfirmDialog.value = true;
+}
+
+function statusLabel(survey: Survey): string {
+    const status = listStatus(survey);
+    if (status === "live") return "Live";
+    if (status === "ended") return "Ended";
+    return "Draft";
+}
+
+function rateBand(survey: Survey): "low" | "high" | "usual" | "plain" {
+    if (survey.isTest) return "plain";
+    const rate = shownRate(survey);
+    const benchmark = home.value?.benchmark;
+    if (rate == null || !benchmark) return "usual";
+    if ((survey.impressions || 0) < benchmark.minImpressions) return "usual";
+    if (rate < benchmark.p10) return "low";
+    if (rate > benchmark.p90) return "high";
+    return "usual";
+}
+
+function formatCount(value: number): string {
+    return value.toLocaleString("en-US");
+}
+
+function formatPercent(value: number): string {
+    return `${value.toFixed(1)}%`;
+}
 
 const allVisibleSelected = computed(
     () =>
@@ -466,6 +689,15 @@ async function exportSelectedSurveys() {
     }
 }
 
+async function fetchHome() {
+    if (!sitesStore.currentSite) return;
+    try {
+        home.value = await surveysApi.home(sitesStore.currentSite.id, showMyOnly.value ? "mine" : "all");
+    } catch (error) {
+        console.error("Failed to fetch survey home:", error);
+    }
+}
+
 async function fetchSurveys() {
     if (!sitesStore.currentSite) return;
 
@@ -473,6 +705,7 @@ async function fetchSurveys() {
     try {
         const response = await surveysApi.getAll({ site_id: sitesStore.currentSite.id });
         surveys.value = response.surveys;
+        await fetchHome();
     } catch (error) {
         console.error("Failed to fetch surveys:", error);
     } finally {
@@ -495,12 +728,16 @@ function viewResults(surveyId: string) {
 function showToggleConfirm(survey: Survey) {
     pendingSurvey.value = survey;
     confirmAction.value = survey.active ? "deactivate" : "activate";
+    cardTurnOff.value = false;
+    cardTurnOffName.value = "";
     showConfirmDialog.value = true;
 }
 
 function cancelToggle() {
     showConfirmDialog.value = false;
     pendingSurvey.value = null;
+    cardTurnOff.value = false;
+    cardTurnOffName.value = "";
 }
 
 async function confirmToggle() {
@@ -515,9 +752,19 @@ async function confirmToggle() {
 
         // Update UI on success
         survey.active = newStatus;
+        if (!newStatus) {
+            survey.status = (survey.impressions || 0) > 0 || (survey.responses || 0) > 0 ? "ended" : "draft";
+            survey.statusText = survey.status === "draft" ? "Draft" : "Ended";
+        } else {
+            survey.status = "live";
+            survey.statusText = "Live";
+        }
 
         showConfirmDialog.value = false;
         pendingSurvey.value = null;
+        cardTurnOff.value = false;
+        cardTurnOffName.value = "";
+        await fetchHome();
     } catch (error) {
         console.error("Failed to update survey status:", error);
         // TODO: Show error dialog
@@ -576,7 +823,7 @@ async function confirmCopy() {
     try {
         const response = await surveysApi.copy(surveyId);
         // Navigate to edit the new copy
-        router.push({ name: "survey-edit", params: { id: response.survey.id } });
+        router.push({ name: "survey-edit", params: { id: response.survey.id }, query: { linked: "1" } });
     } catch (error) {
         console.error("Failed to copy survey:", error);
         // TODO: Show error dialog
@@ -625,10 +872,162 @@ watch(
 
 <style scoped>
 .surveys-view {
+    background: transparent;
+    padding: 0;
+}
+
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.attention-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+}
+
+.stat-card {
     background: white;
+    border: 1px solid #e6e8ee;
+    border-radius: 12px;
+    padding: 16px 18px 14px;
+}
+
+.stat-label,
+.attention-kicker {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #8b919c;
+}
+
+.stat-value {
+    margin: 8px 0 4px;
+    font-size: 30px;
+    line-height: 1.1;
+    font-weight: 650;
+    color: #1a1d23;
+    font-variant-numeric: tabular-nums;
+}
+
+.stat-value.stat-low {
+    color: #b23a33;
+}
+
+.stat-note,
+.attention-body {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #6b7280;
+}
+
+.attention {
+    margin-top: 22px;
+}
+
+.attention-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+.attention-head h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 650;
+    color: #1a1d23;
+}
+
+.attention-head p {
+    margin: 0;
+    font-size: 13px;
+    color: #8b919c;
+}
+
+.attention-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 168px;
+    padding: 16px 16px 14px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+}
+
+.attention-card.caution {
+    background: #fdf7ee;
+    border-color: #f0d9b5;
+}
+
+.attention-card.problem {
+    background: #fdf3f2;
+    border-color: #f1c9c5;
+}
+
+.attention-card h4 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 650;
+    color: #1a1d23;
+}
+
+.attention-card .attention-kicker {
+    color: #8a5a12;
+}
+
+.attention-card.problem .attention-kicker {
+    color: #a1342d;
+}
+
+.attention-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 8px;
+}
+
+.attention-btn {
+    height: 40px;
+    padding: 0 14px;
+    background: white;
+    border: 1px solid #e2d8c8;
     border-radius: 8px;
-    padding: 24px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    font-size: 13px;
+    font-weight: 500;
+    color: #3d4450;
+    cursor: pointer;
+}
+
+.attention-btn:hover {
+    background: #fff;
+    border-color: #c8bfb0;
+}
+
+.see-all {
+    margin-top: 10px;
+    padding: 0;
+    background: none;
+    border: none;
+    color: #667eea;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.attention-card.problem .attention-btn {
+    border-color: #f0d0d0;
+}
+
+.attention-btn:disabled {
+    opacity: 1;
 }
 
 .header-section {
@@ -772,11 +1171,162 @@ watch(
     background: #f7faff;
 }
 
+.tabs-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    border-bottom: 1px solid #e1e4e8;
+    margin: 22px 0 8px;
+}
+
 .tabs {
     display: flex;
     gap: 8px;
-    border-bottom: 1px solid #e1e4e8;
-    margin-bottom: 24px;
+    margin: 0;
+    border-bottom: none;
+    min-width: 0;
+    overflow-x: auto;
+}
+
+.test-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 10px;
+    font-size: 13px;
+    color: #6b7280;
+    white-space: nowrap;
+}
+
+.test-tag {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: #eef0f3;
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 600;
+    vertical-align: middle;
+}
+
+.flag {
+    margin-right: 6px;
+    color: #c45050;
+    font-size: 12px;
+}
+
+.table-wrap {
+    overflow-x: auto;
+}
+
+.status-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.status-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: #8b919c;
+    white-space: nowrap;
+}
+
+.status-text.live {
+    color: #1f8a4c;
+}
+
+.rate {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-variant-numeric: tabular-nums;
+    color: #1a1d23;
+}
+
+.rate.low {
+    color: #b23a33;
+}
+
+.rate.high {
+    color: #2a6b3f;
+}
+
+.rate-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #b7bdc7;
+}
+
+.rate.low .rate-dot {
+    background: #e05353;
+}
+
+.rate.high .rate-dot {
+    background: #3aa76d;
+}
+
+.rate-empty {
+    color: #a0a6b0;
+}
+
+.rate-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin: 14px 0 0;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.legend-item::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #b7bdc7;
+}
+
+.legend-item.low::before {
+    background: #e05353;
+}
+
+.legend-item.high::before {
+    background: #3aa76d;
+}
+
+@media (max-width: 1100px) {
+    .stat-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .tabs-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+@media (max-width: 680px) {
+    .stat-grid,
+    .attention-head {
+        grid-template-columns: 1fr;
+        display: grid;
+    }
+
+    .attention-head {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
 }
 
 .tab {

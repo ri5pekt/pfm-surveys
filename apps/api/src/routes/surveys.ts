@@ -4,8 +4,9 @@ import { db } from "../db/connection";
 import { z } from "zod";
 import { cleanupSurveyEvents } from "../queues/eventIngestion";
 import { invalidateSurveyCache } from "../redis";
-import { addCalendarDays, getDailyStats, isIsoDate, isValidTimeZone } from "../services/dailyStats";
+import { addCalendarDays, getDailyStats, isIsoDate, isValidTimeZone, todayInTimeZone } from "../services/dailyStats";
 import { getOverviewStats, parseOverviewDevice } from "../services/overviewStats";
+import { getSurveyHome, invalidateAlertCaches, surveyListFields } from "../services/surveyAlerts";
 
 /** Stopwords for 2-word phrase extraction (open-text answers) */
 const STOPWORDS = new Set(
@@ -92,6 +93,9 @@ const createSurveySchema = z.object({
     description: z.string().optional(),
     thank_you_message: z.string().nullable().optional(),
     active: z.boolean().optional(),
+    is_test: z.boolean().optional(),
+    product: z.string().max(80).nullable().optional(),
+    previous_version_id: z.string().uuid().nullable().optional(),
     questions: z
         .array(
             z.object({
@@ -167,6 +171,7 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                         "surveys.description",
                         "surveys.type",
                         "surveys.active",
+                        "surveys.is_test",
                         "surveys.created_by",
                         "surveys.created_at",
                         "surveys.updated_at",
@@ -192,11 +197,18 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                 const interactionCounts = new Map<string, number>();
                 const impressionCounts = new Map<string, number>();
                 const dismissalCounts = new Map<string, number>();
+                let statsRows: Array<{
+                    survey_id: string;
+                    first_impression_at: Date | null;
+                    total_responses: number;
+                    total_impressions: number;
+                    total_dismissals: number;
+                }> = [];
 
                 if (surveyIds.length > 0) {
-                    const statsRows = await db
+                    statsRows = await db
                         .selectFrom("survey_stats")
-                        .select(["survey_id", "total_responses", "total_impressions", "total_dismissals"])
+                        .select(["survey_id", "total_responses", "total_impressions", "total_dismissals", "first_impression_at"])
                         .where("survey_id", "in", surveyIds)
                         .execute();
                     for (const row of statsRows) {
@@ -211,19 +223,73 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                     }
                 }
 
-                const surveysWithCounts = surveys.map((survey) => ({
-                    ...survey,
-                    responses: responseCounts.get(survey.id) ?? 0,
-                    interactions: interactionCounts.get(survey.id) ?? 0,
-                    impressions: impressionCounts.get(survey.id) ?? 0,
-                    dismissals: dismissalCounts.get(survey.id) ?? 0,
-                }));
+                const lastResponseDays = new Map<string, string>();
+                const firstImpressionDays = new Map<string, string>();
+                if (surveyIds.length > 0) {
+                    const lastRows = await sql<{ survey_id: string; day: string | null }>`
+                        SELECT survey_id,
+                               to_char(
+                                   (MAX(timestamp) AT TIME ZONE 'UTC') AT TIME ZONE 'America/New_York',
+                                   'YYYY-MM-DD'
+                               ) AS day
+                        FROM responses
+                        WHERE survey_id = ANY(${sql.raw(`ARRAY[${surveyIds.map((id) => `'${id}'`).join(",")}]::uuid[]`)})
+                        GROUP BY survey_id
+                    `.execute(db);
+                    for (const row of lastRows.rows) {
+                        if (row.day) lastResponseDays.set(row.survey_id, row.day);
+                    }
+                    for (const row of statsRows) {
+                        if (row.first_impression_at) {
+                            firstImpressionDays.set(
+                                row.survey_id,
+                                todayInTimeZone("America/New_York", new Date(row.first_impression_at))
+                            );
+                        }
+                    }
+                }
+                const today = todayInTimeZone("America/New_York");
+                const surveysWithCounts = surveys.map((survey) => {
+                    const id = String(survey.id);
+                    const impressions = impressionCounts.get(id) ?? 0;
+                    const responses = responseCounts.get(id) ?? 0;
+                    const presented = surveyListFields({
+                        active: survey.active === true,
+                        impressions,
+                        responses,
+                        firstImpressionDay: firstImpressionDays.get(id) ?? null,
+                        lastResponseDay: lastResponseDays.get(id) ?? null,
+                        today,
+                    });
+                    return {
+                        ...survey,
+                        isTest: survey.is_test === true,
+                        responses,
+                        interactions: interactionCounts.get(id) ?? 0,
+                        impressions,
+                        dismissals: dismissalCounts.get(id) ?? 0,
+                        ...presented,
+                    };
+                });
 
                 return { surveys: surveysWithCounts };
             } catch (error) {
                 fastify.log.error(error);
                 return reply.status(500).send({ error: "Internal server error" });
             }
+        }
+    );
+
+    fastify.get(
+        "/home",
+        { onRequest: [fastify.authenticate] },
+        async (request, reply) => {
+            const { tenant_id, id: userId } = request.user as { tenant_id: string; id: string };
+            const { site, owner } = request.query as { site?: string; owner?: string };
+            if (!site) return reply.status(400).send({ error: "site is required" });
+            const home = await getSurveyHome(tenant_id, site, owner === "mine" ? userId : null);
+            if (!home) return reply.status(404).send({ error: "Site not found" });
+            return home;
         }
     );
 
@@ -249,6 +315,16 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                 if (!site) {
                     return reply.status(404).send({ error: "Site not found" });
                 }
+                if (data.previous_version_id) {
+                    const linked = await db
+                        .selectFrom("surveys")
+                        .innerJoin("sites", "surveys.site_id", "sites.id")
+                        .select("surveys.id")
+                        .where("surveys.id", "=", data.previous_version_id)
+                        .where("sites.tenant_id", "=", tenant_id)
+                        .executeTakeFirst();
+                    if (!linked) return reply.status(400).send({ error: "Earlier version was not found" });
+                }
 
                 // Create survey (honor active from request so "Active" trigger works on create)
                 const survey = await db
@@ -260,10 +336,14 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                         description: data.description || null,
                         thank_you_message: data.thank_you_message || null,
                         active: data.active === true,
+                        is_test: data.is_test === true,
+                        product: data.product?.trim() || null,
+                        previous_version_id: data.previous_version_id || null,
                         created_by: userId,
                     } as any)
                     .returningAll()
                     .executeTakeFirstOrThrow();
+                invalidateAlertCaches();
 
                 // Save questions and options
                 if (data.questions && data.questions.length > 0) {
@@ -846,6 +926,7 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                     await trx.deleteFrom("survey_stats").where("survey_id", "=", id).execute();
                 });
 
+                invalidateAlertCaches();
                 return reply.send({ cleared: true });
             } catch (error) {
                 fastify.log.error(error);
@@ -921,11 +1002,15 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                         description: originalSurvey.description,
                         type: originalSurvey.type,
                         active: false, // Start as inactive
+                        is_test: originalSurvey.is_test === true,
+                        product: originalSurvey.product,
+                        previous_version_id: originalSurvey.id,
                         created_by: user_id,
                         thank_you_message: originalSurvey.thank_you_message,
                     } as any)
                     .returningAll()
                     .executeTakeFirstOrThrow();
+                invalidateAlertCaches();
 
                 // Copy questions and options
                 for (const q of questionsWithOptions) {
@@ -1030,6 +1115,16 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                     return reply.status(404).send({ error: "Survey not found" });
                 }
 
+                const peerSurveys = await db
+                    .selectFrom("surveys")
+                    .innerJoin("sites", "surveys.site_id", "sites.id")
+                    .select(["surveys.id", "surveys.name", "surveys.product", "surveys.created_at"])
+                    .where("sites.tenant_id", "=", tenant_id)
+                    .where("surveys.id", "!=", id)
+                    .orderBy("surveys.created_at", "desc")
+                    .execute();
+                const productChoices = [...new Set(peerSurveys.map((peer) => peer.product).filter((product): product is string => !!product))].sort();
+
                 // Get questions (with randomize_options)
                 const questions = await db
                     .selectFrom("questions")
@@ -1072,6 +1167,8 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                         questions: questionsWithOptions,
                         displaySettings,
                         targetingRules,
+                        productChoices,
+                        versionSurveys: peerSurveys,
                     },
                 };
             } catch (error) {
@@ -1114,9 +1211,27 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                 if (data.name !== undefined) updateData.name = data.name;
                 if (data.description !== undefined) updateData.description = data.description;
                 if (data.active !== undefined) updateData.active = data.active;
+                if (data.is_test !== undefined) updateData.is_test = data.is_test === true;
+                if (data.product !== undefined) updateData.product = typeof data.product === "string" && data.product.trim() ? data.product.trim().slice(0, 80) : null;
+                if (data.previous_version_id !== undefined) {
+                    const previousId = data.previous_version_id || null;
+                    if (previousId === id) return reply.status(400).send({ error: "A survey cannot compare with itself" });
+                    if (previousId) {
+                        const linked = await db
+                            .selectFrom("surveys")
+                            .innerJoin("sites", "surveys.site_id", "sites.id")
+                            .select("surveys.id")
+                            .where("surveys.id", "=", previousId)
+                            .where("sites.tenant_id", "=", tenant_id)
+                            .executeTakeFirst();
+                        if (!linked) return reply.status(400).send({ error: "Earlier version was not found" });
+                    }
+                    updateData.previous_version_id = previousId;
+                }
                 if (data.thank_you_message !== undefined) updateData.thank_you_message = data.thank_you_message || null;
 
                 await db.updateTable("surveys").set(updateData).where("id", "=", id).execute();
+                invalidateAlertCaches();
 
                 // Update questions if provided - PRESERVE EXISTING DATA
                 if (data.questions && Array.isArray(data.questions)) {
@@ -1507,6 +1622,7 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                 await db.deleteFrom("display_settings").where("survey_id", "=", id).execute();
                 await db.deleteFrom("targeting_rules").where("survey_id", "=", id).execute();
                 await db.deleteFrom("surveys").where("id", "=", id).execute();
+                invalidateAlertCaches();
                 await invalidateSurveyCache(existing.site_id).catch(() => { /* non-fatal */ });
                 return { success: true };
             } catch (error) {

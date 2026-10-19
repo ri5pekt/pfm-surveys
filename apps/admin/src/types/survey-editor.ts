@@ -38,10 +38,15 @@ export interface UserGeoRule {
 
 export interface SurveyData {
     name: string;
+    isTest: boolean;
     description: string;
     type: string;
     active: boolean;
     thankYouMessage: string;
+    product: string;
+    previousVersionId: string;
+    productChoices: string[];
+    versionSurveys: Array<{ id: string; name: string; product: string | null }>;
     questions: Question[];
     appearance: {
         backgroundColor: string;
@@ -76,10 +81,15 @@ export interface SurveyData {
 export function createDefaultSurveyData(): SurveyData {
     return {
         name: "",
+        isTest: false,
         description: "",
         type: "popover",
         active: false,
         thankYouMessage: "",
+        product: "",
+        previousVersionId: "",
+        productChoices: [],
+        versionSurveys: [],
         questions: [],
         appearance: {
             backgroundColor: "#667eea",

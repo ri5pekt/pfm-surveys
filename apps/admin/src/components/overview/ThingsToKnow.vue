@@ -83,4 +83,25 @@ h2 {
 .caution .kicker {
     color: #8a5a12;
 }
+.finding {
+    background: #f3f4fe;
+    border-color: #d5d9f7;
+}
+.finding .kicker {
+    color: #4f5bd5;
+}
+.positive {
+    background: #f0f8f3;
+    border-color: #c8e3d1;
+}
+.positive .kicker {
+    color: #2a6b3f;
+}
+.neutral {
+    background: #f6f7fa;
+    border-color: #e3e5ee;
+}
+.neutral .kicker {
+    color: #5b6170;
+}
 </style>

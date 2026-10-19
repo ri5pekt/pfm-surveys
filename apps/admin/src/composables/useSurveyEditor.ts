@@ -29,10 +29,15 @@ export function useSurveyEditor(
             console.log("Loaded survey data:", survey);
 
             surveyData.value.name = survey.name;
+            surveyData.value.isTest = survey.is_test === true || survey.isTest === true;
             surveyData.value.type = survey.type;
             surveyData.value.description = survey.description || "";
             surveyData.value.active = survey.active || false;
             surveyData.value.thankYouMessage = survey.thank_you_message || "";
+            surveyData.value.product = survey.product || "";
+            surveyData.value.previousVersionId = survey.previous_version_id || "";
+            surveyData.value.productChoices = Array.isArray(survey.productChoices) ? survey.productChoices : [];
+            surveyData.value.versionSurveys = Array.isArray(survey.versionSurveys) ? survey.versionSurveys : [];
 
             // Load questions
             if (survey.questions && Array.isArray(survey.questions)) {
@@ -144,10 +149,13 @@ export function useSurveyEditor(
             // Prepare survey data payload
             const surveyPayload = {
                 name: surveyData.value.name,
+                is_test: surveyData.value.isTest,
                 type: surveyData.value.type,
                 description: surveyData.value.description,
                 active: surveyData.value.active,
                 thank_you_message: surveyData.value.thankYouMessage || null,
+                product: surveyData.value.product.trim() || null,
+                previous_version_id: surveyData.value.previousVersionId || null,
                 questions: surveyData.value.questions.map((q) => ({
                     text: q.text,
                     type: q.type,

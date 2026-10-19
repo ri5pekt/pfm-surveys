@@ -37,6 +37,45 @@ export interface Survey {
     interactions?: number;
     impressions?: number;
     dismissals?: number;
+    isTest?: boolean;
+    status?: "live" | "ended" | "draft";
+    statusText?: string;
+    responseRate?: number | null;
+}
+
+export interface HomeCard {
+    type: "problem" | "caution";
+    rule: string;
+    surveyId?: string;
+    kicker: string;
+    title: string;
+    body: string;
+    cta: "View stats" | "See surveys";
+    canTurnOff?: boolean;
+    score: number;
+}
+
+export interface SurveyHome {
+    summary: {
+        live: number;
+        liveCollecting: number;
+        liveSilent: number;
+        launchedThisMonth: number;
+        launchedLastMonth: number;
+        thisMonthLabel: string;
+        lastMonthLabel: string;
+        rate30d: number | null;
+        usualRate: number;
+        rate30dLow: boolean;
+        answersTotal: number;
+        surveysWithAnswers: number;
+        since: string | null;
+    };
+    benchmark: { p10: number; p90: number; minImpressions: number };
+    attention: HomeCard[];
+    attentionTotal: number;
+    flaggedIds: string[];
+    counts: { all: number; live: number; ended: number; draft: number; attention: number; tests: number };
 }
 
 export interface LoginCredentials {
@@ -170,8 +209,8 @@ export interface OverviewQuestion {
 }
 
 export interface OverviewAlert {
-    id: "low_response" | "ignored" | "high_close" | "mix_shifted" | "still_live";
-    tone: "problem" | "caution";
+    id: string;
+    tone: "problem" | "caution" | "finding" | "positive" | "neutral";
     kicker: string;
     title: string;
     body: string;

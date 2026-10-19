@@ -109,6 +109,11 @@ export const sitesApi = {
 
 // Surveys API
 export const surveysApi = {
+    async home(siteId: string, owner: "all" | "mine"): Promise<import("../types").SurveyHome> {
+        const { data } = await api.get("/api/surveys/home", { params: { site: siteId, owner } });
+        return data;
+    },
+
     async getAll(filters?: { site_id?: string; active?: boolean }): Promise<{ surveys: Survey[] }> {
         const { data } = await api.get("/api/surveys", { params: filters });
         return data;

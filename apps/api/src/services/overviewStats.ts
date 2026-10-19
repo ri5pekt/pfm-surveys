@@ -1,6 +1,8 @@
 import { sql } from "kysely";
 import { db } from "../db/connection";
+import { alertBenchmarksFrom } from "./alerts";
 import { addCalendarDays, eachCalendarDay, responseRatePercent, todayInTimeZone } from "./dailyStats";
+import { loadOverviewAlerts } from "./surveyAlerts";
 
 const NY = "America/New_York";
 /** Device and page were first stored on impressions on this New York date. */
@@ -64,8 +66,8 @@ export interface OverviewSegmentRow {
 }
 
 export interface OverviewAlert {
-    id: "low_response" | "ignored" | "high_close" | "mix_shifted" | "still_live";
-    tone: "problem" | "caution";
+    id: string;
+    tone: "problem" | "caution" | "finding" | "positive" | "neutral";
     kicker: string;
     title: string;
     body: string;
@@ -231,193 +233,6 @@ export function parseOverviewDevice(value: string | undefined): OverviewDevice |
     return { error: "device must be all, mobile, desktop, or tablet" };
 }
 
-const ALERT_LIMIT = 3;
-const LOW_RESPONSE_UNDER = 6;
-const LOW_RESPONSE_MIN_IMPRESSIONS = 200;
-const IGNORED_OVER = 70;
-const IGNORED_MIN_IMPRESSIONS = 500;
-const HIGH_CLOSE_OVER = 60;
-const HIGH_CLOSE_MIN_IMPRESSIONS = 200;
-const STALE_LIVE_DAYS = 14;
-const ALERT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-export interface AlertShift {
-    questionNumber: number;
-    label: string;
-    delta: number;
-}
-
-function ratePhrase(value: number): string {
-    const shown = round1(value);
-    return Number.isInteger(shown) ? String(shown) : shown.toFixed(1);
-}
-
-function bandPhrase(p25: number, p75: number): string {
-    const low = Math.round(p25);
-    const high = Math.round(p75);
-    if (low === high) return `${low}%`;
-    return `${low}–${high}%`;
-}
-
-function quoted(label: string): string {
-    return `“${label}”`;
-}
-
-function daysBetween(from: string, to: string): number {
-    const [fromYear, fromMonth, fromDay] = from.split("-").map(Number);
-    const [toYear, toMonth, toDay] = to.split("-").map(Number);
-    const start = Date.UTC(fromYear, (fromMonth || 1) - 1, fromDay || 1);
-    const end = Date.UTC(toYear, (toMonth || 1) - 1, toDay || 1);
-    return Math.max(0, Math.round((end - start) / 86400000));
-}
-
-function alertDate(iso: string): string {
-    const [year, month, day] = iso.split("-").map(Number);
-    return `${ALERT_MONTHS[(month || 1) - 1]} ${day}, ${year}`;
-}
-
-/** Ranked rule catalog. At most three cards, and nothing is added to fill the row. */
-export function buildOverviewAlerts(input: {
-    impressions: number;
-    responseRate: number;
-    closeRate: number;
-    noActionRate: number;
-    active: boolean;
-    today: string;
-    lastResponseDay: string | null;
-    firstImpressionDay: string | null;
-    responseRates: number[];
-    responseP25: number;
-    responseP75: number;
-    closeP25: number;
-    closeP75: number;
-    noActionMedian: number;
-    shifts: AlertShift[];
-}): OverviewAlert[] {
-    const alerts: OverviewAlert[] = [];
-
-    if (
-        input.impressions >= LOW_RESPONSE_MIN_IMPRESSIONS &&
-        input.responseRate < LOW_RESPONSE_UNDER &&
-        input.responseRates.length > 0
-    ) {
-        const worse = input.responseRates.filter((rate) => rate < input.responseRate).length;
-        const rank = worse + 1;
-        const usual = bandPhrase(input.responseP25, input.responseP75);
-        const compared = input.responseRates.length;
-        const title =
-            rank === 1
-                ? `${ratePhrase(input.responseRate)}% answered. That’s the lowest of your surveys.`
-                : `${ratePhrase(input.responseRate)}% answered. That’s in your bottom ${rank}.`;
-        const comparison =
-            worse === 0
-                ? `No comparable survey did worse.`
-                : worse === 1
-                  ? `Only 1 of ${compared} comparable surveys did worse.`
-                  : `Only ${worse} of ${compared} comparable surveys did worse.`;
-        alerts.push({
-            id: "low_response",
-            tone: "problem",
-            kicker: "LOW RESPONSE RATE",
-            title,
-            body: `Your surveys usually get ${usual}. ${comparison}`,
-        });
-    }
-
-    if (input.impressions >= IGNORED_MIN_IMPRESSIONS && input.noActionRate > IGNORED_OVER) {
-        alerts.push({
-            id: "ignored",
-            tone: "problem",
-            kicker: "MOSTLY IGNORED",
-            title: `${ratePhrase(input.noActionRate)}% of visitors neither answered nor closed it.`,
-            body: `Typical is about ${Math.round(input.noActionMedian)}%. The popup may be easy to miss on this page. Check placement or timing.`,
-        });
-    }
-
-    if (input.impressions >= HIGH_CLOSE_MIN_IMPRESSIONS && input.closeRate > HIGH_CLOSE_OVER) {
-        alerts.push({
-            id: "high_close",
-            tone: "problem",
-            kicker: "HIGH CLOSE RATE",
-            title: `${ratePhrase(input.closeRate)}% of visitors closed it.`,
-            body: `Your surveys usually close at ${bandPhrase(input.closeP25, input.closeP75)}.`,
-        });
-    }
-
-    const shifted = mixShiftAlert(input.shifts);
-    if (shifted) alerts.push(shifted);
-
-    const stale = stillLiveAlert(input);
-    if (stale) alerts.push(stale);
-
-    return alerts.slice(0, ALERT_LIMIT);
-}
-
-function mixShiftAlert(shifts: AlertShift[]): OverviewAlert | null {
-    if (shifts.length === 0) return null;
-    const byQuestion = new Map<number, AlertShift[]>();
-    for (const shift of shifts) {
-        const list = byQuestion.get(shift.questionNumber) ?? [];
-        list.push(shift);
-        byQuestion.set(shift.questionNumber, list);
-    }
-    let bestNumber = 0;
-    let bestAbs = -1;
-    for (const [number, list] of byQuestion) {
-        const abs = Math.max(...list.map((shift) => Math.abs(shift.delta)));
-        if (abs > bestAbs || (abs === bestAbs && (bestNumber === 0 || number < bestNumber))) {
-            bestAbs = abs;
-            bestNumber = number;
-        }
-    }
-    const list = byQuestion.get(bestNumber) ?? [];
-    const rising = list.filter((shift) => shift.delta > 0).sort((a, b) => b.delta - a.delta);
-    const falling = list.filter((shift) => shift.delta < 0).sort((a, b) => a.delta - b.delta);
-    const lead = rising[0] ?? falling[0];
-    if (!lead) return null;
-    const opposite = lead.delta > 0 ? falling[0] : rising[0];
-    const verb = lead.delta > 0 ? "rose" : "fell";
-    const points = Math.abs(lead.delta) === 1 ? "point" : "points";
-    const oppositeVerb = opposite && opposite.delta > 0 ? "rose" : "fell";
-    return {
-        id: "mix_shifted",
-        tone: "caution",
-        kicker: `ANSWERS SHIFTED · Q${bestNumber}`,
-        title: `${quoted(lead.label)} ${verb} ${Math.abs(lead.delta)} ${points} in the second half.`,
-        body: opposite
-            ? `${quoted(opposite.label)} ${oppositeVerb} ${Math.abs(opposite.delta)}. Check whether traffic sources changed mid-run before trusting the split.`
-            : "Check whether traffic sources changed mid-run before trusting the split.",
-    };
-}
-
-function stillLiveAlert(input: {
-    active: boolean;
-    today: string;
-    lastResponseDay: string | null;
-    firstImpressionDay: string | null;
-}): OverviewAlert | null {
-    if (!input.active) return null;
-    const anchor = input.lastResponseDay ?? input.firstImpressionDay;
-    if (!anchor || anchor > input.today) return null;
-    const quietDays = daysBetween(anchor, input.today);
-    if (quietDays < STALE_LIVE_DAYS) return null;
-    if (!input.lastResponseDay) {
-        return {
-            id: "still_live",
-            tone: "caution",
-            kicker: "STILL MARKED LIVE",
-            title: `No answers in ${quietDays} days, and it’s still live.`,
-            body: `The first impression was ${alertDate(anchor)}. Turn it off if this run is finished.`,
-        };
-    }
-    return {
-        id: "still_live",
-        tone: "caution",
-        kicker: "STILL MARKED LIVE",
-        title: `No answer in ${quietDays} days, and it’s still live.`,
-        body: `The last answer was ${alertDate(input.lastResponseDay)}. Turn it off if this run is finished.`,
-    };
-}
 
 export async function getOverviewStats(args: {
     surveyId: string;
@@ -489,33 +304,20 @@ export async function getOverviewStats(args: {
     const responseBand = responseScale(responseRates, thisResponse);
     const closeBand = fixedScale(closeRates);
     const noActionBand = fixedScale(noActionRates);
-    const shiftHits: AlertShift[] = [];
-    for (const meta of questionMeta) {
-        const map = shiftFacts.get(meta.id);
-        if (!map) continue;
-        for (const option of options) {
-            if (option.question_id !== meta.id) continue;
-            const shift = map.get(option.id);
-            if (!shift) continue;
-            shiftHits.push({ questionNumber: meta.number, label: option.option_text, delta: shift.delta });
-        }
-    }
-    const alerts = buildOverviewAlerts({
+    const alerts = await loadOverviewAlerts({
+        tenantId,
+        surveyId,
+        benchmarks: alertBenchmarksFrom(benchmarks),
         impressions,
-        responseRate: thisResponse,
-        closeRate: thisClose,
-        noActionRate: thisNoAction,
+        responses,
+        closes,
         active: survey.active,
-        today: todayInTimeZone(NY),
         lastResponseDay: runTo,
         firstImpressionDay: stats?.first_impression_at ? nyDateFromTimestamptz(stats.first_impression_at) : null,
-        responseRates,
-        responseP25: responseBand.p25,
-        responseP75: responseBand.p75,
-        closeP25: closeBand.p25,
-        closeP75: closeBand.p75,
-        noActionMedian: noActionBand.median,
-        shifts: shiftHits,
+        questions: questionMeta.map((meta) => ({ id: meta.id, number: meta.number, type: meta.type })),
+        options,
+        shifts: shiftFacts,
+        segments,
     });
 
     return {
@@ -619,6 +421,7 @@ async function loadBenchmarks(tenantId: string) {
         INNER JOIN sites si ON si.id = s.site_id
         WHERE si.tenant_id = ${tenantId}::uuid
           AND ss.total_impressions >= ${BENCHMARK_MIN_IMPRESSIONS}
+          AND NOT s.is_test
     `.execute(db);
     return rows.rows.map((row) => ({
         impressions: asNumber(row.impressions),
@@ -923,17 +726,19 @@ function mergeOptions(
     shifts?: Map<string, OverviewShift>
 ): OverviewOption[] {
     const people = body?.answers ?? 0;
-    return options.map((option) => {
-        const count = body?.counts.get(option.id) ?? 0;
-        return {
-            id: option.id,
-            label: option.option_text,
-            count,
-            share: wholePercent(count, people),
-            shift: shifts?.get(option.id) ?? null,
-            comments: body?.comments.get(option.id) ?? [],
-        };
-    });
+    return options
+        .map((option) => {
+            const count = body?.counts.get(option.id) ?? 0;
+            return {
+                id: option.id,
+                label: option.option_text,
+                count,
+                share: wholePercent(count, people),
+                shift: shifts?.get(option.id) ?? null,
+                comments: body?.comments.get(option.id) ?? [],
+            };
+        })
+        .sort((a, b) => b.count - a.count);
 }
 
 async function loadSegments(surveyId: string, lifetimeImpressions: number): Promise<OverviewResult["segments"]> {

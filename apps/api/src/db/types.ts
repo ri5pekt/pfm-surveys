@@ -55,6 +55,9 @@ export interface SurveysTable {
     name: string;
     type: string;
     active: boolean;
+    is_test: boolean;
+    product: string | null;
+    previous_version_id: string | null;
     created_by: string | null;
     thank_you_message: string | null;
     created_at: Date;

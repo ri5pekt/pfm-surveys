@@ -74,6 +74,9 @@ Desktop.ini
 *.cert
 secrets/
 
+# Production extracts (country, state, page paths)
+exports/
+
 # IDE specific
 .fleet/
 .cursor/
