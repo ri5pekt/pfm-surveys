@@ -21,12 +21,16 @@ import { ANSWER_COLORS, formatRate } from "../utils/dailySummary";
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
-const props = defineProps<{
-    days: DailyStatDay[];
-    options: DailyStatOption[];
-    mode: "responses" | "percent" | "rate";
-    isText: boolean;
-}>();
+const props = withDefaults(
+    defineProps<{
+        days: DailyStatDay[];
+        options: DailyStatOption[];
+        mode: "responses" | "percent" | "rate";
+        isText: boolean;
+        focusOptionId?: string | null;
+    }>(),
+    { focusOptionId: null }
+);
 
 const canvas = ref<HTMLCanvasElement | null>(null);
 let chart: Chart | null = null;
@@ -39,9 +43,34 @@ function dayLabel(isoDate: string): string {
     return [weekday, monthDay];
 }
 
+function optionValue(day: DailyStatDay, optionId: string): number {
+    if (props.mode === "percent") {
+        const answerTotal = props.options.reduce((sum, item) => sum + (day.options[item.id] ?? 0), 0);
+        if (answerTotal <= 0) return 0;
+        return ((day.options[optionId] ?? 0) / answerTotal) * 100;
+    }
+    return day.options[optionId] ?? 0;
+}
+
+function focusedOptionId(): string | null {
+    if (!props.focusOptionId) return null;
+    return props.options.some((option) => option.id === props.focusOptionId) ? props.focusOptionId : null;
+}
+
 function totalsForMode(): number[] {
     if (props.mode === "rate") return props.days.map((day) => day.response_rate);
+    const focusId = focusedOptionId();
+    if (focusId) return props.days.map((day) => optionValue(day, focusId));
     return props.days.map((day) => day.responses);
+}
+
+function totalLabel(total: number): string {
+    if (props.mode === "rate") return formatRate(total);
+    if (props.mode === "percent" && focusedOptionId()) {
+        const rounded = Math.round(total * 10) / 10;
+        return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)}%`;
+    }
+    return String(Math.round(total));
 }
 
 const stackTotalsPlugin = {
@@ -56,13 +85,15 @@ const stackTotalsPlugin = {
         ctx.textBaseline = "bottom";
         totals.forEach((total, index) => {
             if (props.mode !== "rate" && total <= 0) return;
+            const slot = current.chartArea ? current.chartArea.width / Math.max(totals.length, 1) : 0;
+            if (slot > 0 && slot < 28) return;
             let top = Number.POSITIVE_INFINITY;
             current.data.datasets.forEach((_, datasetIndex) => {
                 const element = current.getDatasetMeta(datasetIndex).data[index] as { y?: number } | undefined;
                 if (element && typeof element.y === "number") top = Math.min(top, element.y);
             });
             if (!Number.isFinite(top)) return;
-            const label = props.mode === "rate" ? formatRate(total) : String(total);
+            const label = totalLabel(total);
             const x = (current.getDatasetMeta(0).data[index] as { x?: number } | undefined)?.x;
             if (typeof x !== "number") return;
             ctx.fillText(label, x, top - 4);
@@ -73,6 +104,11 @@ const stackTotalsPlugin = {
 
 function buildConfig(): ChartConfiguration<"bar"> {
     const labels = props.days.map((day) => dayLabel(day.date));
+    const focusId = focusedOptionId();
+    const barStyle = {
+        categoryPercentage: 0.94,
+        barPercentage: 1,
+    };
     let datasets: ChartConfiguration<"bar">["data"]["datasets"];
 
     if (props.mode === "rate" || props.isText || props.options.length === 0) {
@@ -82,28 +118,19 @@ function buildConfig(): ChartConfiguration<"bar"> {
                 data: props.mode === "rate" ? props.days.map((day) => day.response_rate) : props.days.map((day) => day.responses),
                 backgroundColor: ANSWER_COLORS[0],
                 borderRadius: 3,
-                maxBarThickness: 28,
+                ...barStyle,
             },
         ];
-    } else if (props.mode === "percent") {
-        datasets = props.options.map((option, index) => ({
-            label: option.option_text,
-            data: props.days.map((day) => {
-                const answerTotal = props.options.reduce((sum, item) => sum + (day.options[item.id] ?? 0), 0);
-                if (answerTotal <= 0) return 0;
-                return ((day.options[option.id] ?? 0) / answerTotal) * 100;
-            }),
-            backgroundColor: ANSWER_COLORS[index % ANSWER_COLORS.length],
-            stack: "answers",
-            maxBarThickness: 28,
-        }));
     } else {
-        datasets = props.options.map((option, index) => ({
+        const series = props.options
+            .map((option, index) => ({ option, index }))
+            .filter(({ option }) => !focusId || option.id === focusId);
+        datasets = series.map(({ option, index }) => ({
             label: option.option_text,
-            data: props.days.map((day) => day.options[option.id] ?? 0),
+            data: props.days.map((day) => optionValue(day, option.id)),
             backgroundColor: ANSWER_COLORS[index % ANSWER_COLORS.length],
-            stack: "answers",
-            maxBarThickness: 28,
+            ...(focusId ? { borderRadius: 3 } : { stack: "answers" }),
+            ...barStyle,
         }));
     }
 
@@ -138,14 +165,18 @@ function buildConfig(): ChartConfiguration<"bar"> {
                         color: "#718096",
                         font: { size: 11 },
                         maxRotation: 0,
-                        autoSkip: false,
+                        autoSkip: props.days.length > 18,
                     },
                 },
                 y: {
-                    stacked: props.mode !== "rate",
+                    stacked: props.mode !== "rate" && !focusId,
                     beginAtZero: true,
-                    suggestedMax: props.mode === "percent" ? 100 : undefined,
-                    ticks: { color: "#a0aec0", precision: 0 },
+                    suggestedMax: props.mode === "percent" && !focusId ? 100 : undefined,
+                    grace: focusId ? "12%" : undefined,
+                    ticks: {
+                        color: "#a0aec0",
+                        precision: props.mode === "percent" && focusId ? 1 : 0,
+                    },
                     grid: { color: "#edf2f7" },
                 },
             },
@@ -165,7 +196,7 @@ onUnmounted(() => {
     chart = null;
 });
 
-watch(() => [props.days, props.options, props.mode, props.isText], render, { deep: true });
+watch(() => [props.days, props.options, props.mode, props.isText, props.focusOptionId], render, { deep: true });
 </script>
 
 <style scoped>

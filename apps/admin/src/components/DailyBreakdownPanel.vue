@@ -54,17 +54,26 @@
                         <button type="button" :class="{ active: mode === 'rate' }" @click="mode = 'rate'">Response rate</button>
                     </div>
                 </div>
-                <div v-if="mode !== 'rate' && !isText" class="legend">
-                    <span v-for="(option, index) in stats.question?.options ?? []" :key="option.id">
+                <div v-if="mode !== 'rate' && !isText" class="legend" :class="{ filtering: focusOptionId }">
+                    <button
+                        v-for="(option, index) in stats.question?.options ?? []"
+                        :key="option.id"
+                        type="button"
+                        :class="{ active: focusOptionId === option.id }"
+                        :aria-pressed="focusOptionId === option.id"
+                        :title="focusOptionId ? 'Show all answers' : 'Show only this answer'"
+                        @click="toggleOption(option.id)"
+                    >
                         <i :style="{ background: ANSWER_COLORS[index % ANSWER_COLORS.length] }"></i>
                         {{ option.option_text }}
-                    </span>
+                    </button>
                 </div>
                 <DailyBreakdownChart
                     :days="stats.days"
                     :options="stats.question?.options ?? []"
                     :mode="mode"
                     :is-text="isText"
+                    :focus-option-id="focusOptionId"
                 />
             </section>
 
@@ -176,12 +185,19 @@ const customFrom = ref("");
 const customTo = ref("");
 const pickerOpen = ref(false);
 const mode = ref<"responses" | "percent" | "rate">("responses");
+const selectedOptionId = ref<string | null>(null);
 const loading = ref(false);
 const error = ref("");
 const stats = ref<DailyStats | null>(null);
 
 const timezone = browserTimeZone();
 const isText = computed(() => stats.value?.question?.question_type === "text");
+const focusOptionId = computed(() => {
+    const id = selectedOptionId.value;
+    if (!id || mode.value === "rate" || isText.value) return null;
+    const options = stats.value?.question?.options ?? [];
+    return options.some((option) => option.id === id) ? id : null;
+});
 const questionNumber = computed(() => {
     const index = props.questions.findIndex((question) => question.id === props.questionId);
     return index >= 0 ? index + 1 : 1;
@@ -236,6 +252,10 @@ function onQuestion(event: Event) {
     emit("update:questionId", (event.target as HTMLSelectElement).value);
 }
 
+function toggleOption(optionId: string) {
+    selectedOptionId.value = selectedOptionId.value === null ? optionId : null;
+}
+
 async function load() {
     if (!props.surveyId) return;
     loading.value = true;
@@ -278,6 +298,7 @@ function downloadDay(date: string) {
 watch(
     () => [props.surveyId, props.questionId],
     () => {
+        selectedOptionId.value = null;
         load();
     },
     { immediate: true }
@@ -425,10 +446,33 @@ watch(
 .legend {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 4px 8px;
     margin: 8px 0 4px;
     font-size: 13px;
     color: #2d3748;
+}
+.legend button {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 999px;
+    padding: 3px 8px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    color: inherit;
+}
+.legend button:hover {
+    background: #f7fafc;
+}
+.legend button.active {
+    background: #eef2ff;
+    border-color: #c7d2fe;
+    font-weight: 600;
+}
+.legend.filtering button:not(.active) {
+    opacity: 0.45;
 }
 .legend i {
     display: inline-block;
