@@ -32,7 +32,8 @@
             <!-- Options for Radio Buttons and Checkboxes -->
             <div v-if="question.type === 'radio' || question.type === 'checkbox'" class="form-group">
                 <label>Answer Options</label>
-                <div v-for="(option, optIndex) in question.options" :key="optIndex" class="option-row-hotjar">
+                <div v-for="(option, optIndex) in question.options" :key="optIndex" class="option-block">
+                    <div class="option-row-hotjar">
                     <div class="option-number">ANSWER {{ optIndex + 1 }}</div>
                     <input
                         v-model="option.text"
@@ -42,9 +43,9 @@
                     />
                     <button
                         type="button"
-                        @click="option.requiresComment = !option.requiresComment"
+                        @click="toggleComment(option)"
                         :class="['btn-icon-hotjar', { active: option.requiresComment }]"
-                        title="Enter comment when selecting this answer"
+                        title="Ask for a comment when this answer is selected"
                     >
                         <img src="@/assets/icons/system/comment.svg" alt="Comment" width="18" height="18" />
                     </button>
@@ -64,6 +65,20 @@
                             />
                         </svg>
                     </button>
+                    </div>
+                    <div v-if="option.requiresComment && question.type === 'radio'" class="comment-settings">
+                        <label class="checkbox-inline">
+                            <input type="checkbox" v-model="option.commentRequired" />
+                            <span>Required</span>
+                        </label>
+                        <input
+                            v-model="option.commentPrompt"
+                            type="text"
+                            maxlength="200"
+                            class="comment-prompt-input"
+                            placeholder="Text shown above the box, e.g. Which one?"
+                        />
+                    </div>
                 </div>
 
                 <!-- Add Answer Button -->
@@ -114,7 +129,14 @@
 </template>
 
 <script setup lang="ts">
-import type { Question } from "../../types/survey-editor";
+import type { Question, QuestionOption } from "../../types/survey-editor";
+
+function toggleComment(option: QuestionOption) {
+    option.requiresComment = !option.requiresComment;
+    if (option.requiresComment && option.commentRequired === undefined) {
+        option.commentRequired = true;
+    }
+}
 
 defineProps<{
     questions: Question[];
@@ -200,11 +222,30 @@ defineEmits<{
     border-color: #667eea;
 }
 
+.option-block {
+    margin-bottom: 8px;
+}
+
 .option-row-hotjar {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 8px;
+}
+
+.comment-settings {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 6px;
+    margin-left: 88px;
+}
+
+.comment-prompt-input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
 }
 
 .option-number {

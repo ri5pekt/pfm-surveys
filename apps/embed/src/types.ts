@@ -69,6 +69,9 @@ export interface AnswerOption {
     id: string;
     option_text: string;
     requires_comment?: boolean;
+    /** Absent or true means the comment must be filled in. False makes it optional. */
+    comment_required?: boolean;
+    comment_prompt?: string | null;
     pin_to_bottom?: boolean;
     order_index?: number;
 }

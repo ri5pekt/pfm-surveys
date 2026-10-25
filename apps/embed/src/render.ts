@@ -55,6 +55,10 @@ export function renderQuestionHTML(
 
         for (const option of orderedOptions) {
             const hasComment = option.requires_comment ?? false;
+            const prompt = (option.comment_prompt ?? "").trim();
+            const promptHtml = prompt
+                ? `<p class="pfm-comment-prompt" style="margin: 0 0 8px; font-size: ${answerFontSize}; font-weight: 600; color: ${textColor}; line-height: 1.4;">${escapeHtml(prompt)}</p>`
+                : "";
             html += `
         <div style="margin-bottom: 10px;">
           <label style="display: flex; align-items: center; cursor: pointer; padding: 14px 16px; border: 2px solid ${textColor}4D; border-radius: 30px; transition: all 0.2s; background: transparent;" class="pfm-radio-label">
@@ -70,7 +74,8 @@ export function renderQuestionHTML(
           ${
               hasComment
                   ? `<div class="pfm-comment-field" data-option-id="${option.id}" style="display: none; margin-top: 10px; margin-left: 0;">
-            <textarea name="comment_${question.id}_${option.id}" placeholder="Please enter a comment..." rows="2" style="
+            ${promptHtml}
+            <textarea name="comment_${question.id}_${option.id}" placeholder="${prompt ? "" : "Please enter a comment..."}" rows="2" style="
               width: 100%;
               padding: 12px;
               border: 2px solid ${textColor}4D;

@@ -77,6 +77,8 @@ export interface AnswerOptionsTable {
     question_id: string;
     option_text: string;
     requires_comment: boolean;
+    comment_required: boolean;
+    comment_prompt: string | null;
     pin_to_bottom: boolean;
     order_index: number;
     created_at: Date;

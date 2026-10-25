@@ -260,7 +260,15 @@ const embedRoutes: FastifyPluginAsync = async (fastify) => {
                         questions.map(async (question) => {
                             const options = await db
                                 .selectFrom("answer_options")
-                                .select(["id", "option_text", "requires_comment", "pin_to_bottom", "order_index"])
+                                .select([
+                                    "id",
+                                    "option_text",
+                                    "requires_comment",
+                                    "comment_required",
+                                    "comment_prompt",
+                                    "pin_to_bottom",
+                                    "order_index",
+                                ])
                                 .where("question_id", "=", question.id)
                                 .orderBy("order_index", "asc")
                                 .execute();

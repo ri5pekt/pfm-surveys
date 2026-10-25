@@ -49,6 +49,8 @@ export function useSurveyEditor(
                         ? q.options.map((opt: any) => ({
                               text: opt.option_text || "",
                               requiresComment: opt.requires_comment ?? false,
+                              commentRequired: opt.comment_required !== false,
+                              commentPrompt: opt.comment_prompt || "",
                               pinToBottom: opt.pin_to_bottom ?? false,
                           }))
                         : [],
@@ -166,6 +168,8 @@ export function useSurveyEditor(
                                   .map((opt) => ({
                                       text: opt.text,
                                       requires_comment: opt.requiresComment ?? false,
+                                      comment_required: opt.commentRequired !== false,
+                                      comment_prompt: opt.commentPrompt?.trim() || null,
                                       pin_to_bottom: opt.pinToBottom ?? false,
                                   }))
                             : [],

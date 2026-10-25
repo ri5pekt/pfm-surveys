@@ -1,6 +1,10 @@
 export interface QuestionOption {
     text: string;
     requiresComment?: boolean;
+    /** When a comment box is on, whether the visitor must fill it in. Defaults to required. */
+    commentRequired?: boolean;
+    /** Label shown above the comment box, such as "Which one?". */
+    commentPrompt?: string;
     pinToBottom?: boolean;
 }
 

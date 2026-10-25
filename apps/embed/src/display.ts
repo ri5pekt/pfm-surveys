@@ -217,7 +217,7 @@ export function createDisplaySurvey(deps: DisplayDeps) {
                 if (currentQuestion.question_type === "radio" && value) {
                     const selectedOptionId = value as string;
                     const selectedOption = currentQuestion.options?.find((o) => o.id === selectedOptionId);
-                    if (selectedOption?.requires_comment) {
+                    if (selectedOption?.requires_comment && selectedOption.comment_required !== false) {
                         const commentField = surveyEl.querySelector<HTMLTextAreaElement>(
                             `textarea[name="comment_${currentQuestion.id}_${selectedOptionId}"]`
                         );

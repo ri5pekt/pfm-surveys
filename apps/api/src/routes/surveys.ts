@@ -19,6 +19,30 @@ const STOPWORDS = new Set(
 const MIN_ANSWERS_FOR_PHRASE = 2;
 const TOP_PHRASES_LIMIT = 25;
 
+function optionSettings(opt: unknown): {
+    requires_comment: boolean;
+    comment_required: boolean;
+    comment_prompt: string | null;
+    pin_to_bottom: boolean;
+} {
+    if (typeof opt !== "object" || !opt) {
+        return { requires_comment: false, comment_required: true, comment_prompt: null, pin_to_bottom: false };
+    }
+    const row = opt as {
+        requires_comment?: boolean;
+        comment_required?: boolean;
+        comment_prompt?: string | null;
+        pin_to_bottom?: boolean;
+    };
+    const prompt = typeof row.comment_prompt === "string" ? row.comment_prompt.trim().slice(0, 200) : "";
+    return {
+        requires_comment: row.requires_comment ?? false,
+        comment_required: row.comment_required !== false,
+        comment_prompt: prompt || null,
+        pin_to_bottom: row.pin_to_bottom ?? false,
+    };
+}
+
 /**
  * Extract 2-word phrases from open-text answers: normalize, drop stopwords, count how many answers contain each phrase.
  * Returns phrases that appear in at least MIN_ANSWERS_FOR_PHRASE answers, sorted by that count desc, top N.
@@ -109,6 +133,8 @@ const createSurveySchema = z.object({
                                 // new format
                                 text: z.string(),
                                 requires_comment: z.boolean().optional(),
+                                comment_required: z.boolean().optional(),
+                                comment_prompt: z.string().max(200).nullable().optional(),
                                 pin_to_bottom: z.boolean().optional(),
                             }),
                         ])
@@ -368,15 +394,16 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                             for (let j = 0; j < q.options.length; j++) {
                                 const opt = q.options[j];
                                 const optText = typeof opt === "string" ? opt : opt.text;
-                                const requiresComment = typeof opt === "object" ? opt.requires_comment ?? false : false;
-                                const pinToBottom = typeof opt === "object" ? opt.pin_to_bottom ?? false : false;
+                                const settings = optionSettings(opt);
                                 await db
                                     .insertInto("answer_options")
                                     .values({
                                         question_id: question.id,
                                         option_text: optText,
-                                        requires_comment: requiresComment,
-                                        pin_to_bottom: pinToBottom,
+                                        requires_comment: settings.requires_comment,
+                                        comment_required: settings.comment_required,
+                                        comment_prompt: settings.comment_prompt,
+                                        pin_to_bottom: settings.pin_to_bottom,
                                         order_index: j,
                                     } as any)
                                     .execute();
@@ -1035,6 +1062,8 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                                 question_id: newQuestion.id,
                                 option_text: opt.option_text,
                                 requires_comment: opt.requires_comment,
+                                comment_required: opt.comment_required ?? true,
+                                comment_prompt: opt.comment_prompt ?? null,
                                 pin_to_bottom: opt.pin_to_bottom,
                                 order_index: opt.order_index,
                             } as any)
@@ -1265,18 +1294,7 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                     const optionText = (opt: string | { text?: string } | undefined): string =>
                         opt == null ? "" : typeof opt === "string" ? opt : String(opt?.text ?? "").trim();
 
-                    const optionFlags = (
-                        opt: unknown
-                    ): { requires_comment: boolean; pin_to_bottom: boolean } => {
-                        if (typeof opt !== "object" || !opt) {
-                            return { requires_comment: false, pin_to_bottom: false };
-                        }
-                        const row = opt as { requires_comment?: boolean; pin_to_bottom?: boolean };
-                        return {
-                            requires_comment: row.requires_comment ?? false,
-                            pin_to_bottom: row.pin_to_bottom ?? false,
-                        };
-                    };
+                    const optionFlags = optionSettings;
 
                     // Update or insert questions
                     for (let i = 0; i < data.questions.length; i++) {
@@ -1348,6 +1366,8 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                                         .updateTable("answer_options")
                                         .set({
                                             requires_comment: flags.requires_comment,
+                                            comment_required: flags.comment_required,
+                                            comment_prompt: flags.comment_prompt,
                                             pin_to_bottom: flags.pin_to_bottom,
                                         })
                                         .where("id", "=", existingOpts[j].id)
@@ -1387,17 +1407,17 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                             for (let j = 0; j < q.options.length; j++) {
                                 const opt = q.options[j];
                                 const optText = typeof opt === "string" ? opt : opt?.text ?? "";
-                                const requiresComment =
-                                    typeof opt === "object" && opt ? opt.requires_comment ?? false : false;
-                                const pinToBottom = typeof opt === "object" && opt ? opt.pin_to_bottom ?? false : false;
+                                const settings = optionSettings(opt);
                                 if (optText && String(optText).trim()) {
                                     await db
                                         .insertInto("answer_options")
                                         .values({
                                             question_id: questionId,
                                             option_text: String(optText).trim(),
-                                            requires_comment: requiresComment,
-                                            pin_to_bottom: pinToBottom,
+                                            requires_comment: settings.requires_comment,
+                                            comment_required: settings.comment_required,
+                                            comment_prompt: settings.comment_prompt,
+                                            pin_to_bottom: settings.pin_to_bottom,
                                             order_index: j,
                                         } as any)
                                         .execute();
