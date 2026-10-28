@@ -406,17 +406,20 @@ export function createSurveyHTML(survey: Survey): string {
           max-height: 50dvh !important;
         }
         #pfm-survey-${survey.id}.pfm-mobile-half .pfm-answers {
-          position: relative;
           max-height: none;
         }
+        #pfm-survey-${survey.id}.pfm-mobile-half .pfm-survey-footer {
+          position: relative;
+          margin-top: 44px !important;
+        }
         @keyframes pfm-scroll-cue {
-          0%, 100% { transform: translateX(-50%) translateY(0); }
-          50% { transform: translateX(-50%) translateY(5px); }
+          0%, 100% { transform: translateX(-50%) translateY(calc(-100% - 8px)); }
+          50% { transform: translateX(-50%) translateY(calc(-100% - 3px)); }
         }
         #pfm-survey-${survey.id} .pfm-scroll-cue {
           position: absolute;
           left: 50%;
-          bottom: 8px;
+          top: 0;
           width: 28px;
           height: 28px;
           display: flex;
@@ -426,7 +429,7 @@ export function createSurveyHTML(survey: Survey): string {
           background: rgba(0, 0, 0, 0.45);
           color: ${textColor};
           pointer-events: none;
-          z-index: 2;
+          z-index: 3;
           opacity: 0;
           animation: pfm-scroll-cue 1s ease-in-out infinite;
         }

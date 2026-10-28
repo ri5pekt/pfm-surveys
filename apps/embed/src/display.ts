@@ -342,23 +342,54 @@ export function createDisplaySurvey(deps: DisplayDeps) {
             }, 200);
         }
 
+        let scrollCueDismissed = false;
+
+        function dismissScrollCue(): void {
+            scrollCueDismissed = true;
+            const cue = surveyEl.querySelector(".pfm-scroll-cue");
+            if (cue instanceof HTMLElement) cue.style.opacity = "0";
+        }
+
         function attachScrollCue(): void {
+            scrollCueDismissed = false;
+            surveyEl.querySelector(".pfm-scroll-cue")?.remove();
             if (!mobileHalfSheet || !isMobile()) return;
             if (surveyEl.classList.contains("pfm-survey-minimized-bar")) return;
             const list = surveyEl.querySelector(".pfm-answers");
-            if (!(list instanceof HTMLElement) || list.querySelector(".pfm-scroll-cue")) return;
+            const footer = surveyEl.querySelector(".pfm-survey-footer");
+            if (!(list instanceof HTMLElement) || !(footer instanceof HTMLElement)) return;
             const cue = document.createElement("div");
             cue.className = "pfm-scroll-cue";
             cue.setAttribute("aria-hidden", "true");
             cue.innerHTML =
                 '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
-            list.appendChild(cue);
+            footer.appendChild(cue);
             const update = (): void => {
+                if (scrollCueDismissed) {
+                    cue.style.opacity = "0";
+                    return;
+                }
                 const overflow = list.scrollHeight > list.clientHeight + 8;
-                const atEnd = list.scrollTop + list.clientHeight >= list.scrollHeight - 8;
-                cue.style.opacity = overflow && !atEnd ? "1" : "0";
+                cue.style.opacity = overflow ? "1" : "0";
             };
-            list.addEventListener("scroll", update, { passive: true });
+            list.addEventListener(
+                "scroll",
+                () => {
+                    if (list.scrollTop > 4) dismissScrollCue();
+                    else update();
+                },
+                { passive: true }
+            );
+            list.addEventListener("change", () => dismissScrollCue());
+            list.addEventListener("click", (event) => {
+                const target = event.target;
+                if (
+                    target instanceof Element &&
+                    target.closest(".pfm-radio-label, .pfm-checkbox-label, .pfm-rating-btn")
+                ) {
+                    dismissScrollCue();
+                }
+            });
             requestAnimationFrame(update);
         }
 
