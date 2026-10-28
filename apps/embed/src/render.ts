@@ -413,13 +413,13 @@ export function createSurveyHTML(survey: Survey): string {
           margin-top: 0 !important;
         }
         @keyframes pfm-scroll-cue {
-          0%, 100% { transform: translateX(-50%) translateY(6px); }
-          50% { transform: translateX(-50%) translateY(10px); }
+          0%, 100% { transform: translateX(-50%) translateY(0); }
+          50% { transform: translateX(-50%) translateY(5px); }
         }
         #pfm-survey-${survey.id} .pfm-scroll-cue {
           position: absolute;
           left: 50%;
-          top: 0;
+          top: -48px;
           width: 28px;
           height: 28px;
           display: flex;
