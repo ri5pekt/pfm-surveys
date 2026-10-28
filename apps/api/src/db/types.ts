@@ -107,6 +107,7 @@ export interface DisplaySettingsTable {
     max_responses: number | null;
     show_close_button: boolean;
     show_minimize_button: boolean;
+    mobile_half_sheet: boolean;
     timing_mode: string;
     scroll_percentage: number;
     custom_event_name: string | null;

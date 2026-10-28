@@ -31,15 +31,15 @@ export default defineConfig(({ mode }) => {
             // In production, Caddy handles routing, so relative URLs work everywhere
             proxy: {
                 '/api': {
-                    target: 'http://localhost:3000',
+                    target: env.API_PROXY_TARGET || 'http://localhost:3000',
                     changeOrigin: true,
                 },
                 '/embed': {
-                    target: 'http://localhost:3000',
+                    target: env.API_PROXY_TARGET || 'http://localhost:3000',
                     changeOrigin: true,
                 },
                 '/health': {
-                    target: 'http://localhost:3000',
+                    target: env.API_PROXY_TARGET || 'http://localhost:3000',
                     changeOrigin: true,
                 },
             },

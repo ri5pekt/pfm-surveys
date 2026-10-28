@@ -66,6 +66,7 @@ export function createDisplaySurvey(deps: DisplayDeps) {
             return `rgba(${r}, ${g}, ${b}, ${opacity})`;
         };
         const widgetBg = hexToRgba(widgetBgColor, widgetBgOpacity);
+        const mobileHalfSheet = displaySettings?.mobile_half_sheet === true;
 
         // Phone-sized viewport, or a phone user agent (covers device-mode toggles).
         const isMobile = (): boolean =>
@@ -109,6 +110,7 @@ export function createDisplaySurvey(deps: DisplayDeps) {
             btn.style.cssText = `width: 100%; padding: 12px; background: ${buttonBgColor}; color: ${textColor}; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s;`;
             footer.appendChild(validation);
             footer.appendChild(btn);
+            attachScrollCue();
 
             const showValidation = (message: string): void => {
                 footer.classList.add("is-invalid");
@@ -340,6 +342,30 @@ export function createDisplaySurvey(deps: DisplayDeps) {
             }, 200);
         }
 
+        function attachScrollCue(): void {
+            if (!mobileHalfSheet || !isMobile()) return;
+            if (surveyEl.classList.contains("pfm-survey-minimized-bar")) return;
+            const list = surveyEl.querySelector(".pfm-answers");
+            if (!(list instanceof HTMLElement) || list.querySelector(".pfm-scroll-cue")) return;
+            const cue = document.createElement("div");
+            cue.className = "pfm-scroll-cue";
+            cue.setAttribute("aria-hidden", "true");
+            cue.innerHTML =
+                '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+            list.appendChild(cue);
+            const update = (): void => {
+                const overflow = list.scrollHeight > list.clientHeight + 8;
+                const atEnd = list.scrollTop + list.clientHeight >= list.scrollHeight - 8;
+                cue.style.opacity = overflow && !atEnd ? "1" : "0";
+            };
+            list.addEventListener("scroll", update, { passive: true });
+            requestAnimationFrame(update);
+        }
+
+        function syncHalfSheetClass(expanded: boolean): void {
+            surveyEl.classList.toggle("pfm-mobile-half", mobileHalfSheet && expanded && isMobile());
+        }
+
         function setMinimized(minimized: boolean): void {
             const main = surveyEl.querySelector(".pfm-survey-main") as HTMLElement;
             const minDiv = surveyEl.querySelector(".pfm-survey-minimized") as HTMLElement;
@@ -366,6 +392,7 @@ export function createDisplaySurvey(deps: DisplayDeps) {
                 }
                 main.style.display = "none";
                 minDiv.style.display = "flex";
+                syncHalfSheetClass(false);
                 syncCollapsedChrome(true);
             } else {
                 surveyEl.classList.add("pfm-survey-expanded");
@@ -388,7 +415,9 @@ export function createDisplaySurvey(deps: DisplayDeps) {
                 }
                 main.style.display = "";
                 minDiv.style.display = "none";
+                syncHalfSheetClass(true);
                 syncCollapsedChrome(false);
+                attachScrollCue();
             }
         }
 
@@ -424,18 +453,24 @@ export function createDisplaySurvey(deps: DisplayDeps) {
 
         showQuestion(0);
 
-        // Mobile opens as the question bar. Visitors expand it to answer.
-        // Also re-check after layout and when DevTools switches into a phone size,
+        // Mobile opens as the question bar, unless this survey uses the half-screen sheet.
+        // Re-check after layout and when DevTools switches into a phone size,
         // unless the visitor has already opened the survey themselves.
-        const collapseIfMobile = (): void => {
-            if (userExpanded || !isMobile()) return;
-            if (surveyEl.classList.contains("pfm-survey-minimized-bar")) return;
+        const syncMobileLayout = (): void => {
+            const minimized = surveyEl.classList.contains("pfm-survey-minimized-bar");
+            if (!isMobile() || minimized) {
+                surveyEl.classList.remove("pfm-mobile-half");
+            } else if (mobileHalfSheet) {
+                surveyEl.classList.add("pfm-mobile-half");
+                attachScrollCue();
+            }
+            if (userExpanded || mobileHalfSheet || !isMobile() || minimized) return;
             setMinimized(true);
         };
-        collapseIfMobile();
-        requestAnimationFrame(collapseIfMobile);
-        window.addEventListener("resize", collapseIfMobile);
-        window.matchMedia("(max-width: 767px)").addEventListener("change", collapseIfMobile);
+        syncMobileLayout();
+        requestAnimationFrame(syncMobileLayout);
+        window.addEventListener("resize", syncMobileLayout);
+        window.matchMedia("(max-width: 767px)").addEventListener("change", syncMobileLayout);
 
         logger.log(`[PFM Surveys] ✓ Survey "${survey.name}" displayed (impression tracked)`);
         queueEvent("impression", { survey_id: survey.id });

@@ -168,6 +168,7 @@ export function createSurveyHTML(survey: Survey): string {
     const position = displaySettings?.position ?? "bottom-right";
     const showClose = displaySettings?.show_close_button !== false;
     const showMinimize = displaySettings?.show_minimize_button === true;
+    const mobileHalfSheet = displaySettings?.mobile_half_sheet === true;
 
     // Appearance settings with defaults
     const widgetBgColor = displaySettings?.widget_background_color ?? "#141a2c";
@@ -205,7 +206,9 @@ export function createSurveyHTML(survey: Survey): string {
     const positionStyle = POSITION_STYLES[position] ?? POSITION_STYLES["bottom-right"];
 
     return `
-    <div id="pfm-survey-${survey.id}" class="pfm-survey-container pfm-survey-expanded" data-survey-id="${
+    <div id="pfm-survey-${survey.id}" class="pfm-survey-container pfm-survey-expanded${
+        mobileHalfSheet ? " pfm-mobile-half" : ""
+    }" data-survey-id="${
         survey.id
     }" style="
       position: fixed;
@@ -397,6 +400,35 @@ export function createSurveyHTML(survey: Survey): string {
         #pfm-survey-${survey.id}.pfm-survey-expanded .pfm-answers {
           max-height: calc(100vh - 160px);
           max-height: calc(100dvh - 160px);
+        }
+        #pfm-survey-${survey.id}.pfm-survey-expanded.pfm-mobile-half {
+          height: 50dvh !important;
+          max-height: 50dvh !important;
+        }
+        #pfm-survey-${survey.id}.pfm-mobile-half .pfm-answers {
+          position: relative;
+          max-height: none;
+        }
+        @keyframes pfm-scroll-cue {
+          0%, 100% { transform: translateX(-50%) translateY(0); }
+          50% { transform: translateX(-50%) translateY(5px); }
+        }
+        #pfm-survey-${survey.id} .pfm-scroll-cue {
+          position: absolute;
+          left: 50%;
+          bottom: 8px;
+          width: 28px;
+          height: 28px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          background: rgba(0, 0, 0, 0.45);
+          color: ${textColor};
+          pointer-events: none;
+          z-index: 2;
+          opacity: 0;
+          animation: pfm-scroll-cue 1s ease-in-out infinite;
         }
       }
     </style>

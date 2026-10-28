@@ -69,6 +69,7 @@ export function useSurveyEditor(
             if (survey.displaySettings) {
                 surveyData.value.appearance.showCloseButton = survey.displaySettings.show_close_button !== false;
                 surveyData.value.appearance.showMinimizeButton = survey.displaySettings.show_minimize_button === true;
+                surveyData.value.appearance.mobileHalfSheet = survey.displaySettings.mobile_half_sheet === true;
                 surveyData.value.appearance.widgetBackgroundColor =
                     survey.displaySettings.widget_background_color || "#141a2c";
                 surveyData.value.appearance.widgetBackgroundOpacity =
@@ -202,6 +203,7 @@ export function useSurveyEditor(
                 displaySettings: {
                     show_close_button: surveyData.value.appearance.showCloseButton,
                     show_minimize_button: surveyData.value.appearance.showMinimizeButton,
+                    mobile_half_sheet: surveyData.value.appearance.mobileHalfSheet,
                     widget_background_color: surveyData.value.appearance.widgetBackgroundColor,
                     widget_background_opacity: surveyData.value.appearance.widgetBackgroundOpacity,
                     widget_border_radius: surveyData.value.appearance.widgetBorderRadius,

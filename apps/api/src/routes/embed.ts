@@ -291,6 +291,7 @@ const embedRoutes: FastifyPluginAsync = async (fastify) => {
                             "sample_rate",
                             "show_close_button",
                             "show_minimize_button",
+                            "mobile_half_sheet",
                             "timing_mode",
                             "scroll_percentage",
                             "custom_event_name",

@@ -1,13 +1,6 @@
+import './env';
 import Fastify from 'fastify';
 import rateLimit from '@fastify/rate-limit';
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-// Load .env from workspace root (2 levels up from this file)
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
-
 import { testConnection } from './db/connection';
 import { getRedis } from './redis';
 import corsPlugin from './plugins/cors';

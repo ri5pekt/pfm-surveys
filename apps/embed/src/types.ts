@@ -16,6 +16,8 @@ export interface DisplaySettings {
     sample_rate?: number;
     show_close_button?: boolean;
     show_minimize_button?: boolean;
+    /** Phone only: open expanded, at most half the screen, with a scroll cue. */
+    mobile_half_sheet?: boolean;
     timing_mode?: "immediate" | "delay" | "scroll" | "exit_intent" | "custom_event";
     scroll_percentage?: number;
     custom_event_name?: string | null;

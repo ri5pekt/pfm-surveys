@@ -329,6 +329,9 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
             try {
                 const { id: userId, tenant_id } = request.user as any;
                 const data = createSurveySchema.parse(request.body);
+                (data as { displaySettings?: Record<string, unknown> }).displaySettings = (
+                    request.body as { displaySettings?: Record<string, unknown> }
+                ).displaySettings;
 
                 // Verify site belongs to tenant
                 const site = await db
@@ -484,6 +487,7 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                         max_responses: null,
                         show_close_button: displaySettings.show_close_button !== false,
                         show_minimize_button: displaySettings.show_minimize_button === true,
+                        mobile_half_sheet: displaySettings.mobile_half_sheet === true,
                         timing_mode: behavior.timing || "immediate",
                         scroll_percentage: behavior.scrollPercentage ?? 50,
                         custom_event_name: customEventNameForBehavior(behavior.timing, behavior.customEventName),
@@ -1085,6 +1089,7 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                             max_responses: displaySettings.max_responses,
                             show_close_button: displaySettings.show_close_button,
                             show_minimize_button: displaySettings.show_minimize_button,
+                            mobile_half_sheet: displaySettings.mobile_half_sheet === true,
                             timing_mode: displaySettings.timing_mode,
                             scroll_percentage: displaySettings.scroll_percentage,
                             custom_event_name: displaySettings.custom_event_name,
@@ -1493,6 +1498,7 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                         .select([
                             "show_close_button",
                             "show_minimize_button",
+                            "mobile_half_sheet",
                             "widget_background_color",
                             "widget_background_opacity",
                             "widget_border_radius",
@@ -1522,6 +1528,8 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                         dsUpdate.show_close_button = displaySettings.show_close_button;
                     if (displaySettings.show_minimize_button !== undefined)
                         dsUpdate.show_minimize_button = displaySettings.show_minimize_button;
+                    if (displaySettings.mobile_half_sheet !== undefined)
+                        dsUpdate.mobile_half_sheet = displaySettings.mobile_half_sheet === true;
                     if (displaySettings.widget_background_color !== undefined)
                         dsUpdate.widget_background_color = displaySettings.widget_background_color;
                     if (displaySettings.widget_background_opacity !== undefined)
@@ -1546,6 +1554,8 @@ export default async function surveysRoutes(fastify: FastifyInstance) {
                         dsUpdate.show_close_button = data.displaySettings.show_close_button;
                     if (data.displaySettings.show_minimize_button !== undefined)
                         dsUpdate.show_minimize_button = data.displaySettings.show_minimize_button;
+                    if (data.displaySettings.mobile_half_sheet !== undefined)
+                        dsUpdate.mobile_half_sheet = data.displaySettings.mobile_half_sheet === true;
                     if (data.displaySettings.widget_background_color !== undefined)
                         dsUpdate.widget_background_color = data.displaySettings.widget_background_color;
                     if (data.displaySettings.widget_background_opacity !== undefined)

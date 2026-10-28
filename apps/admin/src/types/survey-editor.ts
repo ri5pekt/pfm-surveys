@@ -56,6 +56,7 @@ export interface SurveyData {
         backgroundColor: string;
         showCloseButton: boolean;
         showMinimizeButton: boolean;
+        mobileHalfSheet: boolean;
         widgetBackgroundColor: string;
         widgetBackgroundOpacity: number;
         widgetBorderRadius: string;
@@ -99,6 +100,7 @@ export function createDefaultSurveyData(): SurveyData {
             backgroundColor: "#667eea",
             showCloseButton: true,
             showMinimizeButton: false,
+            mobileHalfSheet: false,
             widgetBackgroundColor: "#141a2c",
             widgetBackgroundOpacity: 1.0,
             widgetBorderRadius: "8px",
