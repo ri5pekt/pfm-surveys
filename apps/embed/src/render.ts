@@ -225,7 +225,7 @@ export function createSurveyHTML(survey: Survey): string {
       ${absoluteButtons.join("")}
       <div class="pfm-survey-main" style="padding: 14px 20px 20px 20px;">
         <div class="pfm-survey-body"></div>
-        <div class="pfm-survey-footer" style="margin-top: 20px;">
+        <div class="pfm-survey-footer" style="${mobileHalfSheet ? "" : "margin-top: 20px;"}">
           <button type="button" class="pfm-next-btn" style="
             width: 100%;
             padding: 14px;
@@ -410,11 +410,11 @@ export function createSurveyHTML(survey: Survey): string {
         }
         #pfm-survey-${survey.id}.pfm-mobile-half .pfm-survey-footer {
           position: relative;
-          margin-top: 44px !important;
+          margin-top: 0 !important;
         }
         @keyframes pfm-scroll-cue {
-          0%, 100% { transform: translateX(-50%) translateY(calc(-100% - 8px)); }
-          50% { transform: translateX(-50%) translateY(calc(-100% - 3px)); }
+          0%, 100% { transform: translateX(-50%) translateY(6px); }
+          50% { transform: translateX(-50%) translateY(10px); }
         }
         #pfm-survey-${survey.id} .pfm-scroll-cue {
           position: absolute;
