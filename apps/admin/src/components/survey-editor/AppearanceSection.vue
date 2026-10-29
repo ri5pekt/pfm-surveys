@@ -90,7 +90,7 @@
                 </label>
                 <label class="checkbox-label">
                     <input type="checkbox" v-model="appearance.mobileHalfSheet" />
-                    <span>On mobile, open at half the screen</span>
+                    <span>On mobile, open at most half the screen</span>
                 </label>
                 <p class="field-hint">
                     The survey opens expanded, no taller than half the phone. Answers scroll inside, with a small arrow

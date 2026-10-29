@@ -402,11 +402,25 @@ export function createSurveyHTML(survey: Survey): string {
           max-height: calc(100dvh - 160px);
         }
         #pfm-survey-${survey.id}.pfm-survey-expanded.pfm-mobile-half {
-          height: 50dvh !important;
+          height: auto !important;
+          height: min(50dvh, max-content) !important;
           max-height: 50dvh !important;
+        }
+        #pfm-survey-${survey.id}.pfm-mobile-half .pfm-survey-main,
+        #pfm-survey-${survey.id}.pfm-mobile-half .pfm-survey-body,
+        #pfm-survey-${survey.id}.pfm-mobile-half .pfm-question,
+        #pfm-survey-${survey.id}.pfm-mobile-half .pfm-answers {
+          flex: 1 1 auto;
+          min-height: 0;
+          height: auto;
         }
         #pfm-survey-${survey.id}.pfm-mobile-half .pfm-answers {
           max-height: none;
+          overflow-y: auto;
+        }
+        #pfm-survey-${survey.id}.pfm-mobile-half .pfm-thank-you {
+          flex: 0 0 auto;
+          height: auto;
         }
         #pfm-survey-${survey.id}.pfm-mobile-half .pfm-survey-footer {
           position: relative;
